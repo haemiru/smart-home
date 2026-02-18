@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useNotificationStore } from '@/stores/notificationStore'
+import { useFeatureStore, isNavItemVisible } from '@/stores/featureStore'
 
 export type AdminNavItem = {
   key: string
@@ -9,8 +10,6 @@ export type AdminNavItem = {
   badge?: number
 }
 
-// 기본 메뉴: agent_feature_settings 기반으로 ON된 것만 표시
-// 현재는 목업 — 실제로는 store에서 가져옴
 const baseNavItems: Omit<AdminNavItem, 'badge'>[] = [
   { key: 'dashboard', label: '대시보드', path: '/admin/dashboard', icon: '📊' },
   { key: 'properties', label: '매물 관리', path: '/admin/properties', icon: '🏠' },
@@ -32,8 +31,14 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
   const { unansweredInquiryCount } = useNotificationStore()
+  const { features, isLoaded } = useFeatureStore()
 
-  const mainNavItems: AdminNavItem[] = baseNavItems.map((item) => ({
+  // Filter nav items by feature settings
+  const visibleItems = isLoaded
+    ? baseNavItems.filter((item) => isNavItemVisible(item.key, features))
+    : baseNavItems
+
+  const mainNavItems: AdminNavItem[] = visibleItems.map((item) => ({
     ...item,
     badge: item.key === 'inquiries' ? unansweredInquiryCount : undefined,
   }))
@@ -45,11 +50,14 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
         <div
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={onClose}
+          aria-hidden="true"
         />
       )}
 
       {/* Sidebar */}
       <aside
+        role="navigation"
+        aria-label="관리자 메뉴"
         className={`fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 border-r border-gray-200 bg-white transition-transform duration-200 lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}

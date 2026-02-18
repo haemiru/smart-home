@@ -327,6 +327,20 @@ export const repairStatusColor: Record<string, string> = {
   completed: 'bg-green-100 text-green-700',
 }
 
+/** 공동중개 요청 상태 라벨 */
+export const coBrokerageStatusLabel: Record<string, string> = {
+  pending: '대기중',
+  approved: '승인',
+  rejected: '거절',
+}
+
+/** 공동중개 요청 상태 색상 */
+export const coBrokerageStatusColor: Record<string, string> = {
+  pending: 'bg-yellow-100 text-yellow-700',
+  approved: 'bg-green-100 text-green-700',
+  rejected: 'bg-red-100 text-red-700',
+}
+
 /** D-Day 색상 */
 export function dDayColor(dateStr: string | null | undefined): string {
   if (!dateStr) return 'text-gray-400'

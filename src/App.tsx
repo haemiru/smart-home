@@ -3,13 +3,16 @@ import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { router } from './router'
 import { useAuthStore } from './stores/authStore'
+import { useFeatureStore } from './stores/featureStore'
 
 export default function App() {
-  const initialize = useAuthStore((s) => s.initialize)
+  const initAuth = useAuthStore((s) => s.initialize)
+  const initFeatures = useFeatureStore((s) => s.initialize)
 
   useEffect(() => {
-    initialize()
-  }, [initialize])
+    initAuth()
+    initFeatures()
+  }, [initAuth, initFeatures])
 
   return (
     <>

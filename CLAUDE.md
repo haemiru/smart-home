@@ -39,9 +39,21 @@ Two independent portals with separate layouts:
    - `AdminLayout`: `AdminHeader` (search + notifications + profile dropdown) → `AdminSidebar` (desktop) / `AdminMobileNav` (mobile bottom tabs) → content
    - Sidebar items driven by `agent_feature_settings` (feature ON/OFF per agent)
 
+### Admin Dashboard
+
+- **Dashboard** (`/admin/dashboard`) — 7-section overview:
+  1. Summary cards (4-grid): new inquiries, active contracts, properties, customers — clickable → respective pages
+  2. Monthly performance: registrations, contracts closed, total transaction amount + BarChart trend
+  3. Unanswered inquiries (top 5) with status icons and relative time
+  4. Today's schedule: today/tomorrow inspection appointments
+  5. Property stats (top 5): horizontal bar chart — views, inquiries, favorites
+  6. Activity feed: 10-item timeline with icons and links
+  7. Todo list: auto-generated items (unanswered inquiries, upcoming payments, repair requests) with checkbox
+- Mock API in `src/api/dashboard.ts` — aggregated dashboard data
+
 ### Routing
 
-- `src/router.tsx` — central route definition
+- `src/router.tsx` — central route definition with **React.lazy + Suspense** code splitting for all pages
 - User portal routes are **public** (no auth required for browsing)
 - Admin portal routes require `agent` or `staff` role
 - Auth pages: `/auth/login`, `/auth/signup`, `/auth/callback`
@@ -135,16 +147,52 @@ Each feature lives in `src/features/{name}/` with its own `components/`, `hooks/
 - **E-Signature** — placeholder on contract tracker (`전자서명 요청` button), signature status display (미서명/서명중/완료), future 카카오/네이버 API integration
 - Mock API in `src/api/legal.ts` — registry lookup, signature request/status
 
+### Co-Brokerage (공동중개)
+
+- **Shared Property Pool** (`/admin/co-brokerage`) — card-style list of properties shared by other agents, search, stats (매매/임대), request modal with message
+- **Request Management** (`/admin/co-brokerage/requests`) — tabs for received/sent requests, approve with commission ratio slider, reject with confirmation
+- Information disclosure levels: basic (위치/면적/가격) → approved (상세사진/내부정보) → contracted (집주인연락처)
+- DB tables: `shared_properties`, `co_brokerage_requests` (status: pending/approved/rejected)
+- Mock API in `src/api/co-brokerage.ts` — 5 shared properties, 4 requests, CRUD
+
+### Admin Settings (환경설정)
+
+- **Settings Layout** (`/admin/settings`) — left sub-menu (desktop) / horizontal scroll tabs (mobile) + right content `<Outlet />`
+- **Office Info** (`/admin/settings/office`) — form: 사무소명, 대표자, 사업자번호, 면허번호, 주소, 연락처, 팩스, 영업시간 (day-by-day), 로고 upload, 소개글, 전문 분야 (multi-select), 보증보험 정보
+- **Staff** (`/admin/settings/staff`) — list table, invite modal, role assignment (lead_agent/associate_agent/assistant), permission toggle matrix (9 permissions), activate/deactivate/delete
+- **Features** (`/admin/settings/features`) — 8 category groups, each feature: name + description + toggle. Locked features (🔒), Pro features, Gemini features (⚡). Disable confirmation dialog
+- **Categories** (`/admin/settings/categories`) — system categories grouped by type (주거/상업/산업/토지/건물), ON/OFF toggle, reorder (UP/DOWN), custom category add modal (name/emoji/color)
+- **Search** (`/admin/settings/search`) — filter group ON/OFF + order, quick search cards ON/OFF + order, result settings (sort/page size/view mode)
+- **Units** (`/admin/settings/units`) — area (㎡/평), price (만원/억원), distance (m/km), date/time formats
+- **Floating** (`/admin/settings/floating`) — button ON/OFF + order + URL/phone config, FAB color picker, preview
+- **Notifications** (`/admin/settings/notifications`) — matrix: 7 notification types × 3 channels (push/email/alimtalk)
+- **Integrations** (`/admin/settings/integrations`) — 8 external services grouped by category, connect/disconnect with URL input
+- **Billing** (`/admin/settings/billing`) — current plan display, plan comparison (Free/Basic/Pro/Enterprise), payment history table
+- **Security** (`/admin/settings/security`) — password change, 2FA toggle, login records table, active sessions with terminate
+- Mock API in `src/api/settings.ts` — comprehensive mock data for all settings sections
+
 ### Database
 
 - SQL migrations in `supabase/migrations/`
-- Tables: `users`, `agent_profiles`, `staff_members`, `agent_feature_settings`, `properties`, `property_categories`, `property_favorites`, `inquiries`, `inquiry_replies`, `customers`, `customer_activities`, `contracts`, `contract_process`, `ai_generation_logs`, `move_in_guides`, `inspections`, `rental_properties`, `rental_payments`, `repair_requests`, `rental_share_links`
+- Tables: `users`, `agent_profiles`, `staff_members`, `agent_feature_settings`, `properties`, `property_categories`, `property_favorites`, `inquiries`, `inquiry_replies`, `customers`, `customer_activities`, `contracts`, `contract_process`, `ai_generation_logs`, `move_in_guides`, `inspections`, `rental_properties`, `rental_payments`, `repair_requests`, `rental_share_links`, `shared_properties`, `co_brokerage_requests`
 - All tables have Row Level Security (RLS) policies
 - TypeScript types in `src/types/database.ts` — must use `type` aliases (not `interface`) for Row types to satisfy Supabase's `GenericSchema` constraint
+
+### Feature Settings Integration
+
+- `src/stores/featureStore.ts` — Zustand store that loads `agent_feature_settings` on app init
+- `isNavItemVisible()` maps sidebar nav keys to feature keys; hides nav items when all related features are OFF
+- AdminSidebar filters nav items based on feature store state
+- Initialized in `App.tsx` alongside auth store
 
 ### Mock API Pattern
 
 All API modules (`src/api/`) use in-memory mock data for development. Each exports async functions that simulate Supabase calls. Replace with actual Supabase client calls when backend is connected.
+
+### Performance
+
+- **Code splitting**: all pages use `React.lazy()` + `Suspense` with shared `PageLoader` fallback. Main bundle ~531KB (gzip ~158KB), pages split into ~60 chunks
+- Bundle chunks: vendor (react/react-dom), recharts (BarChart/LineChart), and individual page modules
 
 ### Path Aliases
 

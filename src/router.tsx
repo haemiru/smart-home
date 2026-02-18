@@ -1,41 +1,83 @@
+import { lazy, Suspense } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { UserLayout } from '@/layouts/UserLayout'
 import { AdminLayout } from '@/layouts/AdminLayout'
 import { ProtectedRoute } from '@/components/common/ProtectedRoute'
-import { LoginPage } from '@/pages/auth/LoginPage'
-import { SignupPage } from '@/pages/auth/SignupPage'
-import { CallbackPage } from '@/pages/auth/CallbackPage'
-import { HomePage } from '@/pages/user/HomePage'
-import { SearchPage } from '@/pages/user/SearchPage'
-import { PropertyDetailPage } from '@/pages/user/PropertyDetailPage'
-import { MyInquiriesPage } from '@/pages/user/MyInquiriesPage'
-import { MyContractsPage, MyContractDetailPage } from '@/pages/user/MyContractsPage'
-import { MoveInGuidePage } from '@/pages/user/MoveInGuidePage'
-import { DashboardPage } from '@/pages/admin/DashboardPage'
-import { PropertiesPage } from '@/pages/admin/PropertiesPage'
-import { PropertyFormPage } from '@/pages/admin/PropertyFormPage'
-import { InquiriesPage } from '@/pages/admin/InquiriesPage'
-import { InquiryDetailPage } from '@/pages/admin/InquiryDetailPage'
-import { CustomersPage } from '@/pages/admin/CustomersPage'
-import { CustomerDetailPage } from '@/pages/admin/CustomerDetailPage'
-import { ContractsPage } from '@/pages/admin/ContractsPage'
-import { ContractFormPage } from '@/pages/admin/ContractFormPage'
-import { ContractTrackerPage } from '@/pages/admin/ContractTrackerPage'
-import { AIDescriptionPage } from '@/pages/admin/AIDescriptionPage'
-import { ValuationPage } from '@/pages/admin/ValuationPage'
-import { ROICalculatorPage } from '@/pages/admin/ROICalculatorPage'
-import { LocationAnalysisPage } from '@/pages/admin/LocationAnalysisPage'
-import { SignalPage } from '@/pages/admin/SignalPage'
-import { MarketInfoPage } from '@/pages/user/MarketInfoPage'
-import { InspectionListPage } from '@/pages/admin/InspectionListPage'
-import { InspectionChecklistPage } from '@/pages/admin/InspectionChecklistPage'
-import { InspectionReportPage } from '@/pages/admin/InspectionReportPage'
-import { RentalManagementPage } from '@/pages/admin/RentalManagementPage'
-import { RentalDetailPage } from '@/pages/admin/RentalDetailPage'
-import { RentalSharePage } from '@/pages/admin/RentalSharePage'
-import { RegistryPage } from '@/pages/admin/RegistryPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+
+// ─── Lazy-loaded pages ────────────────────────────────
+
+// Auth
+const LoginPage = lazy(() => import('@/pages/auth/LoginPage').then((m) => ({ default: m.LoginPage })))
+const SignupPage = lazy(() => import('@/pages/auth/SignupPage').then((m) => ({ default: m.SignupPage })))
+const CallbackPage = lazy(() => import('@/pages/auth/CallbackPage').then((m) => ({ default: m.CallbackPage })))
+
+// User
+const HomePage = lazy(() => import('@/pages/user/HomePage').then((m) => ({ default: m.HomePage })))
+const SearchPage = lazy(() => import('@/pages/user/SearchPage').then((m) => ({ default: m.SearchPage })))
+const PropertyDetailPage = lazy(() => import('@/pages/user/PropertyDetailPage').then((m) => ({ default: m.PropertyDetailPage })))
+const MyInquiriesPage = lazy(() => import('@/pages/user/MyInquiriesPage').then((m) => ({ default: m.MyInquiriesPage })))
+const MyContractsPage = lazy(() => import('@/pages/user/MyContractsPage').then((m) => ({ default: m.MyContractsPage })))
+const MyContractDetailPage = lazy(() => import('@/pages/user/MyContractsPage').then((m) => ({ default: m.MyContractDetailPage })))
+const MoveInGuidePage = lazy(() => import('@/pages/user/MoveInGuidePage').then((m) => ({ default: m.MoveInGuidePage })))
+const MarketInfoPage = lazy(() => import('@/pages/user/MarketInfoPage').then((m) => ({ default: m.MarketInfoPage })))
+
+// Admin
+const DashboardPage = lazy(() => import('@/pages/admin/DashboardPage').then((m) => ({ default: m.DashboardPage })))
+const PropertiesPage = lazy(() => import('@/pages/admin/PropertiesPage').then((m) => ({ default: m.PropertiesPage })))
+const PropertyFormPage = lazy(() => import('@/pages/admin/PropertyFormPage').then((m) => ({ default: m.PropertyFormPage })))
+const InquiriesPage = lazy(() => import('@/pages/admin/InquiriesPage').then((m) => ({ default: m.InquiriesPage })))
+const InquiryDetailPage = lazy(() => import('@/pages/admin/InquiryDetailPage').then((m) => ({ default: m.InquiryDetailPage })))
+const CustomersPage = lazy(() => import('@/pages/admin/CustomersPage').then((m) => ({ default: m.CustomersPage })))
+const CustomerDetailPage = lazy(() => import('@/pages/admin/CustomerDetailPage').then((m) => ({ default: m.CustomerDetailPage })))
+const ContractsPage = lazy(() => import('@/pages/admin/ContractsPage').then((m) => ({ default: m.ContractsPage })))
+const ContractFormPage = lazy(() => import('@/pages/admin/ContractFormPage').then((m) => ({ default: m.ContractFormPage })))
+const ContractTrackerPage = lazy(() => import('@/pages/admin/ContractTrackerPage').then((m) => ({ default: m.ContractTrackerPage })))
+const AIDescriptionPage = lazy(() => import('@/pages/admin/AIDescriptionPage').then((m) => ({ default: m.AIDescriptionPage })))
+const ValuationPage = lazy(() => import('@/pages/admin/ValuationPage').then((m) => ({ default: m.ValuationPage })))
+const ROICalculatorPage = lazy(() => import('@/pages/admin/ROICalculatorPage').then((m) => ({ default: m.ROICalculatorPage })))
+const LocationAnalysisPage = lazy(() => import('@/pages/admin/LocationAnalysisPage').then((m) => ({ default: m.LocationAnalysisPage })))
+const SignalPage = lazy(() => import('@/pages/admin/SignalPage').then((m) => ({ default: m.SignalPage })))
+const InspectionListPage = lazy(() => import('@/pages/admin/InspectionListPage').then((m) => ({ default: m.InspectionListPage })))
+const InspectionChecklistPage = lazy(() => import('@/pages/admin/InspectionChecklistPage').then((m) => ({ default: m.InspectionChecklistPage })))
+const InspectionReportPage = lazy(() => import('@/pages/admin/InspectionReportPage').then((m) => ({ default: m.InspectionReportPage })))
+const RentalManagementPage = lazy(() => import('@/pages/admin/RentalManagementPage').then((m) => ({ default: m.RentalManagementPage })))
+const RentalDetailPage = lazy(() => import('@/pages/admin/RentalDetailPage').then((m) => ({ default: m.RentalDetailPage })))
+const RentalSharePage = lazy(() => import('@/pages/admin/RentalSharePage').then((m) => ({ default: m.RentalSharePage })))
+const RegistryPage = lazy(() => import('@/pages/admin/RegistryPage').then((m) => ({ default: m.RegistryPage })))
+const CoBrokeragePoolPage = lazy(() => import('@/pages/admin/CoBrokeragePoolPage').then((m) => ({ default: m.CoBrokeragePoolPage })))
+const CoBrokerageRequestsPage = lazy(() => import('@/pages/admin/CoBrokerageRequestsPage').then((m) => ({ default: m.CoBrokerageRequestsPage })))
+
+// Settings
+const SettingsLayout = lazy(() => import('@/pages/admin/settings/SettingsLayout').then((m) => ({ default: m.SettingsLayout })))
+const OfficeSettingsPage = lazy(() => import('@/pages/admin/settings/OfficeSettingsPage').then((m) => ({ default: m.OfficeSettingsPage })))
+const StaffSettingsPage = lazy(() => import('@/pages/admin/settings/StaffSettingsPage').then((m) => ({ default: m.StaffSettingsPage })))
+const FeatureSettingsPage = lazy(() => import('@/pages/admin/settings/FeatureSettingsPage').then((m) => ({ default: m.FeatureSettingsPage })))
+const CategorySettingsPage = lazy(() => import('@/pages/admin/settings/CategorySettingsPage').then((m) => ({ default: m.CategorySettingsPage })))
+const SearchSettingsPage = lazy(() => import('@/pages/admin/settings/SearchSettingsPage').then((m) => ({ default: m.SearchSettingsPage })))
+const UnitSettingsPage = lazy(() => import('@/pages/admin/settings/UnitSettingsPage').then((m) => ({ default: m.UnitSettingsPage })))
+const FloatingSettingsPage = lazy(() => import('@/pages/admin/settings/FloatingSettingsPage').then((m) => ({ default: m.FloatingSettingsPage })))
+const NotificationSettingsPage = lazy(() => import('@/pages/admin/settings/NotificationSettingsPage').then((m) => ({ default: m.NotificationSettingsPage })))
+const IntegrationSettingsPage = lazy(() => import('@/pages/admin/settings/IntegrationSettingsPage').then((m) => ({ default: m.IntegrationSettingsPage })))
+const BillingSettingsPage = lazy(() => import('@/pages/admin/settings/BillingSettingsPage').then((m) => ({ default: m.BillingSettingsPage })))
+const SecuritySettingsPage = lazy(() => import('@/pages/admin/settings/SecuritySettingsPage').then((m) => ({ default: m.SecuritySettingsPage })))
+
+// ─── Suspense wrapper ─────────────────────────────────
+
+function PageLoader() {
+  return (
+    <div className="flex h-40 items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+    </div>
+  )
+}
+
+function S({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<PageLoader />}>{children}</Suspense>
+}
+
+// ─── Router ───────────────────────────────────────────
 
 export const router = createBrowserRouter([
   // Auth routes (public)
@@ -43,25 +85,25 @@ export const router = createBrowserRouter([
     path: '/auth',
     element: <AuthLayout />,
     children: [
-      { path: 'login', element: <LoginPage /> },
-      { path: 'signup', element: <SignupPage /> },
+      { path: 'login', element: <S><LoginPage /></S> },
+      { path: 'signup', element: <S><SignupPage /></S> },
     ],
   },
-  { path: '/auth/callback', element: <CallbackPage /> },
+  { path: '/auth/callback', element: <S><CallbackPage /></S> },
 
   // User portal (public)
   {
     path: '/',
     element: <UserLayout />,
     children: [
-      { index: true, element: <HomePage /> },
-      { path: 'search', element: <SearchPage /> },
-      { path: 'properties/:id', element: <PropertyDetailPage /> },
-      { path: 'my/inquiries', element: <MyInquiriesPage /> },
-      { path: 'my/contracts', element: <MyContractsPage /> },
-      { path: 'my/contracts/:id', element: <MyContractDetailPage /> },
-      { path: 'my/move-in-guide/:contractId', element: <MoveInGuidePage /> },
-      { path: 'market-info', element: <MarketInfoPage /> },
+      { index: true, element: <S><HomePage /></S> },
+      { path: 'search', element: <S><SearchPage /></S> },
+      { path: 'properties/:id', element: <S><PropertyDetailPage /></S> },
+      { path: 'my/inquiries', element: <S><MyInquiriesPage /></S> },
+      { path: 'my/contracts', element: <S><MyContractsPage /></S> },
+      { path: 'my/contracts/:id', element: <S><MyContractDetailPage /></S> },
+      { path: 'my/move-in-guide/:contractId', element: <S><MoveInGuidePage /></S> },
+      { path: 'market-info', element: <S><MarketInfoPage /></S> },
     ],
   },
 
@@ -74,32 +116,52 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { path: 'dashboard', element: <DashboardPage /> },
-      { path: 'properties', element: <PropertiesPage /> },
-      { path: 'properties/new', element: <PropertyFormPage /> },
-      { path: 'properties/:id', element: <PropertyFormPage /> },
-      { path: 'inquiries', element: <InquiriesPage /> },
-      { path: 'inquiries/:id', element: <InquiryDetailPage /> },
-      { path: 'customers', element: <CustomersPage /> },
-      { path: 'customers/:id', element: <CustomerDetailPage /> },
-      { path: 'contracts', element: <ContractsPage /> },
-      { path: 'contracts/new', element: <ContractFormPage /> },
-      { path: 'contracts/:id/tracker', element: <ContractTrackerPage /> },
-      { path: 'ai-tools', element: <AIDescriptionPage /> },
-      { path: 'ai-tools/description', element: <AIDescriptionPage /> },
-      { path: 'analytics', element: <ValuationPage /> },
-      { path: 'analytics/valuation', element: <ValuationPage /> },
-      { path: 'analytics/roi', element: <ROICalculatorPage /> },
-      { path: 'analytics/location', element: <LocationAnalysisPage /> },
-      { path: 'analytics/signal', element: <SignalPage /> },
-      { path: 'inspection', element: <InspectionListPage /> },
-      { path: 'inspection/:id/checklist', element: <InspectionChecklistPage /> },
-      { path: 'inspection/:id/report', element: <InspectionReportPage /> },
-      { path: 'rental-mgmt', element: <RentalManagementPage /> },
-      { path: 'rental-mgmt/:id', element: <RentalDetailPage /> },
-      { path: 'rental-mgmt/share/:token', element: <RentalSharePage /> },
-      { path: 'legal', element: <RegistryPage /> },
-      { path: 'legal/registry', element: <RegistryPage /> },
+      { path: 'dashboard', element: <S><DashboardPage /></S> },
+      { path: 'properties', element: <S><PropertiesPage /></S> },
+      { path: 'properties/new', element: <S><PropertyFormPage /></S> },
+      { path: 'properties/:id', element: <S><PropertyFormPage /></S> },
+      { path: 'inquiries', element: <S><InquiriesPage /></S> },
+      { path: 'inquiries/:id', element: <S><InquiryDetailPage /></S> },
+      { path: 'customers', element: <S><CustomersPage /></S> },
+      { path: 'customers/:id', element: <S><CustomerDetailPage /></S> },
+      { path: 'contracts', element: <S><ContractsPage /></S> },
+      { path: 'contracts/new', element: <S><ContractFormPage /></S> },
+      { path: 'contracts/:id/tracker', element: <S><ContractTrackerPage /></S> },
+      { path: 'ai-tools', element: <S><AIDescriptionPage /></S> },
+      { path: 'ai-tools/description', element: <S><AIDescriptionPage /></S> },
+      { path: 'analytics', element: <S><ValuationPage /></S> },
+      { path: 'analytics/valuation', element: <S><ValuationPage /></S> },
+      { path: 'analytics/roi', element: <S><ROICalculatorPage /></S> },
+      { path: 'analytics/location', element: <S><LocationAnalysisPage /></S> },
+      { path: 'analytics/signal', element: <S><SignalPage /></S> },
+      { path: 'inspection', element: <S><InspectionListPage /></S> },
+      { path: 'inspection/:id/checklist', element: <S><InspectionChecklistPage /></S> },
+      { path: 'inspection/:id/report', element: <S><InspectionReportPage /></S> },
+      { path: 'rental-mgmt', element: <S><RentalManagementPage /></S> },
+      { path: 'rental-mgmt/:id', element: <S><RentalDetailPage /></S> },
+      { path: 'rental-mgmt/share/:token', element: <S><RentalSharePage /></S> },
+      { path: 'legal', element: <S><RegistryPage /></S> },
+      { path: 'legal/registry', element: <S><RegistryPage /></S> },
+      { path: 'co-brokerage', element: <S><CoBrokeragePoolPage /></S> },
+      { path: 'co-brokerage/pool', element: <S><CoBrokeragePoolPage /></S> },
+      { path: 'co-brokerage/requests', element: <S><CoBrokerageRequestsPage /></S> },
+      {
+        path: 'settings',
+        element: <S><SettingsLayout /></S>,
+        children: [
+          { path: 'office', element: <S><OfficeSettingsPage /></S> },
+          { path: 'staff', element: <S><StaffSettingsPage /></S> },
+          { path: 'features', element: <S><FeatureSettingsPage /></S> },
+          { path: 'categories', element: <S><CategorySettingsPage /></S> },
+          { path: 'search', element: <S><SearchSettingsPage /></S> },
+          { path: 'units', element: <S><UnitSettingsPage /></S> },
+          { path: 'floating', element: <S><FloatingSettingsPage /></S> },
+          { path: 'notifications', element: <S><NotificationSettingsPage /></S> },
+          { path: 'integrations', element: <S><IntegrationSettingsPage /></S> },
+          { path: 'billing', element: <S><BillingSettingsPage /></S> },
+          { path: 'security', element: <S><SecuritySettingsPage /></S> },
+        ],
+      },
     ],
   },
 

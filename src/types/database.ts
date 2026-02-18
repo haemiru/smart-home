@@ -295,6 +295,43 @@ export type RepairRequest = {
   memo: string | null
 }
 
+export type CoBrokerageRequestStatus = 'pending' | 'approved' | 'rejected'
+
+export type SharedProperty = {
+  id: string
+  property_id: string
+  agent_id: string
+  agent_name: string
+  office_name: string
+  commission_ratio: number
+  is_active: boolean
+  property_title: string
+  address: string
+  transaction_type: TransactionType
+  sale_price: number | null
+  deposit: number | null
+  monthly_rent: number | null
+  exclusive_area_m2: number | null
+  photos: string[]
+  created_at: string
+}
+
+export type CoBrokerageRequest = {
+  id: string
+  shared_property_id: string
+  requester_agent_id: string
+  requester_name: string
+  requester_office: string
+  requester_phone: string
+  status: CoBrokerageRequestStatus
+  message: string
+  commission_ratio: number | null
+  property_title: string
+  address: string
+  created_at: string
+  updated_at: string
+}
+
 export type AIGenerationType = 'description' | 'legal_review' | 'inquiry_reply' | 'chatbot' | 'customer_analysis' | 'move_in_guide'
 
 export type AIGenerationLog = {
@@ -904,6 +941,80 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_properties: {
+        Row: SharedProperty
+        Insert: {
+          id?: string
+          property_id: string
+          agent_id: string
+          agent_name: string
+          office_name: string
+          commission_ratio?: number
+          is_active?: boolean
+          property_title: string
+          address: string
+          transaction_type: TransactionType
+          sale_price?: number | null
+          deposit?: number | null
+          monthly_rent?: number | null
+          exclusive_area_m2?: number | null
+          photos?: string[]
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          property_id?: string
+          agent_id?: string
+          agent_name?: string
+          office_name?: string
+          commission_ratio?: number
+          is_active?: boolean
+          property_title?: string
+          address?: string
+          transaction_type?: TransactionType
+          sale_price?: number | null
+          deposit?: number | null
+          monthly_rent?: number | null
+          exclusive_area_m2?: number | null
+          photos?: string[]
+          created_at?: string
+        }
+        Relationships: []
+      }
+      co_brokerage_requests: {
+        Row: CoBrokerageRequest
+        Insert: {
+          id?: string
+          shared_property_id: string
+          requester_agent_id: string
+          requester_name: string
+          requester_office: string
+          requester_phone: string
+          status?: CoBrokerageRequestStatus
+          message: string
+          commission_ratio?: number | null
+          property_title: string
+          address: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          shared_property_id?: string
+          requester_agent_id?: string
+          requester_name?: string
+          requester_office?: string
+          requester_phone?: string
+          status?: CoBrokerageRequestStatus
+          message?: string
+          commission_ratio?: number | null
+          property_title?: string
+          address?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -930,6 +1041,7 @@ export type Database = {
       inspection_grade: InspectionGrade
       rental_property_status: RentalPropertyStatus
       repair_request_status: RepairRequestStatus
+      co_brokerage_request_status: CoBrokerageRequestStatus
     }
     CompositeTypes: {
       [_ in never]: never
