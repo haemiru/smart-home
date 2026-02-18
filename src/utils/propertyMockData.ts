@@ -1,0 +1,57 @@
+import type { Property, PropertyCategory } from '@/types/database'
+
+export const systemCategories: PropertyCategory[] = [
+  { id: 'cat-apt', agent_id: null, name: '아파트', icon: '🏢', color: null, sort_order: 1, is_system: true, is_active: true, required_fields: null },
+  { id: 'cat-ofi', agent_id: null, name: '오피스텔', icon: '🏬', color: null, sort_order: 2, is_system: true, is_active: true, required_fields: null },
+  { id: 'cat-pre', agent_id: null, name: '분양권', icon: '📋', color: null, sort_order: 3, is_system: true, is_active: true, required_fields: null },
+  { id: 'cat-vil', agent_id: null, name: '빌라', icon: '🏘️', color: null, sort_order: 4, is_system: true, is_active: true, required_fields: null },
+  { id: 'cat-hou', agent_id: null, name: '주택', icon: '🏡', color: null, sort_order: 5, is_system: true, is_active: true, required_fields: null },
+  { id: 'cat-one', agent_id: null, name: '원룸', icon: '🚪', color: null, sort_order: 6, is_system: true, is_active: true, required_fields: null },
+  { id: 'cat-sto', agent_id: null, name: '상가', icon: '🏪', color: null, sort_order: 7, is_system: true, is_active: true, required_fields: null },
+  { id: 'cat-off', agent_id: null, name: '사무실', icon: '🏛️', color: null, sort_order: 8, is_system: true, is_active: true, required_fields: null },
+  { id: 'cat-lan', agent_id: null, name: '토지', icon: '🌍', color: null, sort_order: 9, is_system: true, is_active: true, required_fields: null },
+]
+
+const base: Omit<Property, 'id' | 'title' | 'transaction_type' | 'address' | 'sale_price' | 'deposit' | 'monthly_rent' | 'supply_area_m2' | 'exclusive_area_m2' | 'rooms' | 'floor' | 'total_floors' | 'status' | 'category_id' | 'photos'> = {
+  agent_id: 'agent-1',
+  address_detail: null,
+  dong: null,
+  ho: null,
+  latitude: 37.5,
+  longitude: 127.0,
+  maintenance_fee: 15,
+  bathrooms: 1,
+  direction: '남향',
+  move_in_date: '2026-04-01',
+  parking_per_unit: 1,
+  has_elevator: true,
+  pets_allowed: false,
+  options: ['에어컨', '냉장고', '세탁기'],
+  description: '밝고 깨끗한 매물입니다. 교통이 편리하고 주변 편의시설이 풍부합니다.',
+  is_urgent: false,
+  is_co_brokerage: false,
+  co_brokerage_fee_ratio: null,
+  internal_memo: null,
+  view_count: 0,
+  inquiry_count: 0,
+  favorite_count: 0,
+  built_year: 2020,
+  tags: [],
+  created_at: '2026-02-15T09:00:00Z',
+  updated_at: '2026-02-15T09:00:00Z',
+}
+
+export const mockPropertyList: Property[] = [
+  { ...base, id: 'p1', category_id: 'cat-apt', title: '래미안 레이카운티 59㎡', transaction_type: 'sale', address: '서울 서초구 반포동 123', sale_price: 95000, deposit: null, monthly_rent: null, supply_area_m2: 84.97, exclusive_area_m2: 59.98, rooms: 2, floor: 15, total_floors: 25, status: 'active', photos: ['https://placehold.co/800x600/e2e8f0/64748b?text=1-1','https://placehold.co/800x600/dbeafe/3b82f6?text=1-2','https://placehold.co/800x600/fef3c7/d97706?text=1-3'], view_count: 234, inquiry_count: 12, favorite_count: 45, tags: ['역세권','학군좋은'], built_year: 2018 },
+  { ...base, id: 'p2', category_id: 'cat-apt', title: '힐스테이트 클래시안 84㎡', transaction_type: 'sale', address: '서울 강남구 대치동 456', sale_price: 123000, deposit: null, monthly_rent: null, supply_area_m2: 114.5, exclusive_area_m2: 84.97, rooms: 3, floor: 20, total_floors: 32, status: 'active', photos: ['https://placehold.co/800x600/e2e8f0/64748b?text=2-1','https://placehold.co/800x600/dbeafe/3b82f6?text=2-2'], view_count: 567, inquiry_count: 28, favorite_count: 89, tags: ['학군좋은','주차편리'], bathrooms: 2, built_year: 2022 },
+  { ...base, id: 'p3', category_id: 'cat-apt', title: '마포 트라팰리스 104㎡', transaction_type: 'jeonse', address: '서울 마포구 상암동 789', sale_price: null, deposit: 70000, monthly_rent: null, supply_area_m2: 134.2, exclusive_area_m2: 104.5, rooms: 3, floor: 8, total_floors: 20, status: 'active', photos: ['https://placehold.co/800x600/e2e8f0/64748b?text=3-1'], view_count: 123, inquiry_count: 5, favorite_count: 22, tags: ['넓은평수'], bathrooms: 2 },
+  { ...base, id: 'p4', category_id: 'cat-ofi', title: '역삼 센트럴 오피스텔 30㎡', transaction_type: 'monthly', address: '서울 강남구 역삼동 101', sale_price: null, deposit: 1000, monthly_rent: 80, supply_area_m2: 39.67, exclusive_area_m2: 30.12, rooms: 1, floor: 7, total_floors: 15, status: 'active', photos: ['https://placehold.co/800x600/dbeafe/3b82f6?text=4-1','https://placehold.co/800x600/dbeafe/3b82f6?text=4-2'], view_count: 89, inquiry_count: 8, favorite_count: 15, tags: ['역세권','신축'], built_year: 2024 },
+  { ...base, id: 'p5', category_id: 'cat-apt', title: '잠실 엘리트 84㎡', transaction_type: 'sale', address: '서울 송파구 잠실동 55', sale_price: 185000, deposit: null, monthly_rent: null, supply_area_m2: 114.5, exclusive_area_m2: 84.97, rooms: 3, floor: 22, total_floors: 35, status: 'active', photos: ['https://placehold.co/800x600/e2e8f0/64748b?text=5-1'], view_count: 890, inquiry_count: 42, favorite_count: 156, tags: ['학군좋은','주차편리'], bathrooms: 2, is_urgent: true },
+  { ...base, id: 'p6', category_id: 'cat-apt', title: '분당 판교 푸르지오 84㎡', transaction_type: 'sale', address: '경기 성남시 분당구 판교동 200', sale_price: 140000, deposit: null, monthly_rent: null, supply_area_m2: 114.5, exclusive_area_m2: 84.97, rooms: 3, floor: 18, total_floors: 28, status: 'contracted', photos: ['https://placehold.co/800x600/e2e8f0/64748b?text=6-1'], view_count: 345, inquiry_count: 18, favorite_count: 67, tags: ['학군좋은','주차편리'], bathrooms: 2 },
+  { ...base, id: 'p7', category_id: 'cat-vil', title: '홍대입구 빌라 56㎡', transaction_type: 'monthly', address: '서울 마포구 서교동 88', sale_price: null, deposit: 3000, monthly_rent: 65, supply_area_m2: 72.45, exclusive_area_m2: 56.2, rooms: 2, floor: 3, total_floors: 4, status: 'active', photos: ['https://placehold.co/800x600/fef3c7/d97706?text=7-1'], view_count: 67, inquiry_count: 3, favorite_count: 9, tags: ['역세권','반려동물OK'], has_elevator: false, pets_allowed: true },
+  { ...base, id: 'p8', category_id: 'cat-sto', title: '강남대로 상가 50㎡', transaction_type: 'monthly', address: '서울 강남구 역삼동 333', sale_price: null, deposit: 5000, monthly_rent: 300, supply_area_m2: 56.0, exclusive_area_m2: 50.0, rooms: 0, floor: 1, total_floors: 5, status: 'active', photos: ['https://placehold.co/800x600/dcfce7/16a34a?text=8-1'], view_count: 190, inquiry_count: 15, favorite_count: 28, tags: ['역세권','1층'] },
+  { ...base, id: 'p9', category_id: 'cat-apt', title: '용산 아이파크 112㎡', transaction_type: 'sale', address: '서울 용산구 한남동 777', sale_price: 250000, deposit: null, monthly_rent: null, supply_area_m2: 149.3, exclusive_area_m2: 112.3, rooms: 4, floor: 30, total_floors: 45, status: 'active', photos: ['https://placehold.co/800x600/e2e8f0/64748b?text=9-1','https://placehold.co/800x600/e2e8f0/64748b?text=9-2','https://placehold.co/800x600/e2e8f0/64748b?text=9-3'], view_count: 1234, inquiry_count: 56, favorite_count: 200, tags: ['넓은평수','주차편리','엘리베이터'], bathrooms: 2 },
+  { ...base, id: 'p10', category_id: 'cat-apt', title: '위례 신도시 59㎡', transaction_type: 'jeonse', address: '경기 성남시 수정구 위례동 100', sale_price: null, deposit: 55000, monthly_rent: null, supply_area_m2: 84.97, exclusive_area_m2: 59.98, rooms: 2, floor: 10, total_floors: 25, status: 'draft', photos: ['https://placehold.co/800x600/e2e8f0/64748b?text=10-1'], view_count: 0, inquiry_count: 0, favorite_count: 0, tags: ['신축','주차편리'], built_year: 2025, is_urgent: true },
+  { ...base, id: 'p11', category_id: 'cat-off', title: '청담 사무실 120㎡', transaction_type: 'monthly', address: '서울 강남구 청담동 400', sale_price: null, deposit: 3000, monthly_rent: 250, supply_area_m2: 145.0, exclusive_area_m2: 120.0, rooms: 0, floor: 5, total_floors: 12, status: 'hold', photos: ['https://placehold.co/800x600/f3e8ff/9333ea?text=11-1'], view_count: 56, inquiry_count: 2, favorite_count: 5, tags: ['역세권','엘리베이터','주차편리'] },
+  { ...base, id: 'p12', category_id: 'cat-apt', title: '반포 자이 133㎡', transaction_type: 'sale', address: '서울 서초구 반포동 200', sale_price: 320000, deposit: null, monthly_rent: null, supply_area_m2: 178.0, exclusive_area_m2: 133.0, rooms: 4, floor: 25, total_floors: 38, status: 'completed', photos: ['https://placehold.co/800x600/e2e8f0/64748b?text=12-1'], view_count: 2340, inquiry_count: 98, favorite_count: 320, tags: ['넓은평수','학군좋은'], bathrooms: 2, built_year: 2019 },
+]
