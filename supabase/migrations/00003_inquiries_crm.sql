@@ -132,8 +132,8 @@ CREATE POLICY customer_activities_agent_all ON customer_activities FOR ALL
 -- ============================================================
 CREATE TRIGGER set_inquiries_updated_at
   BEFORE UPDATE ON inquiries
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION handle_updated_at();
 
 CREATE TRIGGER set_customers_updated_at
   BEFORE UPDATE ON customers
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION handle_updated_at();

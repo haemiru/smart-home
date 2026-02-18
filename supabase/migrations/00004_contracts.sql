@@ -104,4 +104,4 @@ CREATE POLICY contract_process_party_select ON contract_process FOR SELECT
 -- ============================================================
 CREATE TRIGGER set_contracts_updated_at
   BEFORE UPDATE ON contracts
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION handle_updated_at();
