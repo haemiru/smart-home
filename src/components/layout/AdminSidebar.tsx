@@ -31,11 +31,11 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
   const { unansweredInquiryCount } = useNotificationStore()
-  const { features, isLoaded } = useFeatureStore()
+  const { features, plan, isLoaded } = useFeatureStore()
 
-  // Filter nav items by feature settings
+  // Filter nav items by plan + feature settings
   const visibleItems = isLoaded
-    ? baseNavItems.filter((item) => isNavItemVisible(item.key, features))
+    ? baseNavItems.filter((item) => isNavItemVisible(item.key, features, plan))
     : baseNavItems
 
   const mainNavItems: AdminNavItem[] = visibleItems.map((item) => ({

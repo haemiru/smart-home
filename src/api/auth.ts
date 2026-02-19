@@ -26,6 +26,7 @@ export async function signUpWithEmail({ email, password, displayName, phone, rol
         display_name: displayName,
         phone,
         role,
+        ...(agentData ? { agent_data: agentData } : {}),
       },
     },
   })
@@ -33,16 +34,19 @@ export async function signUpWithEmail({ email, password, displayName, phone, rol
   if (error) throw error
   if (!data.user) throw new Error('회원가입에 실패했습니다.')
 
-  // Create user profile
-  const { error: profileError } = await supabase.from('users').insert({
+  // DB trigger (handle_new_user)가 public.users에 프로필을 자동 생성합니다 (SECURITY DEFINER).
+  // 이메일 확인이 활성화된 경우 세션이 없어 RLS로 upsert가 실패할 수 있으므로 non-fatal 처리합니다.
+  const { error: profileError } = await supabase.from('users').upsert({
     id: data.user.id,
     email,
     role,
     display_name: displayName,
     phone: phone ?? null,
-  })
+  }, { onConflict: 'id' })
 
-  if (profileError) throw profileError
+  if (profileError) {
+    console.warn('Profile upsert skipped (DB trigger will handle):', profileError.message)
+  }
 
   // Create agent profile if role is agent
   if (role === 'agent' && agentData) {
@@ -55,9 +59,12 @@ export async function signUpWithEmail({ email, password, displayName, phone, rol
       address: agentData.address,
       phone: agentData.phone,
       is_verified: false,
+      subscription_plan: 'free',
     })
 
-    if (agentError) throw agentError
+    if (agentError) {
+      console.warn('Agent profile creation deferred:', agentError.message)
+    }
   }
 
   return data

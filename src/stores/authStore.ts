@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/api/supabase'
 import type { User, AgentProfile } from '@/types/database'
+import { useFeatureStore } from '@/stores/featureStore'
 
 interface AuthState {
   session: Session | null
@@ -39,6 +40,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           await get().fetchUserProfile(session.user.id)
         } else {
           set({ user: null, agentProfile: null })
+          useFeatureStore.getState().setPlan('free')
         }
       })
     } finally {
@@ -49,11 +51,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setSession: (session) => set({ session }),
 
   fetchUserProfile: async (userId) => {
-    const { data: user } = await supabase
+    const { data: user, error } = await supabase
       .from('users')
       .select('*')
       .eq('id', userId)
       .single()
+
+    if (error) {
+      console.error('fetchUserProfile failed:', error.message, error.details)
+    }
 
     set({ user })
 
@@ -65,6 +71,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         .single()
 
       set({ agentProfile })
+
+      // Sync subscription plan to feature store
+      if (agentProfile?.subscription_plan) {
+        useFeatureStore.getState().setPlan(agentProfile.subscription_plan)
+      }
     }
   },
 

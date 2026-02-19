@@ -54,7 +54,7 @@ export function SignupPage() {
     e?.preventDefault()
     setIsLoading(true)
     try {
-      await signUpWithEmail({
+      const result = await signUpWithEmail({
         email,
         password,
         displayName,
@@ -69,8 +69,17 @@ export function SignupPage() {
           phone: officePhone,
         } : undefined,
       })
-      toast.success('회원가입이 완료되었습니다. 이메일을 확인해주세요.')
-      navigate('/auth/login')
+
+      if (result.session) {
+        // 이메일 확인 비활성화 상태 — 즉시 로그인됨
+        toast.success('회원가입이 완료되었습니다!')
+        const target = role === 'agent' ? '/admin/dashboard' : '/'
+        navigate(target, { replace: true })
+      } else {
+        // 이메일 확인 활성화 상태 — 이메일 인증 필요
+        toast.success('회원가입이 완료되었습니다. 이메일을 확인해주세요.')
+        navigate('/auth/login')
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '회원가입에 실패했습니다.')
     } finally {
@@ -107,7 +116,7 @@ export function SignupPage() {
             className="w-full rounded-lg border-2 border-gray-200 p-4 text-left transition-colors hover:border-primary-400 hover:bg-primary-50"
           >
             <p className="font-medium">공인중개사</p>
-            <p className="mt-1 text-sm text-gray-500">매물 등록, 고객 관리, 계약 관리 등 올인원 업무</p>
+            <p className="mt-1 text-sm text-gray-500">매물 등록, 고객 관리, 계약 관리 등 올인원 업무 (Free 요금제로 시작)</p>
           </button>
         </div>
 
@@ -164,7 +173,7 @@ export function SignupPage() {
     <div>
       <h2 className="mb-6 text-center text-xl font-semibold">중개사무소 정보</h2>
       <p className="mb-4 text-center text-sm text-gray-500">
-        관리자 승인 전까지 기본 CRM만 이용 가능합니다
+        가입 즉시 Free 요금제로 시작합니다. 언제든지 업그레이드할 수 있습니다.
       </p>
 
       <form onSubmit={handleSignUp} className="space-y-4">

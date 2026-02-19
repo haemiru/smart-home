@@ -1,10 +1,14 @@
 import { create } from 'zustand'
 import { fetchFeatureSettings } from '@/api/settings'
+import { isFeatureInPlan } from '@/config/planFeatures'
+import type { PlanType } from '@/types/database'
 
 interface FeatureState {
   features: Record<string, boolean>
+  plan: PlanType
   isLoaded: boolean
   initialize: () => Promise<void>
+  setPlan: (plan: PlanType) => void
   isEnabled: (key: string) => boolean
 }
 
@@ -25,6 +29,7 @@ const NAV_FEATURE_MAP: Record<string, string[]> = {
 
 export const useFeatureStore = create<FeatureState>((set, get) => ({
   features: {},
+  plan: 'free',
   isLoaded: false,
 
   initialize: async () => {
@@ -41,17 +46,20 @@ export const useFeatureStore = create<FeatureState>((set, get) => ({
     }
   },
 
+  setPlan: (plan: PlanType) => set({ plan }),
+
   isEnabled: (key: string) => {
-    const { features } = get()
-    // If not loaded or not found, default to enabled
+    const { features, plan } = get()
+    // Must be in plan AND manually enabled (toggle)
+    if (!isFeatureInPlan(key, plan)) return false
     return features[key] !== false
   },
 }))
 
 /** Check if a sidebar nav item should be visible */
-export function isNavItemVisible(navKey: string, features: Record<string, boolean>): boolean {
+export function isNavItemVisible(navKey: string, features: Record<string, boolean>, plan: PlanType): boolean {
   const featureKeys = NAV_FEATURE_MAP[navKey]
   if (!featureKeys || featureKeys.length === 0) return true // always visible (e.g., dashboard)
-  // Visible if at least one related feature is enabled
-  return featureKeys.some((fk) => features[fk] !== false)
+  // Visible if at least one related feature is in the plan AND enabled
+  return featureKeys.some((fk) => isFeatureInPlan(fk, plan) && features[fk] !== false)
 }

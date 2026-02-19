@@ -1,4 +1,5 @@
 export type UserRole = 'customer' | 'agent' | 'staff'
+export type PlanType = 'free' | 'basic' | 'pro' | 'enterprise'
 export type StaffRole = 'lead_agent' | 'associate_agent' | 'assistant'
 export type TransactionType = 'sale' | 'jeonse' | 'monthly'
 export type PropertyStatus = 'draft' | 'active' | 'contracted' | 'completed' | 'hold'
@@ -51,6 +52,8 @@ export type AgentProfile = {
   specialties: string[] | null
   insurance_info: Record<string, unknown> | null
   is_verified: boolean
+  subscription_plan: PlanType
+  subscription_started_at: string
   created_at: string
 }
 
@@ -399,6 +402,8 @@ export type Database = {
           specialties?: string[] | null
           insurance_info?: Record<string, unknown> | null
           is_verified?: boolean
+          subscription_plan?: PlanType
+          subscription_started_at?: string
           created_at?: string
         }
         Update: {
@@ -417,6 +422,8 @@ export type Database = {
           specialties?: string[] | null
           insurance_info?: Record<string, unknown> | null
           is_verified?: boolean
+          subscription_plan?: PlanType
+          subscription_started_at?: string
           created_at?: string
         }
         Relationships: []

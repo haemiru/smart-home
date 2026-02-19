@@ -10,8 +10,8 @@ export default function App() {
   const initFeatures = useFeatureStore((s) => s.initialize)
 
   useEffect(() => {
-    initAuth()
-    initFeatures()
+    // Auth must initialize first (sets plan), then features
+    initAuth().then(() => initFeatures())
   }, [initAuth, initFeatures])
 
   return (

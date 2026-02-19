@@ -11,6 +11,7 @@ import type {
 } from '@/api/dashboard'
 import type { Inquiry } from '@/types/database'
 import { formatRelativeTime, formatPrice, inquiryStatusIcon } from '@/utils/format'
+import { PLAN_INFO } from '@/config/planFeatures'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 export function DashboardPage() {
@@ -67,8 +68,16 @@ export function DashboardPage() {
       <div>
         <h1 className="text-xl font-bold">
           안녕하세요, {user?.display_name || '관리자'}님
-          {agentProfile && !agentProfile.is_verified && (
-            <span className="ml-2 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">승인 대기중</span>
+          {agentProfile && (() => {
+            const planInfo = PLAN_INFO[agentProfile.subscription_plan]
+            return (
+              <span className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${planInfo.bgColor} ${planInfo.textColor}`}>
+                {planInfo.label}
+              </span>
+            )
+          })()}
+          {agentProfile?.is_verified && (
+            <span className="ml-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">인증 중개사</span>
           )}
         </h1>
         <p className="mt-1 text-sm text-gray-500">오늘의 업무 현황을 확인하세요.</p>

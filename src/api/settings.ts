@@ -1,7 +1,7 @@
 // Mock API functions for admin settings
 // TODO: Replace with actual Supabase calls when backend is connected
 
-import type { AgentProfile, AgentFeatureSetting, StaffMember, PropertyCategory, StaffRole } from '@/types/database'
+import type { AgentProfile, AgentFeatureSetting, StaffMember, PropertyCategory, StaffRole, PlanType } from '@/types/database'
 
 // ──────────────────────────────────────────
 // Office Settings
@@ -45,6 +45,8 @@ const mockAgentProfile: AgentProfile = {
     expiry_date: '2026-12-31',
   },
   is_verified: true,
+  subscription_plan: 'free',
+  subscription_started_at: '2024-01-01T00:00:00Z',
   created_at: '2024-01-01T00:00:00Z',
 }
 
@@ -588,8 +590,6 @@ export async function toggleIntegration(key: string, connected: boolean, data?: 
 // Billing / Plan
 // ──────────────────────────────────────────
 
-export type PlanType = 'free' | 'basic' | 'pro' | 'enterprise'
-
 export type BillingInfo = {
   current_plan: PlanType
   plan_label: string
@@ -598,17 +598,36 @@ export type BillingInfo = {
   payment_history: { date: string; amount: number; description: string; status: string }[]
 }
 
+const PLAN_META: Record<PlanType, { label: string; price: number }> = {
+  free: { label: 'Free', price: 0 },
+  basic: { label: 'Basic', price: 29000 },
+  pro: { label: 'Pro', price: 79000 },
+  enterprise: { label: 'Enterprise', price: -1 },
+}
+
 export async function fetchBillingInfo(): Promise<BillingInfo> {
+  const plan = _agentProfile.subscription_plan as PlanType
+  const meta = PLAN_META[plan]
   return {
-    current_plan: 'basic',
-    plan_label: 'Basic',
-    price: 29000,
+    current_plan: plan,
+    plan_label: meta.label,
+    price: meta.price,
     next_billing_date: '2026-03-01',
-    payment_history: [
-      { date: '2026-02-01', amount: 29000, description: 'Basic 요금제 (월간)', status: '결제완료' },
-      { date: '2026-01-01', amount: 29000, description: 'Basic 요금제 (월간)', status: '결제완료' },
-      { date: '2025-12-01', amount: 29000, description: 'Basic 요금제 (월간)', status: '결제완료' },
-    ],
+    payment_history: meta.price > 0
+      ? [
+          { date: '2026-02-01', amount: meta.price, description: `${meta.label} 요금제 (월간)`, status: '결제완료' },
+          { date: '2026-01-01', amount: meta.price, description: `${meta.label} 요금제 (월간)`, status: '결제완료' },
+          { date: '2025-12-01', amount: meta.price, description: `${meta.label} 요금제 (월간)`, status: '결제완료' },
+        ]
+      : [],
+  }
+}
+
+export async function changePlan(plan: PlanType): Promise<void> {
+  _agentProfile = {
+    ..._agentProfile,
+    subscription_plan: plan,
+    subscription_started_at: new Date().toISOString(),
   }
 }
 
