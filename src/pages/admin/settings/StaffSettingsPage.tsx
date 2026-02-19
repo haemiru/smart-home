@@ -6,13 +6,11 @@ import { formatDateTime } from '@/utils/format'
 import toast from 'react-hot-toast'
 
 const ROLE_LABELS: Record<StaffRole, string> = {
-  lead_agent: '소속 공인중개사',
   associate_agent: '소속 공인중개사',
   assistant: '중개보조원',
 }
 
 const ROLE_OPTIONS: { value: StaffRole; label: string }[] = [
-  { value: 'lead_agent', label: '소속 공인중개사 (대표)' },
   { value: 'associate_agent', label: '소속 공인중개사' },
   { value: 'assistant', label: '중개보조원' },
 ]

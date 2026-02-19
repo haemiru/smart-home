@@ -100,11 +100,9 @@ export async function inviteStaff(email: string, role: StaffRole): Promise<Staff
 
   const user = users[0]
 
-  const defaultPermissions = role === 'lead_agent'
-    ? { property_create: true, property_delete: true, contract_create: true, contract_approve: true, e_signature: true, customer_view: true, ai_tools: true, co_brokerage: true, settings: true }
-    : role === 'associate_agent'
-      ? { property_create: true, property_delete: false, contract_create: true, contract_approve: false, e_signature: false, customer_view: true, ai_tools: true, co_brokerage: false, settings: false }
-      : { property_create: true, property_delete: false, contract_create: false, contract_approve: false, e_signature: false, customer_view: true, ai_tools: false, co_brokerage: false, settings: false }
+  const defaultPermissions = role === 'associate_agent'
+    ? { property_create: true, property_delete: false, contract_create: true, contract_approve: false, e_signature: false, customer_view: true, ai_tools: true, co_brokerage: false, settings: false }
+    : { property_create: true, property_delete: false, contract_create: false, contract_approve: false, e_signature: false, customer_view: true, ai_tools: false, co_brokerage: false, settings: false }
 
   const { data: staff, error } = await supabase
     .from('staff_members')

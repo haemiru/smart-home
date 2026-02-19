@@ -1,6 +1,6 @@
 export type UserRole = 'customer' | 'agent' | 'staff'
 export type PlanType = 'free' | 'basic' | 'pro' | 'enterprise'
-export type StaffRole = 'lead_agent' | 'associate_agent' | 'assistant'
+export type StaffRole = 'associate_agent' | 'assistant'
 export type TransactionType = 'sale' | 'jeonse' | 'monthly'
 export type PropertyStatus = 'draft' | 'active' | 'contracted' | 'completed' | 'hold'
 
