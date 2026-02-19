@@ -85,7 +85,7 @@ export async function fetchStaffList(): Promise<StaffWithUser[]> {
   })
 }
 
-export async function fetchInviteCode(): Promise<string | null> {
+export async function fetchInviteCode(): Promise<string> {
   const agentId = await getAgentProfileId()
   const { data, error } = await supabase
     .from('agent_profiles')
@@ -94,7 +94,13 @@ export async function fetchInviteCode(): Promise<string | null> {
     .single()
 
   if (error) throw error
-  return data?.invite_code ?? null
+
+  // invite_code가 없으면 자동 생성
+  if (!data?.invite_code) {
+    return regenerateInviteCode()
+  }
+
+  return data.invite_code
 }
 
 export async function regenerateInviteCode(): Promise<string> {
