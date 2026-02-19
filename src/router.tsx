@@ -4,6 +4,7 @@ import { AuthLayout } from '@/layouts/AuthLayout'
 import { UserLayout } from '@/layouts/UserLayout'
 import { AdminLayout } from '@/layouts/AdminLayout'
 import { ProtectedRoute } from '@/components/common/ProtectedRoute'
+import { PlanGate } from '@/components/common/PlanGate'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 // ─── Lazy-loaded pages ────────────────────────────────
@@ -127,24 +128,24 @@ export const router = createBrowserRouter([
       { path: 'contracts', element: <S><ContractsPage /></S> },
       { path: 'contracts/new', element: <S><ContractFormPage /></S> },
       { path: 'contracts/:id/tracker', element: <S><ContractTrackerPage /></S> },
-      { path: 'ai-tools', element: <S><AIDescriptionPage /></S> },
-      { path: 'ai-tools/description', element: <S><AIDescriptionPage /></S> },
-      { path: 'analytics', element: <S><ValuationPage /></S> },
-      { path: 'analytics/valuation', element: <S><ValuationPage /></S> },
-      { path: 'analytics/roi', element: <S><ROICalculatorPage /></S> },
-      { path: 'analytics/location', element: <S><LocationAnalysisPage /></S> },
-      { path: 'analytics/signal', element: <S><SignalPage /></S> },
-      { path: 'inspection', element: <S><InspectionListPage /></S> },
-      { path: 'inspection/:id/checklist', element: <S><InspectionChecklistPage /></S> },
-      { path: 'inspection/:id/report', element: <S><InspectionReportPage /></S> },
-      { path: 'rental-mgmt', element: <S><RentalManagementPage /></S> },
-      { path: 'rental-mgmt/:id', element: <S><RentalDetailPage /></S> },
+      { path: 'ai-tools', element: <PlanGate navKey="ai-tools"><S><AIDescriptionPage /></S></PlanGate> },
+      { path: 'ai-tools/description', element: <PlanGate navKey="ai-tools"><S><AIDescriptionPage /></S></PlanGate> },
+      { path: 'analytics', element: <PlanGate navKey="analytics"><S><ValuationPage /></S></PlanGate> },
+      { path: 'analytics/valuation', element: <PlanGate navKey="analytics"><S><ValuationPage /></S></PlanGate> },
+      { path: 'analytics/roi', element: <PlanGate navKey="analytics"><S><ROICalculatorPage /></S></PlanGate> },
+      { path: 'analytics/location', element: <PlanGate navKey="analytics"><S><LocationAnalysisPage /></S></PlanGate> },
+      { path: 'analytics/signal', element: <PlanGate navKey="analytics"><S><SignalPage /></S></PlanGate> },
+      { path: 'inspection', element: <PlanGate navKey="inspection"><S><InspectionListPage /></S></PlanGate> },
+      { path: 'inspection/:id/checklist', element: <PlanGate navKey="inspection"><S><InspectionChecklistPage /></S></PlanGate> },
+      { path: 'inspection/:id/report', element: <PlanGate navKey="inspection"><S><InspectionReportPage /></S></PlanGate> },
+      { path: 'rental-mgmt', element: <PlanGate navKey="rental-mgmt"><S><RentalManagementPage /></S></PlanGate> },
+      { path: 'rental-mgmt/:id', element: <PlanGate navKey="rental-mgmt"><S><RentalDetailPage /></S></PlanGate> },
       { path: 'rental-mgmt/share/:token', element: <S><RentalSharePage /></S> },
-      { path: 'legal', element: <S><RegistryPage /></S> },
-      { path: 'legal/registry', element: <S><RegistryPage /></S> },
-      { path: 'co-brokerage', element: <S><CoBrokeragePoolPage /></S> },
-      { path: 'co-brokerage/pool', element: <S><CoBrokeragePoolPage /></S> },
-      { path: 'co-brokerage/requests', element: <S><CoBrokerageRequestsPage /></S> },
+      { path: 'legal', element: <PlanGate navKey="legal"><S><RegistryPage /></S></PlanGate> },
+      { path: 'legal/registry', element: <PlanGate navKey="legal"><S><RegistryPage /></S></PlanGate> },
+      { path: 'co-brokerage', element: <PlanGate navKey="co-brokerage"><S><CoBrokeragePoolPage /></S></PlanGate> },
+      { path: 'co-brokerage/pool', element: <PlanGate navKey="co-brokerage"><S><CoBrokeragePoolPage /></S></PlanGate> },
+      { path: 'co-brokerage/requests', element: <PlanGate navKey="co-brokerage"><S><CoBrokerageRequestsPage /></S></PlanGate> },
       {
         path: 'settings',
         element: <S><SettingsLayout /></S>,
