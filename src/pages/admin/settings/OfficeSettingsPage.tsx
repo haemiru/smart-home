@@ -1,21 +1,15 @@
 import { useState, useEffect } from 'react'
 import { fetchOfficeSettings, updateOfficeSettings } from '@/api/settings'
-import type { BusinessHours, InsuranceInfo } from '@/api/settings'
+import type { BusinessHours } from '@/api/settings'
 import type { AgentProfile } from '@/types/database'
 import toast from 'react-hot-toast'
 
 const DAYS = ['월', '화', '수', '목', '금', '토', '일'] as const
-const SPECIALTY_OPTIONS = ['아파트', '오피스텔', '빌라', '상가', '사무실', '토지', '공장', '건물'] as const
+const SPECIALTY_OPTIONS = ['아파트', '오피스텔', '빌라', '상가', '사무실', '토지', '공장', '건물', '지식산업센터', '전원주택', '창고'] as const
 
 const defaultBusinessHours: BusinessHours = Object.fromEntries(
   DAYS.map((day) => [day, { open: '09:00', close: '18:00', isOpen: true }])
 )
-
-const defaultInsurance: InsuranceInfo = {
-  company: '',
-  policy_number: '',
-  expiry_date: '',
-}
 
 export function OfficeSettingsPage() {
   const [loading, setLoading] = useState(true)
@@ -39,11 +33,8 @@ export function OfficeSettingsPage() {
   // Description
   const [description, setDescription] = useState('')
 
-  // Specialties
+  // Specialties (ordered)
   const [specialties, setSpecialties] = useState<string[]>([])
-
-  // Insurance
-  const [insurance, setInsurance] = useState<InsuranceInfo>(defaultInsurance)
 
   useEffect(() => {
     loadSettings()
@@ -64,7 +55,6 @@ export function OfficeSettingsPage() {
       setLogoUrl(data.logo_url)
       setDescription(data.description ?? '')
       setSpecialties(data.specialties ?? [])
-      setInsurance((data.insurance_info as InsuranceInfo) ?? defaultInsurance)
     } catch {
       toast.error('설정을 불러오는데 실패했습니다.')
     } finally {
@@ -87,7 +77,7 @@ export function OfficeSettingsPage() {
         logo_url: logoUrl,
         description: description || null,
         specialties,
-        insurance_info: insurance as unknown as Record<string, unknown>,
+        insurance_info: null,
       })
       toast.success('저장되었습니다.')
     } catch {
@@ -117,8 +107,14 @@ export function OfficeSettingsPage() {
     )
   }
 
-  function handleInsuranceChange(field: keyof InsuranceInfo, value: string) {
-    setInsurance((prev) => ({ ...prev, [field]: value }))
+  function handleSpecialtyMove(index: number, direction: 'up' | 'down') {
+    setSpecialties((prev) => {
+      const next = [...prev]
+      const targetIndex = direction === 'up' ? index - 1 : index + 1
+      if (targetIndex < 0 || targetIndex >= next.length) return prev
+      ;[next[index], next[targetIndex]] = [next[targetIndex], next[index]]
+      return next
+    })
   }
 
   if (loading) {
@@ -316,66 +312,74 @@ export function OfficeSettingsPage() {
       {/* Specialties Card */}
       <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
         <h3 className="mb-4 text-sm font-semibold text-gray-900">전문 분야</h3>
-        <p className="mb-3 text-sm text-gray-500">취급하는 부동산 유형을 선택하세요.</p>
-        <div className="flex flex-wrap gap-3">
+        <p className="mb-3 text-sm text-gray-500">취급하는 부동산 유형을 선택하세요. 선택한 항목은 사용자 포털 메인에 표시됩니다.</p>
+
+        {/* Selection */}
+        <div className="flex flex-wrap gap-2">
           {SPECIALTY_OPTIONS.map((option) => {
             const isSelected = specialties.includes(option)
             return (
-              <label
+              <button
                 key={option}
-                className={`flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors ${
+                type="button"
+                onClick={() => handleSpecialtyToggle(option)}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                   isSelected
-                    ? 'border-primary-500 bg-primary-50 text-primary-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => handleSpecialtyToggle(option)}
-                  className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span>{option}</span>
-              </label>
+                {option}
+              </button>
             )
           })}
         </div>
-      </div>
 
-      {/* Insurance Info Card */}
-      <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900">보증보험 정보</h3>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">보험사</label>
-            <input
-              type="text"
-              value={insurance.company}
-              onChange={(e) => handleInsuranceChange('company', e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none"
-              placeholder="보험사명"
-            />
+        {/* Selected order */}
+        {specialties.length > 0 && (
+          <div className="mt-4">
+            <p className="mb-2 text-xs font-medium text-gray-500">표시 순서 (위/아래 버튼으로 변경)</p>
+            <div className="space-y-1.5">
+              {specialties.map((item, index) => (
+                <div
+                  key={item}
+                  className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 ring-1 ring-gray-200"
+                >
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary-100 text-xs font-bold text-primary-700">
+                    {index + 1}
+                  </span>
+                  <span className="flex-1 text-sm font-medium text-gray-800">{item}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleSpecialtyMove(index, 'up')}
+                    disabled={index === 0}
+                    className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 disabled:opacity-30 disabled:hover:bg-transparent"
+                    title="위로"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSpecialtyMove(index, 'down')}
+                    disabled={index === specialties.length - 1}
+                    className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 disabled:opacity-30 disabled:hover:bg-transparent"
+                    title="아래로"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSpecialtyToggle(item)}
+                    className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                    title="삭제"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">증권번호</label>
-            <input
-              type="text"
-              value={insurance.policy_number}
-              onChange={(e) => handleInsuranceChange('policy_number', e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none"
-              placeholder="증권번호"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">만료일</label>
-            <input
-              type="date"
-              value={insurance.expiry_date}
-              onChange={(e) => handleInsuranceChange('expiry_date', e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none"
-            />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Bottom Save Button */}

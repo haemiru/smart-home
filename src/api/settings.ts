@@ -10,12 +10,6 @@ export type BusinessHours = {
   [day: string]: { open: string; close: string; isOpen: boolean }
 }
 
-export type InsuranceInfo = {
-  company: string
-  policy_number: string
-  expiry_date: string
-}
-
 export async function fetchOfficeSettings(): Promise<AgentProfile> {
   const agentId = await getAgentProfileId()
   const { data, error } = await supabase
@@ -39,6 +33,18 @@ export async function updateOfficeSettings(data: Partial<AgentProfile>): Promise
 
   if (error) throw error
   return updated
+}
+
+/** Public: fetch the first agent's specialties for the user portal hero section */
+export async function fetchAgentSpecialties(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('agent_profiles')
+    .select('specialties')
+    .limit(1)
+    .single()
+
+  if (error || !data) return []
+  return (data.specialties as string[]) ?? []
 }
 
 // ──────────────────────────────────────────

@@ -1,12 +1,19 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { useHomeFilterStore } from '@/stores/homeFilterStore'
-import { heroQuickChips } from '@/utils/mockData'
 import { useCategories } from '@/hooks/useCategories'
+import { fetchAgentSpecialties } from '@/api/settings'
 
 export function HeroSection() {
   const { searchQuery, setSearchQuery, setCategory } = useHomeFilterStore()
   const { categories } = useCategories()
   const [localQuery, setLocalQuery] = useState(searchQuery)
+  const [specialties, setSpecialties] = useState<string[]>([])
+
+  useEffect(() => {
+    fetchAgentSpecialties()
+      .then(setSpecialties)
+      .catch(() => {})
+  }, [])
 
   const handleSearch = (e: FormEvent) => {
     e.preventDefault()
@@ -14,7 +21,6 @@ export function HeroSection() {
   }
 
   const handleChipClick = (chipLabel: string) => {
-    // Match chip label to DB category name
     const match = categories.find((c) => c.name === chipLabel)
     if (match) setCategory(match.id)
     document.getElementById('category-tabs')?.scrollIntoView({ behavior: 'smooth' })
@@ -69,18 +75,20 @@ export function HeroSection() {
           </div>
         </form>
 
-        {/* Quick Chips */}
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-          {heroQuickChips.map((chip) => (
-            <button
-              key={chip.id}
-              onClick={() => handleChipClick(chip.label)}
-              className="rounded-full bg-white/15 px-4 py-1.5 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/25"
-            >
-              {chip.label}
-            </button>
-          ))}
-        </div>
+        {/* Quick Chips — from agent specialties */}
+        {specialties.length > 0 && (
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            {specialties.map((label) => (
+              <button
+                key={label}
+                onClick={() => handleChipClick(label)}
+                className="rounded-full bg-white/15 px-4 py-1.5 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   )

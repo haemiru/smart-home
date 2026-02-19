@@ -119,14 +119,3 @@ export const gnbMenuItems = [
   { id: 'find-agent', label: '중개사무소찾기', path: '/find-agent' },
 ] as const
 
-// ============================================
-// 매물 유형별 빠른 검색 칩
-// ============================================
-export const heroQuickChips = [
-  { id: 'apartment', label: '아파트' },
-  { id: 'officetel', label: '오피스텔' },
-  { id: 'villa', label: '빌라' },
-  { id: 'store', label: '상가' },
-  { id: 'office', label: '사무실' },
-  { id: 'land', label: '토지' },
-] as const
