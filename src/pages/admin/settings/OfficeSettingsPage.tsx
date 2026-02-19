@@ -5,7 +5,7 @@ import type { AgentProfile } from '@/types/database'
 import toast from 'react-hot-toast'
 
 const DAYS = ['월', '화', '수', '목', '금', '토', '일'] as const
-const SPECIALTY_OPTIONS = ['아파트', '오피스텔', '빌라', '상가', '사무실', '토지', '공장', '건물', '지식산업센터', '전원주택', '창고'] as const
+const SPECIALTY_OPTIONS = ['아파트', '오피스텔', '빌라', '상가', '사무실', '전원주택', '공장', '창고', '토지', '건물', '지식산업센터'] as const
 
 const defaultBusinessHours: BusinessHours = Object.fromEntries(
   DAYS.map((day) => [day, { open: '09:00', close: '18:00', isOpen: true }])
