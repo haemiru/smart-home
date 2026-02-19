@@ -71,28 +71,28 @@ export function SearchSettingsPage() {
       <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
         <h2 className="text-sm font-bold">사이드 필터 설정</h2>
         <p className="mt-1 text-xs text-gray-400">검색 페이지에 표시할 필터 그룹과 순서를 설정합니다.</p>
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
           {settings.filter_groups.sort((a, b) => a.sort_order - b.sort_order).map((fg, idx) => (
-            <div key={fg.key} className="flex items-center gap-3 rounded-lg border border-gray-100 p-3">
-              <div className="flex gap-1">
-                <button onClick={() => setSettings({ ...settings, filter_groups: moveItem(settings.filter_groups, idx, -1) })} disabled={idx === 0} className="rounded p-1 text-xs text-gray-400 hover:bg-gray-100 disabled:opacity-30">▲</button>
-                <button onClick={() => setSettings({ ...settings, filter_groups: moveItem(settings.filter_groups, idx, 1) })} disabled={idx === settings.filter_groups.length - 1} className="rounded p-1 text-xs text-gray-400 hover:bg-gray-100 disabled:opacity-30">▼</button>
-              </div>
-              <div className="flex-1">
-                <span className="text-sm">{fg.label}</span>
-                <div className="mt-0.5">
-                  <CategoryBadges categories={fg.categories} />
+            <div key={fg.key} className={`rounded-lg border p-3 ${fg.is_enabled ? 'border-primary-200 bg-primary-50/30' : 'border-gray-100'}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex gap-0.5">
+                  <button onClick={() => setSettings({ ...settings, filter_groups: moveItem(settings.filter_groups, idx, -1) })} disabled={idx === 0} className="rounded p-0.5 text-[10px] text-gray-400 hover:bg-gray-100 disabled:opacity-30">▲</button>
+                  <button onClick={() => setSettings({ ...settings, filter_groups: moveItem(settings.filter_groups, idx, 1) })} disabled={idx === settings.filter_groups.length - 1} className="rounded p-0.5 text-[10px] text-gray-400 hover:bg-gray-100 disabled:opacity-30">▼</button>
                 </div>
+                <button
+                  onClick={() => {
+                    const updated = settings.filter_groups.map((f) => f.key === fg.key ? { ...f, is_enabled: !f.is_enabled } : f)
+                    setSettings({ ...settings, filter_groups: updated })
+                  }}
+                  className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${fg.is_enabled ? 'bg-primary-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${fg.is_enabled ? 'translate-x-4' : ''}`} />
+                </button>
               </div>
-              <button
-                onClick={() => {
-                  const updated = settings.filter_groups.map((f) => f.key === fg.key ? { ...f, is_enabled: !f.is_enabled } : f)
-                  setSettings({ ...settings, filter_groups: updated })
-                }}
-                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${fg.is_enabled ? 'bg-primary-600' : 'bg-gray-300'}`}
-              >
-                <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${fg.is_enabled ? 'translate-x-5' : ''}`} />
-              </button>
+              <p className="mt-2 text-sm font-medium">{fg.label}</p>
+              <div className="mt-1">
+                <CategoryBadges categories={fg.categories} />
+              </div>
             </div>
           ))}
         </div>
@@ -112,43 +112,49 @@ export function SearchSettingsPage() {
             + 조건 추가
           </button>
         </div>
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
           {settings.quick_cards.sort((a, b) => a.sort_order - b.sort_order).map((card, idx) => (
-            <div key={card.key} className="flex items-center gap-3 rounded-lg border border-gray-100 p-3">
-              <div className="flex gap-1">
-                <button onClick={() => setSettings({ ...settings, quick_cards: moveItem(settings.quick_cards, idx, -1) })} disabled={idx === 0} className="rounded p-1 text-xs text-gray-400 hover:bg-gray-100 disabled:opacity-30">▲</button>
-                <button onClick={() => setSettings({ ...settings, quick_cards: moveItem(settings.quick_cards, idx, 1) })} disabled={idx === settings.quick_cards.length - 1} className="rounded p-1 text-xs text-gray-400 hover:bg-gray-100 disabled:opacity-30">▼</button>
-              </div>
-              <span className="text-base">{card.icon}</span>
-              <div className="flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm">{card.label}</span>
+            <div key={card.key} className={`rounded-lg border p-3 ${card.is_enabled ? 'border-primary-200 bg-primary-50/30' : 'border-gray-100'}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex gap-0.5">
+                  <button onClick={() => setSettings({ ...settings, quick_cards: moveItem(settings.quick_cards, idx, -1) })} disabled={idx === 0} className="rounded p-0.5 text-[10px] text-gray-400 hover:bg-gray-100 disabled:opacity-30">▲</button>
+                  <button onClick={() => setSettings({ ...settings, quick_cards: moveItem(settings.quick_cards, idx, 1) })} disabled={idx === settings.quick_cards.length - 1} className="rounded p-0.5 text-[10px] text-gray-400 hover:bg-gray-100 disabled:opacity-30">▼</button>
+                </div>
+                <div className="flex items-center gap-1">
                   {card.is_custom && (
-                    <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-600">커스텀</span>
+                    <button
+                      onClick={() => handleDeleteCustomCard(card.key)}
+                      className="rounded p-0.5 text-xs text-gray-400 hover:bg-red-50 hover:text-red-500"
+                      title="삭제"
+                    >
+                      🗑️
+                    </button>
                   )}
-                </div>
-                <div className="mt-0.5">
-                  <CategoryBadges categories={card.categories} />
+                  <button
+                    onClick={() => {
+                      const updated = settings.quick_cards.map((c) => c.key === card.key ? { ...c, is_enabled: !c.is_enabled } : c)
+                      setSettings({ ...settings, quick_cards: updated })
+                    }}
+                    className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${card.is_enabled ? 'bg-primary-600' : 'bg-gray-300'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${card.is_enabled ? 'translate-x-4' : ''}`} />
+                  </button>
                 </div>
               </div>
-              {card.is_custom && (
-                <button
-                  onClick={() => handleDeleteCustomCard(card.key)}
-                  className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
-                  title="삭제"
-                >
-                  🗑️
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  const updated = settings.quick_cards.map((c) => c.key === card.key ? { ...c, is_enabled: !c.is_enabled } : c)
-                  setSettings({ ...settings, quick_cards: updated })
-                }}
-                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${card.is_enabled ? 'bg-primary-600' : 'bg-gray-300'}`}
-              >
-                <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${card.is_enabled ? 'translate-x-5' : ''}`} />
-              </button>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-xl">{card.icon}</span>
+                <div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm font-medium">{card.label}</span>
+                    {card.is_custom && (
+                      <span className="rounded bg-violet-100 px-1 py-0.5 text-[9px] font-medium text-violet-600">커스텀</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-1">
+                <CategoryBadges categories={card.categories} />
+              </div>
             </div>
           ))}
         </div>
