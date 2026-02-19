@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom'
+import { useFeatureStore, isNavItemVisible } from '@/stores/featureStore'
 
 const tabs = [
-  { label: '대시보드', path: '/admin/dashboard', icon: '📊' },
-  { label: '매물', path: '/admin/properties', icon: '🏠' },
-  { label: '고객', path: '/admin/crm', icon: '👥' },
-  { label: '더보기', path: '/admin/more', icon: '⋯' },
+  { key: 'dashboard', label: '대시보드', path: '/admin/dashboard', icon: '📊' },
+  { key: 'properties', label: '매물', path: '/admin/properties', icon: '🏠' },
+  { key: 'customers', label: '고객', path: '/admin/customers', icon: '👥' },
+  { key: 'more', label: '더보기', path: '/admin/more', icon: '⋯' },
 ]
 
 interface AdminMobileNavProps {
@@ -12,11 +13,17 @@ interface AdminMobileNavProps {
 }
 
 export function AdminMobileNav({ onOpenMore }: AdminMobileNavProps) {
+  const { features, plan, isLoaded } = useFeatureStore()
+
+  const visibleTabs = isLoaded
+    ? tabs.filter((tab) => tab.key === 'more' || isNavItemVisible(tab.key, features, plan))
+    : tabs
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-200 bg-white lg:hidden">
       <div className="flex items-center justify-around">
-        {tabs.map((tab) =>
-          tab.path === '/admin/more' ? (
+        {visibleTabs.map((tab) =>
+          tab.key === 'more' ? (
             <button
               key={tab.path}
               onClick={onOpenMore}
