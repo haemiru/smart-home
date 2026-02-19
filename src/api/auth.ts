@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { UserRole } from '@/types/database'
+import type { UserRole, StaffRole } from '@/types/database'
 
 interface SignUpParams {
   email: string
@@ -16,9 +16,10 @@ interface SignUpParams {
     phone: string
   }
   staffInviteCode?: string
+  staffRole?: StaffRole
 }
 
-export async function signUpWithEmail({ email, password, displayName, phone, role, agentData, staffInviteCode }: SignUpParams) {
+export async function signUpWithEmail({ email, password, displayName, phone, role, agentData, staffInviteCode, staffRole }: SignUpParams) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -74,15 +75,24 @@ export async function signUpWithEmail({ email, password, displayName, phone, rol
     const validated = await validateInviteCode(staffInviteCode)
 
     if (validated) {
+      const resolvedStaffRole = staffRole ?? 'assistant'
+      const permissions = resolvedStaffRole === 'associate_agent'
+        ? {
+            property_create: true, property_delete: false,
+            contract_create: true, contract_approve: false, e_signature: false,
+            customer_view: true, ai_tools: true, co_brokerage: false, settings: false,
+          }
+        : {
+            property_create: true, property_delete: false,
+            contract_create: false, contract_approve: false, e_signature: false,
+            customer_view: true, ai_tools: false, co_brokerage: false, settings: false,
+          }
+
       const { error: staffError } = await supabase.from('staff_members').insert({
         agent_profile_id: validated.agentProfileId,
         user_id: data.user.id,
-        role: 'assistant',
-        permissions: {
-          property_create: true, property_delete: false,
-          contract_create: false, contract_approve: false, e_signature: false,
-          customer_view: true, ai_tools: false, co_brokerage: false, settings: false,
-        },
+        role: resolvedStaffRole,
+        permissions,
         is_active: true,
       })
 

@@ -2,7 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, Input } from '@/components/common'
 import { signUpWithEmail, validateInviteCode } from '@/api/auth'
-import type { UserRole } from '@/types/database'
+import type { UserRole, StaffRole } from '@/types/database'
 import toast from 'react-hot-toast'
 
 type Step = 'role' | 'account' | 'agent-info' | 'invite-code'
@@ -10,7 +10,8 @@ type Step = 'role' | 'account' | 'agent-info' | 'invite-code'
 export function SignupPage() {
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>('role')
-  const [role, setRole] = useState<UserRole>('customer')
+  const [role, setRole] = useState<UserRole>('agent')
+  const [staffRole, setStaffRole] = useState<StaffRole>('associate_agent')
   const [isLoading, setIsLoading] = useState(false)
 
   // Account fields
@@ -33,8 +34,9 @@ export function SignupPage() {
   const [validatedOffice, setValidatedOffice] = useState<string | null>(null)
   const [validating, setValidating] = useState(false)
 
-  const handleRoleSelect = (selectedRole: UserRole) => {
+  const handleRoleSelect = (selectedRole: UserRole, selectedStaffRole?: StaffRole) => {
     setRole(selectedRole)
+    if (selectedStaffRole) setStaffRole(selectedStaffRole)
     setStep('account')
   }
 
@@ -52,8 +54,6 @@ export function SignupPage() {
       setStep('agent-info')
     } else if (role === 'staff') {
       setStep('invite-code')
-    } else {
-      handleSignUp()
     }
   }
 
@@ -101,12 +101,12 @@ export function SignupPage() {
           phone: officePhone,
         } : undefined,
         staffInviteCode: role === 'staff' ? inviteCode.toUpperCase() : undefined,
+        staffRole: role === 'staff' ? staffRole : undefined,
       })
 
       if (result.session) {
         toast.success('회원가입이 완료되었습니다!')
-        const target = (role === 'agent' || role === 'staff') ? '/admin/dashboard' : '/'
-        navigate(target, { replace: true })
+        navigate('/admin/dashboard', { replace: true })
       } else {
         toast.success('회원가입이 완료되었습니다. 이메일을 확인해주세요.')
         navigate('/auth/login')
@@ -127,27 +127,27 @@ export function SignupPage() {
 
         <div className="space-y-3">
           <button
-            onClick={() => handleRoleSelect('customer')}
-            className="w-full rounded-lg border-2 border-gray-200 p-4 text-left transition-colors hover:border-primary-400 hover:bg-primary-50"
-          >
-            <p className="font-medium">일반회원 (고객)</p>
-            <p className="mt-1 text-sm text-gray-500">매물 검색, 문의, 계약 확인</p>
-          </button>
-
-          <button
             onClick={() => handleRoleSelect('agent')}
             className="w-full rounded-lg border-2 border-gray-200 p-4 text-left transition-colors hover:border-primary-400 hover:bg-primary-50"
           >
-            <p className="font-medium">공인중개사</p>
-            <p className="mt-1 text-sm text-gray-500">매물 등록, 고객 관리, 계약 관리 등 올인원 업무 (Free 요금제로 시작)</p>
+            <p className="font-medium">개업 공인중개사 (대표)</p>
+            <p className="mt-1 text-sm text-gray-500">사무소 개설 및 운영, 매물·고객·계약 관리 (Free 요금제로 시작)</p>
           </button>
 
           <button
-            onClick={() => handleRoleSelect('staff')}
+            onClick={() => handleRoleSelect('staff', 'associate_agent')}
             className="w-full rounded-lg border-2 border-gray-200 p-4 text-left transition-colors hover:border-primary-400 hover:bg-primary-50"
           >
-            <p className="font-medium">소속원</p>
-            <p className="mt-1 text-sm text-gray-500">소속 사무소의 초대코드로 가입</p>
+            <p className="font-medium">소속 공인중개사</p>
+            <p className="mt-1 text-sm text-gray-500">개업 공인중개사 사무소에 소속되어 중개 업무 수행 (초대코드 필요)</p>
+          </button>
+
+          <button
+            onClick={() => handleRoleSelect('staff', 'assistant')}
+            className="w-full rounded-lg border-2 border-gray-200 p-4 text-left transition-colors hover:border-primary-400 hover:bg-primary-50"
+          >
+            <p className="font-medium">중개 보조원</p>
+            <p className="mt-1 text-sm text-gray-500">현장 안내, 서류 정리 등 중개 보조 업무 수행 (초대코드 필요)</p>
           </button>
         </div>
 
@@ -164,10 +164,10 @@ export function SignupPage() {
   // Step 2: Account info
   if (step === 'account') {
     const stepTitle = role === 'agent'
-      ? '공인중개사 회원가입'
-      : role === 'staff'
-        ? '소속원 회원가입'
-        : '회원가입'
+      ? '개업 공인중개사 회원가입'
+      : staffRole === 'associate_agent'
+        ? '소속 공인중개사 회원가입'
+        : '중개 보조원 회원가입'
 
     return (
       <div>
@@ -184,8 +184,8 @@ export function SignupPage() {
             <Button type="button" variant="outline" className="flex-1" onClick={() => setStep('role')}>
               이전
             </Button>
-            <Button type="submit" className="flex-1" isLoading={role === 'customer' && isLoading}>
-              {role === 'customer' ? '가입하기' : '다음'}
+            <Button type="submit" className="flex-1">
+              다음
             </Button>
           </div>
         </form>
@@ -230,7 +230,7 @@ export function SignupPage() {
                 {validatedOffice}
               </p>
               <p className="mt-1 text-xs text-green-600">
-                위 사무소에 소속원으로 가입합니다.
+                위 사무소에 {staffRole === 'associate_agent' ? '소속 공인중개사' : '중개 보조원'}으로 가입합니다.
               </p>
             </div>
           )}
