@@ -7,6 +7,12 @@ interface HomeFilterState {
   selectedArea: string | null
   selectedRooms: string | null
   selectedFloor: string | null
+  selectedLargeArea: string | null
+  selectedCeilingHeight: string | null
+  selectedPowerCapacity: string | null
+  selectedLandType: string | null
+  selectedZoning: string | null
+  selectedRoadFrontage: string | null
   searchQuery: string
 
   setCategory: (category: string) => void
@@ -15,6 +21,18 @@ interface HomeFilterState {
   resetFilters: () => void
 }
 
+const categoryFilterDefaults = {
+  selectedArea: null,
+  selectedRooms: null,
+  selectedFloor: null,
+  selectedLargeArea: null,
+  selectedCeilingHeight: null,
+  selectedPowerCapacity: null,
+  selectedLandType: null,
+  selectedZoning: null,
+  selectedRoadFrontage: null,
+} as const
+
 export const useHomeFilterStore = create<HomeFilterState>((set) => ({
   selectedCategory: '',
   selectedDealType: null,
@@ -22,9 +40,20 @@ export const useHomeFilterStore = create<HomeFilterState>((set) => ({
   selectedArea: null,
   selectedRooms: null,
   selectedFloor: null,
+  selectedLargeArea: null,
+  selectedCeilingHeight: null,
+  selectedPowerCapacity: null,
+  selectedLandType: null,
+  selectedZoning: null,
+  selectedRoadFrontage: null,
   searchQuery: '',
 
-  setCategory: (category) => set({ selectedCategory: category }),
+  setCategory: (category) =>
+    set({
+      selectedCategory: category,
+      // 카테고리 전환 시 카테고리별 필터 초기화 (거래방식·금액은 유지)
+      ...categoryFilterDefaults,
+    }),
 
   setFilter: (group, value) => {
     const key = {
@@ -33,6 +62,12 @@ export const useHomeFilterStore = create<HomeFilterState>((set) => ({
       area: 'selectedArea',
       rooms: 'selectedRooms',
       floor: 'selectedFloor',
+      largeArea: 'selectedLargeArea',
+      ceilingHeight: 'selectedCeilingHeight',
+      powerCapacity: 'selectedPowerCapacity',
+      landType: 'selectedLandType',
+      zoning: 'selectedZoning',
+      roadFrontage: 'selectedRoadFrontage',
     }[group]
     if (key) {
       set((state) => ({
@@ -46,8 +81,6 @@ export const useHomeFilterStore = create<HomeFilterState>((set) => ({
     set({
       selectedDealType: null,
       selectedPrice: null,
-      selectedArea: null,
-      selectedRooms: null,
-      selectedFloor: null,
+      ...categoryFilterDefaults,
     }),
 }))

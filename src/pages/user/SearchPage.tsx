@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { Property, TransactionType } from '@/types/database'
 import { fetchProperties, type SortOption, type PropertyFilters } from '@/api/properties'
+import { fetchSearchSettings, type QuickSearchCard } from '@/api/settings'
+import { resolveConditions, type ResolvedConditions } from '@/utils/conditionResolver'
 import { useCategories } from '@/hooks/useCategories'
 import { formatPropertyPrice, formatArea, transactionTypeLabel } from '@/utils/format'
 
@@ -15,12 +18,17 @@ const sortOptions: { value: SortOption; label: string }[] = [
 const directionOptions = ['남향', '남동향', '남서향', '동향', '서향', '북향']
 
 export function SearchPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const { categories } = useCategories()
   const [properties, setProperties] = useState<Property[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list')
+
+  // Quick search state
+  const [activeQuickCard, setActiveQuickCard] = useState<QuickSearchCard | null>(null)
+  const [resolvedQuick, setResolvedQuick] = useState<ResolvedConditions | null>(null)
 
   // Filters
   const [search, setSearch] = useState('')
@@ -38,6 +46,26 @@ export function SearchPage() {
   const pageSize = 12
   const totalPages = Math.ceil(total / pageSize)
 
+  // Resolve quick search param on mount
+  useEffect(() => {
+    const quickKey = searchParams.get('quick')
+    if (!quickKey) {
+      setActiveQuickCard(null)
+      setResolvedQuick(null)
+      return
+    }
+
+    fetchSearchSettings()
+      .then((settings) => {
+        const card = settings.quick_cards.find((c) => c.key === quickKey)
+        if (!card) return
+        setActiveQuickCard(card)
+        const resolved = resolveConditions(card.conditions, card.label, card.is_custom)
+        setResolvedQuick(resolved)
+      })
+      .catch(() => {})
+  }, [searchParams])
+
   const load = useCallback(async () => {
     setIsLoading(true)
     const filters: PropertyFilters = {
@@ -51,24 +79,65 @@ export function SearchPage() {
       rooms: rooms ? parseInt(rooms) : undefined,
       direction: direction || undefined,
     }
+
+    // Merge quick search filters
+    if (resolvedQuick) {
+      Object.assign(filters, resolvedQuick.filters)
+      if (resolvedQuick.tags.length > 0) {
+        filters.tags = [...(filters.tags || []), ...resolvedQuick.tags]
+      }
+    }
+
     const res = await fetchProperties(filters, sort, page, pageSize)
-    setProperties(res.data)
-    setTotal(res.total)
+
+    // Apply client-side filters (e.g. top floor)
+    let data = res.data
+    if (resolvedQuick?.clientFilters.length) {
+      data = data.filter((p) => resolvedQuick.clientFilters.every((fn) => fn(p)))
+    }
+
+    setProperties(data)
+    setTotal(resolvedQuick?.clientFilters.length ? data.length : res.total)
     setIsLoading(false)
-  }, [search, categoryId, txType, sort, page, minPrice, maxPrice, minArea, maxArea, rooms, direction])
+  }, [search, categoryId, txType, sort, page, minPrice, maxPrice, minArea, maxArea, rooms, direction, resolvedQuick])
 
   useEffect(() => { void load() }, [load])
 
-  // Reset page to 1 when filters change — use ref to avoid the setState-in-effect lint rule
+  // Reset page to 1 when filters change
   const isFirstRender = useState(() => ({ current: true }))[0]
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return }
     setPage(1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, categoryId, txType, sort, minPrice, maxPrice, minArea, maxArea, rooms, direction])
+  }, [search, categoryId, txType, sort, minPrice, maxPrice, minArea, maxArea, rooms, direction, resolvedQuick])
+
+  const clearQuickSearch = () => {
+    setSearchParams({})
+    setActiveQuickCard(null)
+    setResolvedQuick(null)
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
+      {/* Active Quick Search Banner */}
+      {activeQuickCard && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl bg-primary-50 px-4 py-3 ring-1 ring-primary-200">
+          <span className="text-2xl">{activeQuickCard.icon}</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-primary-800">{activeQuickCard.label} 검색 중</p>
+            {activeQuickCard.description && (
+              <p className="text-xs text-primary-600">{activeQuickCard.description}</p>
+            )}
+          </div>
+          <button
+            onClick={clearQuickSearch}
+            className="shrink-0 rounded-lg border border-primary-300 bg-white px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50"
+          >
+            조건 해제
+          </button>
+        </div>
+      )}
+
       {/* Search Bar */}
       <div className="mb-6">
         <div className="flex gap-2">

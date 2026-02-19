@@ -1,7 +1,9 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, type FormEvent } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import type { TransactionType, PropertyStatus, PropertyCategory } from '@/types/database'
 import { fetchPropertyById, createProperty, updateProperty, fetchCategories } from '@/api/properties'
+import { fetchSearchSettings } from '@/api/settings'
+import { getTagBasedConditions, type TagConditionInfo } from '@/utils/conditionResolver'
 import { Button, Input } from '@/components/common'
 import { formatNumber, parseCommaNumber, sqmToPyeong } from '@/utils/format'
 import toast from 'react-hot-toast'
@@ -55,6 +57,7 @@ type FormData = {
   internal_memo: string
   built_year: string
   tags: string
+  predefinedTags: string[]
   photos: string[]
 }
 
@@ -66,7 +69,7 @@ const emptyForm: FormData = {
   total_floors: '', floor: '', direction: '', move_in_date: '',
   parking_per_unit: '', has_elevator: false, pets_allowed: false,
   options: [], description: '', is_urgent: false, is_co_brokerage: false,
-  co_brokerage_fee_ratio: '', internal_memo: '', built_year: '', tags: '', photos: [],
+  co_brokerage_fee_ratio: '', internal_memo: '', built_year: '', tags: '', predefinedTags: [], photos: [],
 }
 
 export function PropertyFormPage() {
@@ -77,12 +80,28 @@ export function PropertyFormPage() {
   const [form, setForm] = useState<FormData>(emptyForm)
   const [categories, setCategories] = useState<PropertyCategory[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [tagConditions] = useState<TagConditionInfo[]>(getTagBasedConditions())
+  const [customTagLabels, setCustomTagLabels] = useState<string[]>([])
 
   useEffect(() => {
     fetchCategories().then(setCategories)
+    // Load custom quick search cards to get custom tag labels
+    fetchSearchSettings()
+      .then((s) => {
+        const customs = s.quick_cards
+          .filter((c) => c.is_custom && c.is_enabled)
+          .map((c) => c.label)
+        setCustomTagLabels(customs)
+      })
+      .catch(() => {})
     if (id) {
       fetchPropertyById(id).then((p) => {
         if (!p) { navigate('/admin/properties'); return }
+        // Separate predefined tags from free-text tags
+        const existingTags = p.tags || []
+        const builtInTags = getTagBasedConditions().map((t) => t.tag)
+        const predefined = existingTags.filter((t) => builtInTags.includes(t))
+        const freeText = existingTags.filter((t) => !builtInTags.includes(t))
         setForm({
           category_id: p.category_id || '',
           title: p.title,
@@ -114,7 +133,8 @@ export function PropertyFormPage() {
           co_brokerage_fee_ratio: p.co_brokerage_fee_ratio != null ? String(p.co_brokerage_fee_ratio) : '',
           internal_memo: p.internal_memo || '',
           built_year: p.built_year != null ? String(p.built_year) : '',
-          tags: (p.tags || []).join(', '),
+          tags: freeText.join(', '),
+          predefinedTags: predefined,
           photos: p.photos || [],
         })
       })
@@ -161,7 +181,11 @@ export function PropertyFormPage() {
         co_brokerage_fee_ratio: form.co_brokerage_fee_ratio ? parseFloat(form.co_brokerage_fee_ratio) : null,
         internal_memo: form.internal_memo || null,
         built_year: form.built_year ? parseInt(form.built_year) : null,
-        tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : null,
+        tags: (() => {
+          const freeText = form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : []
+          const merged = [...form.predefinedTags, ...freeText]
+          return merged.length > 0 ? merged : null
+        })(),
         photos: form.photos.length > 0 ? form.photos : null,
       }
       if (isEdit) {
@@ -182,6 +206,28 @@ export function PropertyFormPage() {
   const handleToggleOption = (opt: string) => {
     set('options', form.options.includes(opt) ? form.options.filter((o) => o !== opt) : [...form.options, opt])
   }
+
+  const handleTogglePredefinedTag = (tag: string) => {
+    set('predefinedTags', form.predefinedTags.includes(tag) ? form.predefinedTags.filter((t) => t !== tag) : [...form.predefinedTags, tag])
+  }
+
+  // Filter tag conditions by selected category
+  const selectedCategoryName = useMemo(() => {
+    const cat = categories.find((c) => c.id === form.category_id)
+    return cat?.name ?? ''
+  }, [categories, form.category_id])
+
+  const visibleTagConditions = useMemo(() => {
+    const builtInFiltered = selectedCategoryName
+      ? tagConditions.filter((t) => !t.categories || t.categories.includes(selectedCategoryName))
+      : tagConditions
+    return builtInFiltered
+  }, [tagConditions, selectedCategoryName])
+
+  const visibleCustomTags = useMemo(() => {
+    // Custom tags are always shown (they don't have category restrictions)
+    return customTagLabels
+  }, [customTagLabels])
 
   const supplyPyeong = form.supply_area_m2 ? sqmToPyeong(parseFloat(form.supply_area_m2)) : null
   const exclusivePyeong = form.exclusive_area_m2 ? sqmToPyeong(parseFloat(form.exclusive_area_m2)) : null
@@ -353,7 +399,43 @@ export function PropertyFormPage() {
                 ))}
               </div>
             </div>
-            <Input id="tags" label="태그 (쉼표 구분)" value={form.tags} onChange={(e) => set('tags', e.target.value)} placeholder="예: 역세권, 학군좋은, 신축" />
+            {(visibleTagConditions.length > 0 || visibleCustomTags.length > 0) && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">빠른 검색 태그</label>
+                <p className="mb-2 text-xs text-gray-400">선택한 태그가 홈페이지 원클릭 검색에 연동됩니다</p>
+                <div className="flex flex-wrap gap-2">
+                  {visibleTagConditions.map((tc) => (
+                    <button
+                      key={tc.conditionKey}
+                      type="button"
+                      onClick={() => handleTogglePredefinedTag(tc.tag)}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        form.predefinedTags.includes(tc.tag)
+                          ? 'border-primary-500 bg-primary-50 text-primary-700'
+                          : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      {tc.tag}
+                    </button>
+                  ))}
+                  {visibleCustomTags.map((label) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => handleTogglePredefinedTag(label)}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        form.predefinedTags.includes(label)
+                          ? 'border-primary-500 bg-primary-50 text-primary-700'
+                          : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <Input id="tags" label="커스텀 태그 (쉼표 구분)" value={form.tags} onChange={(e) => set('tags', e.target.value)} placeholder="예: 신축, 올수리, 풀옵션" />
           </div>
         )}
 

@@ -1,8 +1,21 @@
+import { useMemo } from 'react'
 import { useHomeFilterStore } from '@/stores/homeFilterStore'
-import { filterGroups } from '@/utils/mockData'
+import { useCategories } from '@/hooks/useCategories'
+import { filterGroups, filterByCategory } from '@/utils/mockData'
 
 function useFilterValues() {
   const store = useHomeFilterStore()
+  const { categories } = useCategories()
+
+  const categoryName = useMemo(() => {
+    const cat = categories.find((c) => c.id === store.selectedCategory)
+    return cat?.name ?? ''
+  }, [categories, store.selectedCategory])
+
+  const visibleGroups = useMemo(
+    () => (categoryName ? filterByCategory(filterGroups, categoryName) : filterGroups),
+    [categoryName],
+  )
 
   const getSelectedValue = (groupId: string): string | null => {
     const map: Record<string, string | null> = {
@@ -11,6 +24,12 @@ function useFilterValues() {
       area: store.selectedArea,
       rooms: store.selectedRooms,
       floor: store.selectedFloor,
+      largeArea: store.selectedLargeArea,
+      ceilingHeight: store.selectedCeilingHeight,
+      powerCapacity: store.selectedPowerCapacity,
+      landType: store.selectedLandType,
+      zoning: store.selectedZoning,
+      roadFrontage: store.selectedRoadFrontage,
     }
     return map[groupId] ?? null
   }
@@ -20,20 +39,26 @@ function useFilterValues() {
     store.selectedPrice ||
     store.selectedArea ||
     store.selectedRooms ||
-    store.selectedFloor
+    store.selectedFloor ||
+    store.selectedLargeArea ||
+    store.selectedCeilingHeight ||
+    store.selectedPowerCapacity ||
+    store.selectedLandType ||
+    store.selectedZoning ||
+    store.selectedRoadFrontage
   )
 
-  return { store, getSelectedValue, hasAnyFilter }
+  return { store, visibleGroups, getSelectedValue, hasAnyFilter }
 }
 
 /** Desktop: Left sidebar (w-56) */
 export function PropertySidebar() {
-  const { store, getSelectedValue, hasAnyFilter } = useFilterValues()
+  const { store, visibleGroups, getSelectedValue, hasAnyFilter } = useFilterValues()
 
   return (
     <aside className="hidden w-56 shrink-0 lg:block">
       <div className="sticky top-32 space-y-5">
-        {filterGroups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.id}>
             <h3 className="mb-2 text-sm font-semibold text-gray-800">{group.label}</h3>
             <div className="space-y-1">
@@ -72,11 +97,11 @@ export function PropertySidebar() {
 
 /** Mobile: Horizontal scrolling filter chips */
 export function PropertyFilterChips() {
-  const { store, getSelectedValue } = useFilterValues()
+  const { store, visibleGroups, getSelectedValue } = useFilterValues()
 
   return (
     <div className="scrollbar-hide flex gap-2 overflow-x-auto pb-3 lg:hidden">
-      {filterGroups.map((group) => (
+      {visibleGroups.map((group) => (
         <div key={group.id} className="flex shrink-0 items-center gap-1">
           <span className="text-xs font-medium text-gray-400">{group.label}</span>
           {group.options.map((opt) => {

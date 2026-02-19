@@ -18,6 +18,10 @@ export interface PropertyFilters {
   hasElevator?: boolean
   petsAllowed?: boolean
   isUrgent?: boolean
+  tags?: string[]
+  minBuiltYear?: number
+  minParkingPerUnit?: number
+  maxMaintenanceFee?: number
 }
 
 export type SortOption = 'newest' | 'price_asc' | 'price_desc' | 'area_desc' | 'popular'
@@ -64,6 +68,10 @@ export async function fetchProperties(
   if (filters.hasElevator) query = query.eq('has_elevator', true)
   if (filters.petsAllowed) query = query.eq('pets_allowed', true)
   if (filters.isUrgent) query = query.eq('is_urgent', true)
+  if (filters.tags && filters.tags.length > 0) query = query.contains('tags', filters.tags)
+  if (filters.minBuiltYear != null) query = query.gte('built_year', filters.minBuiltYear)
+  if (filters.minParkingPerUnit != null) query = query.gte('parking_per_unit', filters.minParkingPerUnit)
+  if (filters.maxMaintenanceFee != null) query = query.lte('maintenance_fee', filters.maxMaintenanceFee)
 
   query = applySorting(query, sort)
 

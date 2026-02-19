@@ -422,6 +422,7 @@ export type SearchFilterGroup = {
   label: string
   is_enabled: boolean
   sort_order: number
+  categories?: string[]
 }
 
 export type QuickSearchCard = {
@@ -431,6 +432,9 @@ export type QuickSearchCard = {
   is_enabled: boolean
   sort_order: number
   conditions: Record<string, unknown>
+  categories?: string[]
+  is_custom?: boolean
+  description?: string
 }
 
 export type SearchSettings = {
@@ -443,29 +447,47 @@ export type SearchSettings = {
   map_zoom: number
 }
 
+const RESIDENTIAL = ['아파트', '오피스텔', '분양권', '빌라', '주택', '원룸']
+const COMMERCIAL = ['상가', '사무실']
+
 const defaultSearchSettings: SearchSettings = {
   filter_groups: [
     { key: 'transaction_type', label: '거래방식', is_enabled: true, sort_order: 1 },
     { key: 'price', label: '금액별', is_enabled: true, sort_order: 2 },
-    { key: 'area', label: '면적별', is_enabled: true, sort_order: 3 },
-    { key: 'rooms', label: '방수별', is_enabled: true, sort_order: 4 },
-    { key: 'floor', label: '층수별', is_enabled: true, sort_order: 5 },
-    { key: 'direction', label: '방향별', is_enabled: false, sort_order: 6 },
-    { key: 'built_year', label: '건축년도별', is_enabled: false, sort_order: 7 },
+    { key: 'area', label: '면적별', is_enabled: true, sort_order: 3, categories: [...RESIDENTIAL, ...COMMERCIAL] },
+    { key: 'rooms', label: '방수별', is_enabled: true, sort_order: 4, categories: RESIDENTIAL },
+    { key: 'floor', label: '층수별', is_enabled: true, sort_order: 5, categories: [...RESIDENTIAL, ...COMMERCIAL] },
+    { key: 'direction', label: '방향별', is_enabled: false, sort_order: 6, categories: [...RESIDENTIAL, ...COMMERCIAL] },
+    { key: 'built_year', label: '건축년도별', is_enabled: false, sort_order: 7, categories: [...RESIDENTIAL, ...COMMERCIAL] },
+    { key: 'large_area', label: '대형면적', is_enabled: true, sort_order: 8, categories: ['공장/창고', '토지'] },
+    { key: 'ceiling_height', label: '층고', is_enabled: true, sort_order: 9, categories: ['공장/창고'] },
+    { key: 'power_capacity', label: '전력용량', is_enabled: true, sort_order: 10, categories: ['공장/창고'] },
+    { key: 'land_type', label: '지목', is_enabled: true, sort_order: 11, categories: ['토지'] },
+    { key: 'zoning', label: '용도지역', is_enabled: true, sort_order: 12, categories: ['토지', '공장/창고'] },
+    { key: 'road_frontage', label: '접도', is_enabled: true, sort_order: 13, categories: ['공장/창고', '토지'] },
   ],
   quick_cards: [
-    { key: 'new_built', label: '신축 매물', icon: '🆕', is_enabled: true, sort_order: 1, conditions: { built_within_years: 3 } },
+    { key: 'new_built', label: '신축 매물', icon: '🆕', is_enabled: true, sort_order: 1, conditions: { built_within_years: 3 }, categories: [...RESIDENTIAL, ...COMMERCIAL] },
     { key: 'station_near', label: '역세권', icon: '🚇', is_enabled: true, sort_order: 2, conditions: { walk_minutes: 10 } },
-    { key: 'school_near', label: '학세권', icon: '🏫', is_enabled: true, sort_order: 3, conditions: { school_walk_minutes: 10 } },
+    { key: 'school_near', label: '학세권', icon: '🏫', is_enabled: true, sort_order: 3, conditions: { school_walk_minutes: 10 }, categories: RESIDENTIAL },
     { key: 'park_near', label: '공세권', icon: '🌳', is_enabled: true, sort_order: 4, conditions: { park_walk_minutes: 10 } },
-    { key: 'pet_friendly', label: '반려동물', icon: '🐕', is_enabled: true, sort_order: 5, conditions: { pets_allowed: true } },
-    { key: 'parking', label: '주차 편리', icon: '🅿️', is_enabled: true, sort_order: 6, conditions: { parking_per_unit: 1 } },
-    { key: 'low_maintenance', label: '관리비 저렴', icon: '💰', is_enabled: true, sort_order: 7, conditions: { max_maintenance: 15 } },
-    { key: 'rooftop', label: '탑층', icon: '🌤️', is_enabled: true, sort_order: 8, conditions: { is_top_floor: true } },
-    { key: 'south_facing', label: '남향', icon: '☀️', is_enabled: true, sort_order: 9, conditions: { direction: '남향' } },
-    { key: 'elevator', label: '엘리베이터', icon: '🛗', is_enabled: true, sort_order: 10, conditions: { has_elevator: true } },
+    { key: 'pet_friendly', label: '반려동물', icon: '🐕', is_enabled: true, sort_order: 5, conditions: { pets_allowed: true }, categories: RESIDENTIAL },
+    { key: 'parking', label: '주차 편리', icon: '🅿️', is_enabled: true, sort_order: 6, conditions: { parking_per_unit: 1 }, categories: [...RESIDENTIAL, ...COMMERCIAL] },
+    { key: 'low_maintenance', label: '관리비 저렴', icon: '💰', is_enabled: true, sort_order: 7, conditions: { max_maintenance: 15 }, categories: [...RESIDENTIAL, ...COMMERCIAL] },
+    { key: 'rooftop', label: '탑층', icon: '🌤️', is_enabled: true, sort_order: 8, conditions: { is_top_floor: true }, categories: [...RESIDENTIAL, ...COMMERCIAL] },
+    { key: 'south_facing', label: '남향', icon: '☀️', is_enabled: true, sort_order: 9, conditions: { direction: '남향' }, categories: [...RESIDENTIAL, ...COMMERCIAL] },
+    { key: 'elevator', label: '엘리베이터', icon: '🛗', is_enabled: true, sort_order: 10, conditions: { has_elevator: true }, categories: [...RESIDENTIAL, ...COMMERCIAL] },
     { key: 'urgent', label: '급매물', icon: '🔥', is_enabled: true, sort_order: 11, conditions: { is_urgent: true } },
     { key: 'move_in_now', label: '즉시입주', icon: '📅', is_enabled: false, sort_order: 12, conditions: { move_in_immediate: true } },
+    { key: 'truck_access', label: '화물차진입', icon: '🚛', is_enabled: true, sort_order: 13, conditions: { truck_access: true }, categories: ['공장/창고'] },
+    { key: 'loading_dock', label: '하역장', icon: '📦', is_enabled: true, sort_order: 14, conditions: { loading_dock: true }, categories: ['공장/창고'] },
+    { key: 'cold_storage', label: '냉동냉장', icon: '❄️', is_enabled: true, sort_order: 15, conditions: { cold_storage: true }, categories: ['공장/창고'] },
+    { key: 'high_ceiling', label: '높은층고', icon: '📏', is_enabled: true, sort_order: 16, conditions: { ceiling_height_min: 8 }, categories: ['공장/창고'] },
+    { key: 'high_power', label: '대용량전력', icon: '⚡', is_enabled: true, sort_order: 17, conditions: { power_capacity_min: 300 }, categories: ['공장/창고'] },
+    { key: 'developable', label: '개발가능', icon: '🏗️', is_enabled: true, sort_order: 18, conditions: { developable: true }, categories: ['토지'] },
+    { key: 'road_facing', label: '도로접면', icon: '🛣️', is_enabled: true, sort_order: 19, conditions: { road_frontage_min: 8 }, categories: ['토지'] },
+    { key: 'flat_land', label: '평탄지', icon: '🏞️', is_enabled: true, sort_order: 20, conditions: { max_slope: 5 }, categories: ['토지'] },
+    { key: 'good_road', label: '접도양호', icon: '🛤️', is_enabled: true, sort_order: 21, conditions: { good_road: true }, categories: ['공장/창고', '토지'] },
   ],
   default_sort: 'newest',
   items_per_page: 12,
