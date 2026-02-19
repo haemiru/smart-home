@@ -65,11 +65,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user })
 
     if (user?.role === 'agent' || user?.role === 'staff') {
-      const { data: agentProfile } = await supabase
-        .from('agent_profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single()
+      let agentProfile = null
+
+      if (user.role === 'agent') {
+        const { data } = await supabase
+          .from('agent_profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .single()
+        agentProfile = data
+      } else {
+        // staff: look up via staff_members → agent_profile_id
+        const { data: staffRow } = await supabase
+          .from('staff_members')
+          .select('agent_profile_id')
+          .eq('user_id', userId)
+          .single()
+
+        if (staffRow) {
+          const { data } = await supabase
+            .from('agent_profiles')
+            .select('*')
+            .eq('id', staffRow.agent_profile_id)
+            .single()
+          agentProfile = data
+        }
+      }
 
       set({ agentProfile })
 

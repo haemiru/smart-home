@@ -13,16 +13,29 @@ export async function getAgentProfileId(): Promise<string> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('로그인이 필요합니다.')
 
+  // Try agent_profiles directly (works for agents)
   const { data, error } = await supabase
     .from('agent_profiles')
     .select('id')
     .eq('user_id', user.id)
     .single()
 
-  if (error || !data) throw new Error('중개사 프로필을 찾을 수 없습니다.')
+  if (!error && data) {
+    _agentProfileId = data.id
+    return data.id
+  }
 
-  _agentProfileId = data.id
-  return data.id
+  // Fallback for staff: look up via staff_members
+  const { data: staffRow, error: staffError } = await supabase
+    .from('staff_members')
+    .select('agent_profile_id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (staffError || !staffRow) throw new Error('중개사 프로필을 찾을 수 없습니다.')
+
+  _agentProfileId = staffRow.agent_profile_id
+  return staffRow.agent_profile_id
 }
 
 /**

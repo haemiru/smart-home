@@ -1,11 +1,11 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, Input } from '@/components/common'
-import { signUpWithEmail, signInWithGoogle } from '@/api/auth'
+import { signUpWithEmail, signInWithGoogle, validateInviteCode } from '@/api/auth'
 import type { UserRole } from '@/types/database'
 import toast from 'react-hot-toast'
 
-type Step = 'role' | 'account' | 'agent-info'
+type Step = 'role' | 'account' | 'agent-info' | 'invite-code'
 
 export function SignupPage() {
   const navigate = useNavigate()
@@ -28,6 +28,11 @@ export function SignupPage() {
   const [officeAddress, setOfficeAddress] = useState('')
   const [officePhone, setOfficePhone] = useState('')
 
+  // Staff invite code fields
+  const [inviteCode, setInviteCode] = useState('')
+  const [validatedOffice, setValidatedOffice] = useState<string | null>(null)
+  const [validating, setValidating] = useState(false)
+
   const handleRoleSelect = (selectedRole: UserRole) => {
     setRole(selectedRole)
     setStep('account')
@@ -45,10 +50,37 @@ export function SignupPage() {
     }
     if (role === 'agent') {
       setStep('agent-info')
+    } else if (role === 'staff') {
+      setStep('invite-code')
     } else {
       handleSignUp()
     }
   }
+
+  // Validate invite code with debounce
+  useEffect(() => {
+    if (inviteCode.length !== 8) {
+      setValidatedOffice(null)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setValidating(true)
+      try {
+        const result = await validateInviteCode(inviteCode)
+        setValidatedOffice(result?.officeName ?? null)
+        if (!result) {
+          toast.error('유효하지 않은 초대코드입니다.')
+        }
+      } catch {
+        setValidatedOffice(null)
+      } finally {
+        setValidating(false)
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [inviteCode])
 
   const handleSignUp = async (e?: FormEvent) => {
     e?.preventDefault()
@@ -68,15 +100,14 @@ export function SignupPage() {
           address: officeAddress,
           phone: officePhone,
         } : undefined,
+        staffInviteCode: role === 'staff' ? inviteCode.toUpperCase() : undefined,
       })
 
       if (result.session) {
-        // 이메일 확인 비활성화 상태 — 즉시 로그인됨
         toast.success('회원가입이 완료되었습니다!')
-        const target = role === 'agent' ? '/admin/dashboard' : '/'
+        const target = (role === 'agent' || role === 'staff') ? '/admin/dashboard' : '/'
         navigate(target, { replace: true })
       } else {
-        // 이메일 확인 활성화 상태 — 이메일 인증 필요
         toast.success('회원가입이 완료되었습니다. 이메일을 확인해주세요.')
         navigate('/auth/login')
       }
@@ -118,6 +149,14 @@ export function SignupPage() {
             <p className="font-medium">공인중개사</p>
             <p className="mt-1 text-sm text-gray-500">매물 등록, 고객 관리, 계약 관리 등 올인원 업무 (Free 요금제로 시작)</p>
           </button>
+
+          <button
+            onClick={() => handleRoleSelect('staff')}
+            className="w-full rounded-lg border-2 border-gray-200 p-4 text-left transition-colors hover:border-primary-400 hover:bg-primary-50"
+          >
+            <p className="font-medium">소속원</p>
+            <p className="mt-1 text-sm text-gray-500">소속 사무소의 초대코드로 가입</p>
+          </button>
         </div>
 
         <div className="my-4 flex items-center gap-3">
@@ -142,11 +181,15 @@ export function SignupPage() {
 
   // Step 2: Account info
   if (step === 'account') {
+    const stepTitle = role === 'agent'
+      ? '공인중개사 회원가입'
+      : role === 'staff'
+        ? '소속원 회원가입'
+        : '회원가입'
+
     return (
       <div>
-        <h2 className="mb-6 text-center text-xl font-semibold">
-          {role === 'agent' ? '공인중개사 회원가입' : '회원가입'}
-        </h2>
+        <h2 className="mb-6 text-center text-xl font-semibold">{stepTitle}</h2>
 
         <form onSubmit={handleAccountSubmit} className="space-y-4">
           <Input id="displayName" label="이름" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required />
@@ -160,7 +203,7 @@ export function SignupPage() {
               이전
             </Button>
             <Button type="submit" className="flex-1" isLoading={role === 'customer' && isLoading}>
-              {role === 'agent' ? '다음' : '가입하기'}
+              {role === 'customer' ? '가입하기' : '다음'}
             </Button>
           </div>
         </form>
@@ -168,7 +211,73 @@ export function SignupPage() {
     )
   }
 
-  // Step 3: Agent info (only for agents)
+  // Step 3a: Invite code (only for staff)
+  if (step === 'invite-code') {
+    return (
+      <div>
+        <h2 className="mb-6 text-center text-xl font-semibold">초대코드 입력</h2>
+        <p className="mb-4 text-center text-sm text-gray-500">
+          소속 사무소에서 받은 초대코드 8자리를 입력해주세요.
+        </p>
+
+        <form onSubmit={handleSignUp} className="space-y-4">
+          <div>
+            <label htmlFor="inviteCode" className="mb-1 block text-sm font-medium text-gray-700">
+              초대코드
+            </label>
+            <input
+              id="inviteCode"
+              type="text"
+              maxLength={8}
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+              placeholder="예: AB3F7K2M"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-center font-mono text-lg tracking-[0.2em] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              autoFocus
+            />
+          </div>
+
+          {/* Validation status */}
+          {validating && (
+            <p className="text-center text-sm text-gray-400">확인 중...</p>
+          )}
+
+          {validatedOffice && (
+            <div className="rounded-lg bg-green-50 p-4 text-center">
+              <p className="text-sm font-medium text-green-800">
+                {validatedOffice}
+              </p>
+              <p className="mt-1 text-xs text-green-600">
+                위 사무소에 소속원으로 가입합니다.
+              </p>
+            </div>
+          )}
+
+          {inviteCode.length === 8 && !validating && !validatedOffice && (
+            <p className="text-center text-sm text-red-500">
+              유효하지 않은 초대코드입니다. 코드를 다시 확인해주세요.
+            </p>
+          )}
+
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => setStep('account')}>
+              이전
+            </Button>
+            <Button
+              type="submit"
+              className="flex-1"
+              isLoading={isLoading}
+              disabled={!validatedOffice || isLoading}
+            >
+              가입하기
+            </Button>
+          </div>
+        </form>
+      </div>
+    )
+  }
+
+  // Step 3b: Agent info (only for agents)
   return (
     <div>
       <h2 className="mb-6 text-center text-xl font-semibold">중개사무소 정보</h2>

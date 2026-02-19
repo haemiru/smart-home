@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchStaffList, inviteStaff, updateStaffRole, updateStaffPermissions, toggleStaffActive, deleteStaff } from '@/api/settings'
+import { fetchStaffList, fetchInviteCode, regenerateInviteCode, updateStaffRole, updateStaffPermissions, toggleStaffActive, deleteStaff } from '@/api/settings'
 import type { StaffWithUser } from '@/api/settings'
 import type { StaffRole } from '@/types/database'
 import { formatDateTime } from '@/utils/format'
@@ -41,12 +41,14 @@ const PERMISSION_LABELS: { key: PermissionKey; label: string }[] = [
 export function StaffSettingsPage() {
   const [staffList, setStaffList] = useState<StaffWithUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [showInviteModal, setShowInviteModal] = useState(false)
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteRole, setInviteRole] = useState<StaffRole>('associate_agent')
-  const [inviting, setInviting] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+
+  // Invite code state
+  const [inviteCode, setInviteCode] = useState<string | null>(null)
+  const [codeLoading, setCodeLoading] = useState(true)
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
 
   const loadStaff = async () => {
     setIsLoading(true)
@@ -60,31 +62,44 @@ export function StaffSettingsPage() {
     }
   }
 
+  const loadInviteCode = async () => {
+    setCodeLoading(true)
+    try {
+      const code = await fetchInviteCode()
+      setInviteCode(code)
+    } catch {
+      toast.error('초대코드를 불러오지 못했습니다.')
+    } finally {
+      setCodeLoading(false)
+    }
+  }
+
   useEffect(() => {
     loadStaff()
+    loadInviteCode()
   }, [])
 
-  const handleInvite = async () => {
-    if (!inviteEmail.trim()) {
-      toast.error('이메일을 입력해주세요.')
-      return
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim())) {
-      toast.error('올바른 이메일 형식을 입력해주세요.')
-      return
-    }
-    setInviting(true)
+  const handleCopyCode = async () => {
+    if (!inviteCode) return
     try {
-      await inviteStaff(inviteEmail.trim(), inviteRole)
-      toast.success('초대가 완료되었습니다.')
-      setShowInviteModal(false)
-      setInviteEmail('')
-      setInviteRole('associate_agent')
-      await loadStaff()
+      await navigator.clipboard.writeText(inviteCode)
+      toast.success('초대코드가 복사되었습니다.')
     } catch {
-      toast.error('초대에 실패했습니다.')
+      toast.error('복사에 실패했습니다.')
+    }
+  }
+
+  const handleRegenerate = async () => {
+    setRegenerating(true)
+    try {
+      const newCode = await regenerateInviteCode()
+      setInviteCode(newCode)
+      setShowRegenConfirm(false)
+      toast.success('새 초대코드가 발급되었습니다.')
+    } catch {
+      toast.error('초대코드 재발급에 실패했습니다.')
     } finally {
-      setInviting(false)
+      setRegenerating(false)
     }
   }
 
@@ -137,19 +152,57 @@ export function StaffSettingsPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold">소속원 관리</h2>
-          <p className="mt-0.5 text-sm text-gray-500">
-            사무소 소속원을 초대하고 역할/권한을 관리합니다.
-          </p>
+      <div>
+        <h2 className="text-lg font-bold">소속원 관리</h2>
+        <p className="mt-0.5 text-sm text-gray-500">
+          초대코드를 공유하여 소속원을 추가하고, 역할/권한을 관리합니다.
+        </p>
+      </div>
+
+      {/* Invite Code Card */}
+      <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+        <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+          <span className="text-base">📋</span>
+          사무소 초대코드
         </div>
-        <button
-          onClick={() => setShowInviteModal(true)}
-          className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
-        >
-          소속원 초대
-        </button>
+
+        {codeLoading ? (
+          <div className="mt-4 flex items-center justify-center py-4 text-sm text-gray-400">
+            불러오는 중...
+          </div>
+        ) : (
+          <>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              {/* Code display */}
+              <div className="flex items-center gap-1.5 rounded-lg bg-gray-50 px-4 py-3 font-mono text-xl font-bold tracking-[0.25em] text-gray-800">
+                {inviteCode ? inviteCode.split('').map((char, i) => (
+                  <span key={i}>{char}</span>
+                )) : '--------'}
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCopyCode}
+                  disabled={!inviteCode}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+                >
+                  복사
+                </button>
+                <button
+                  onClick={() => setShowRegenConfirm(true)}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  재발급
+                </button>
+              </div>
+            </div>
+
+            <p className="mt-3 text-sm text-gray-500">
+              소속원에게 이 코드를 공유하세요. 회원가입 시 코드를 입력하면 자동으로 사무소에 연결됩니다.
+            </p>
+          </>
+        )}
       </div>
 
       {/* Staff List Card */}
@@ -162,7 +215,7 @@ export function StaffSettingsPage() {
           <div className="flex flex-col items-center justify-center py-20 text-sm text-gray-400">
             <span className="mb-2 text-3xl">👥</span>
             <p>등록된 소속원이 없습니다.</p>
-            <p className="mt-1 text-xs">위의 [소속원 초대] 버튼으로 초대해보세요.</p>
+            <p className="mt-1 text-xs">위의 초대코드를 소속원에게 공유해보세요.</p>
           </div>
         ) : (
           <>
@@ -348,64 +401,28 @@ export function StaffSettingsPage() {
         )}
       </div>
 
-      {/* Invite Modal */}
-      {showInviteModal && (
+      {/* Regenerate Confirmation Modal */}
+      {showRegenConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-gray-900">소속원 초대</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              이메일로 초대장을 발송합니다.
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900">초대코드 재발급</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              새 초대코드를 발급하면 기존 코드는 즉시 무효화됩니다.
+              이미 기존 코드를 공유받은 소속원은 새 코드로 가입해야 합니다.
             </p>
-
-            <div className="mt-5 space-y-4">
-              {/* Email */}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">이메일</label>
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="example@email.com"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                  autoFocus
-                />
-              </div>
-
-              {/* Role */}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">역할</label>
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as StaffRole)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                >
-                  {ROLE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Buttons */}
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="mt-5 flex justify-end gap-2">
               <button
-                onClick={() => {
-                  setShowInviteModal(false)
-                  setInviteEmail('')
-                  setInviteRole('associate_agent')
-                }}
+                onClick={() => setShowRegenConfirm(false)}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
               >
                 취소
               </button>
               <button
-                onClick={handleInvite}
-                disabled={inviting}
+                onClick={handleRegenerate}
+                disabled={regenerating}
                 className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50"
               >
-                {inviting ? '초대 중...' : '초대하기'}
+                {regenerating ? '발급 중...' : '재발급'}
               </button>
             </div>
           </div>

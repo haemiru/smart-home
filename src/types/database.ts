@@ -54,6 +54,7 @@ export type AgentProfile = {
   is_verified: boolean
   subscription_plan: PlanType
   subscription_started_at: string
+  invite_code: string | null
   created_at: string
 }
 
@@ -420,6 +421,7 @@ export type Database = {
           is_verified?: boolean
           subscription_plan?: PlanType
           subscription_started_at?: string
+          invite_code?: string | null
           created_at?: string
         }
         Update: {
@@ -440,6 +442,7 @@ export type Database = {
           is_verified?: boolean
           subscription_plan?: PlanType
           subscription_started_at?: string
+          invite_code?: string | null
           created_at?: string
         }
         Relationships: []

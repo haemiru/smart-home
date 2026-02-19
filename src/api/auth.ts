@@ -15,9 +15,10 @@ interface SignUpParams {
     address: string
     phone: string
   }
+  staffInviteCode?: string
 }
 
-export async function signUpWithEmail({ email, password, displayName, phone, role, agentData }: SignUpParams) {
+export async function signUpWithEmail({ email, password, displayName, phone, role, agentData, staffInviteCode }: SignUpParams) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -27,6 +28,7 @@ export async function signUpWithEmail({ email, password, displayName, phone, rol
         phone,
         role,
         ...(agentData ? { agent_data: agentData } : {}),
+        ...(staffInviteCode ? { invite_code: staffInviteCode } : {}),
       },
     },
   })
@@ -64,6 +66,33 @@ export async function signUpWithEmail({ email, password, displayName, phone, rol
 
     if (agentError) {
       console.warn('Agent profile creation deferred:', agentError.message)
+    }
+  }
+
+  // Safety net for staff: try client-side staff_members insert (non-fatal, trigger should handle it)
+  if (role === 'staff' && staffInviteCode) {
+    const { data: agentProfile } = await supabase
+      .from('agent_profiles')
+      .select('id')
+      .eq('invite_code', staffInviteCode)
+      .single()
+
+    if (agentProfile) {
+      const { error: staffError } = await supabase.from('staff_members').insert({
+        agent_profile_id: agentProfile.id,
+        user_id: data.user.id,
+        role: 'assistant',
+        permissions: {
+          property_create: true, property_delete: false,
+          contract_create: false, contract_approve: false, e_signature: false,
+          customer_view: true, ai_tools: false, co_brokerage: false, settings: false,
+        },
+        is_active: true,
+      })
+
+      if (staffError) {
+        console.warn('Staff member creation deferred (trigger may have handled):', staffError.message)
+      }
     }
   }
 
@@ -114,4 +143,15 @@ export async function getAgentProfile(userId: string) {
 
   if (error) throw error
   return data
+}
+
+export async function validateInviteCode(code: string): Promise<{ officeName: string; agentProfileId: string } | null> {
+  const { data, error } = await supabase
+    .from('agent_profiles')
+    .select('id, office_name')
+    .eq('invite_code', code.toUpperCase())
+    .single()
+
+  if (error || !data) return null
+  return { officeName: data.office_name, agentProfileId: data.id }
 }

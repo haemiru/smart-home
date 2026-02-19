@@ -85,45 +85,37 @@ export async function fetchStaffList(): Promise<StaffWithUser[]> {
   })
 }
 
-export async function inviteStaff(email: string, role: StaffRole): Promise<StaffWithUser> {
+export async function fetchInviteCode(): Promise<string | null> {
   const agentId = await getAgentProfileId()
-
-  // Look up user by email
-  const { data: users, error: userError } = await supabase
-    .from('users')
-    .select('id, display_name, email, phone')
-    .eq('email', email)
-    .limit(1)
-
-  if (userError) throw userError
-  if (!users || users.length === 0) throw new Error('해당 이메일의 사용자를 찾을 수 없습니다.')
-
-  const user = users[0]
-
-  const defaultPermissions = role === 'associate_agent'
-    ? { property_create: true, property_delete: false, contract_create: true, contract_approve: false, e_signature: false, customer_view: true, ai_tools: true, co_brokerage: false, settings: false }
-    : { property_create: true, property_delete: false, contract_create: false, contract_approve: false, e_signature: false, customer_view: true, ai_tools: false, co_brokerage: false, settings: false }
-
-  const { data: staff, error } = await supabase
-    .from('staff_members')
-    .insert({
-      agent_profile_id: agentId,
-      user_id: user.id,
-      role,
-      permissions: defaultPermissions,
-    })
-    .select()
+  const { data, error } = await supabase
+    .from('agent_profiles')
+    .select('invite_code')
+    .eq('id', agentId)
     .single()
 
   if (error) throw error
+  return data?.invite_code ?? null
+}
 
-  return {
-    ...staff,
-    display_name: user.display_name,
-    email: user.email,
-    phone: user.phone,
-    last_login: null,
+export async function regenerateInviteCode(): Promise<string> {
+  const agentId = await getAgentProfileId()
+
+  // Generate a new 8-char alphanumeric code
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  let code = ''
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length))
   }
+
+  const { data, error } = await supabase
+    .from('agent_profiles')
+    .update({ invite_code: code })
+    .eq('id', agentId)
+    .select('invite_code')
+    .single()
+
+  if (error) throw error
+  return data.invite_code!
 }
 
 export async function updateStaffRole(staffId: string, role: StaffRole): Promise<void> {
