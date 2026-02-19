@@ -30,6 +30,7 @@ export async function signUpWithEmail({ email, password, displayName, phone, rol
         role,
         ...(agentData ? { agent_data: agentData } : {}),
         ...(staffInviteCode ? { invite_code: staffInviteCode } : {}),
+        ...(staffRole ? { staff_role: staffRole } : {}),
       },
     },
   })
