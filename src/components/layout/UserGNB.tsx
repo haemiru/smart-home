@@ -61,7 +61,7 @@ export function UserGNB() {
               {session ? (
                 <div className="hidden items-center gap-2 sm:flex">
                   <span className="text-sm text-gray-600">{user?.display_name}</span>
-                  {user?.role !== 'customer' && (
+                  {(user?.role === 'agent' || user?.role === 'staff') && (
                     <Link
                       to="/admin/dashboard"
                       className="rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-100"
@@ -143,7 +143,7 @@ export function UserGNB() {
                 {session ? (
                   <>
                     <div className="px-3 py-2 text-sm text-gray-500">{user?.display_name}</div>
-                    {user?.role !== 'customer' && (
+                    {(user?.role === 'agent' || user?.role === 'staff') && (
                       <Link
                         to="/admin/dashboard"
                         onClick={() => setIsMobileMenuOpen(false)}

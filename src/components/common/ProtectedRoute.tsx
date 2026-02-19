@@ -23,12 +23,12 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/auth/login" state={{ from: location }} replace />
   }
 
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    // Redirect based on role
-    if (user.role === 'customer') {
+  if (allowedRoles) {
+    // user 프로필이 로드되었으면 user.role, 아니면 세션 메타데이터에서 role 확인
+    const role = (user?.role ?? session.user?.user_metadata?.role) as UserRole | undefined
+    if (!role || !allowedRoles.includes(role)) {
       return <Navigate to="/" replace />
     }
-    return <Navigate to="/admin/dashboard" replace />
   }
 
   return <>{children}</>

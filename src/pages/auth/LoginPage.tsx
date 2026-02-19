@@ -26,9 +26,13 @@ export function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
     try {
-      await signInWithEmail(email, password)
+      const data = await signInWithEmail(email, password)
       toast.success('로그인 성공!')
-      navigate(from, { replace: true })
+      const userRole = data.user?.user_metadata?.role
+      const target = from !== '/' ? from
+        : (userRole === 'agent' || userRole === 'staff') ? '/admin/dashboard'
+        : '/'
+      navigate(target, { replace: true })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '로그인에 실패했습니다.')
     } finally {
