@@ -85,43 +85,28 @@ export async function fetchStaffList(): Promise<StaffWithUser[]> {
   })
 }
 
-export async function fetchInviteCode(): Promise<string> {
-  const agentId = await getAgentProfileId()
-  const { data, error } = await supabase
-    .from('agent_profiles')
-    .select('invite_code')
-    .eq('id', agentId)
-    .single()
-
-  if (error) throw error
-
-  // invite_code가 없으면 자동 생성
-  if (!data?.invite_code) {
-    return regenerateInviteCode()
-  }
-
-  return data.invite_code
-}
-
-export async function regenerateInviteCode(): Promise<string> {
-  const agentId = await getAgentProfileId()
-
-  // Generate a new 8-char alphanumeric code
+function generateCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
   let code = ''
   for (let i = 0; i < 8; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length))
   }
+  return code
+}
 
-  const { data, error } = await supabase
-    .from('agent_profiles')
-    .update({ invite_code: code })
-    .eq('id', agentId)
-    .select('invite_code')
-    .single()
+export async function fetchInviteCode(): Promise<string> {
+  const stored = await fetchAgentSetting<{ code: string } | null>('invite_code', null)
 
-  if (error) throw error
-  return data.invite_code!
+  if (stored?.code) return stored.code
+
+  // 코드가 없으면 자동 생성
+  return regenerateInviteCode()
+}
+
+export async function regenerateInviteCode(): Promise<string> {
+  const code = generateCode()
+  await upsertAgentSetting('invite_code', { code })
+  return code
 }
 
 export async function updateStaffRole(staffId: string, role: StaffRole): Promise<void> {

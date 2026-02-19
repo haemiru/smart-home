@@ -71,15 +71,11 @@ export async function signUpWithEmail({ email, password, displayName, phone, rol
 
   // Safety net for staff: try client-side staff_members insert (non-fatal, trigger should handle it)
   if (role === 'staff' && staffInviteCode) {
-    const { data: agentProfile } = await supabase
-      .from('agent_profiles')
-      .select('id')
-      .eq('invite_code', staffInviteCode)
-      .single()
+    const validated = await validateInviteCode(staffInviteCode)
 
-    if (agentProfile) {
+    if (validated) {
       const { error: staffError } = await supabase.from('staff_members').insert({
-        agent_profile_id: agentProfile.id,
+        agent_profile_id: validated.agentProfileId,
         user_id: data.user.id,
         role: 'assistant',
         permissions: {
@@ -135,12 +131,27 @@ export async function getAgentProfile(userId: string) {
 }
 
 export async function validateInviteCode(code: string): Promise<{ officeName: string; agentProfileId: string } | null> {
-  const { data, error } = await supabase
+  const { data: settings, error } = await supabase
+    .from('agent_settings')
+    .select('agent_id, setting_value')
+    .eq('setting_key', 'invite_code')
+
+  if (error || !settings) return null
+
+  const upperCode = code.toUpperCase()
+  const matched = settings.find((s) => {
+    const val = s.setting_value as { code?: string } | null
+    return val?.code === upperCode
+  })
+
+  if (!matched) return null
+
+  const { data: profile } = await supabase
     .from('agent_profiles')
     .select('id, office_name')
-    .eq('invite_code', code.toUpperCase())
+    .eq('id', matched.agent_id)
     .single()
 
-  if (error || !data) return null
-  return { officeName: data.office_name, agentProfileId: data.id }
+  if (!profile) return null
+  return { officeName: profile.office_name, agentProfileId: profile.id }
 }
