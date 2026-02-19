@@ -1,6 +1,4 @@
-// Mock API functions for admin dashboard
-// Aggregates data from other mock APIs
-
+import { supabase } from '@/api/supabase'
 import type { Inquiry } from '@/types/database'
 
 export type DashboardSummary = {
@@ -56,26 +54,40 @@ export type ScheduleItem = {
   type: 'today' | 'tomorrow'
 }
 
-// ─── Summary ────────────────────────────────────────
+// ─── Summary (Supabase COUNT queries) ────────────────
 
 export async function fetchDashboardSummary(): Promise<DashboardSummary> {
+  const [
+    { count: newInquiries },
+    { count: activeContracts },
+    { count: totalProperties },
+    { count: activeProperties },
+    { count: totalCustomers },
+  ] = await Promise.all([
+    supabase.from('inquiries').select('*', { count: 'exact', head: true }).in('status', ['new', 'checked', 'in_progress']),
+    supabase.from('contracts').select('*', { count: 'exact', head: true }).in('status', ['drafting', 'pending_sign', 'signed']),
+    supabase.from('properties').select('*', { count: 'exact', head: true }),
+    supabase.from('properties').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+    supabase.from('customers').select('*', { count: 'exact', head: true }),
+  ])
+
   return {
-    newInquiries: 3,
-    inquiryDelta: 1,
-    activeContracts: 2,
-    totalProperties: 12,
-    activeProperties: 8,
-    totalCustomers: 7,
+    newInquiries: newInquiries ?? 0,
+    inquiryDelta: 0, // Would need historical data to compute delta
+    activeContracts: activeContracts ?? 0,
+    totalProperties: totalProperties ?? 0,
+    activeProperties: activeProperties ?? 0,
+    totalCustomers: totalCustomers ?? 0,
   }
 }
 
-// ─── Monthly Performance ────────────────────────────
+// ─── Monthly Performance (mock — no aggregation table) ──
 
 export async function fetchMonthlyPerformance(): Promise<MonthlyPerformance> {
   return {
     propertyRegistrations: 5,
     contractsClosed: 2,
-    totalTransactionAmount: 135300, // 만원
+    totalTransactionAmount: 135300,
     prevPropertyRegistrations: 3,
     prevContractsClosed: 1,
     prevTransactionAmount: 85000,
@@ -90,40 +102,21 @@ export async function fetchMonthlyPerformance(): Promise<MonthlyPerformance> {
   }
 }
 
-// ─── Unanswered Inquiries ───────────────────────────
+// ─── Unanswered Inquiries (Supabase) ──────────────────
 
 export async function fetchUnansweredInquiries(): Promise<Inquiry[]> {
-  // Return mock unanswered inquiries
-  const now = new Date()
-  return [
-    {
-      id: 'inq-6', inquiry_number: 'INQ-20260218-001', user_id: null, name: '한지연', phone: '010-2222-3333', email: 'han@example.com',
-      inquiry_type: 'property', property_id: 'p4', preferred_visit_date: '2026-02-25',
-      content: '역삼 센트럴 오피스텔 30㎡ 월세 조건 협의 가능한가요?',
-      status: 'new', agent_id: 'agent-1',
-      created_at: new Date(now.getTime() - 30 * 60000).toISOString(),
-      updated_at: new Date(now.getTime() - 30 * 60000).toISOString(),
-    },
-    {
-      id: 'inq-1', inquiry_number: 'INQ-20260217-001', user_id: null, name: '김철수', phone: '010-1234-5678', email: 'kim@example.com',
-      inquiry_type: 'property', property_id: 'p1', preferred_visit_date: '2026-02-22',
-      content: '래미안 레이카운티 매물 관련하여 문의드립니다.',
-      status: 'new', agent_id: 'agent-1',
-      created_at: new Date(now.getTime() - 3 * 3600000).toISOString(),
-      updated_at: new Date(now.getTime() - 3 * 3600000).toISOString(),
-    },
-    {
-      id: 'inq-3', inquiry_number: 'INQ-20260216-001', user_id: null, name: '박민수', phone: '010-5555-1234', email: null,
-      inquiry_type: 'property', property_id: 'p5', preferred_visit_date: '2026-02-20',
-      content: '잠실 엘리트 급매 매물 임장 가능한가요?',
-      status: 'in_progress', agent_id: 'agent-1',
-      created_at: new Date(now.getTime() - 26 * 3600000).toISOString(),
-      updated_at: new Date(now.getTime() - 26 * 3600000).toISOString(),
-    },
-  ]
+  const { data, error } = await supabase
+    .from('inquiries')
+    .select('*')
+    .in('status', ['new', 'checked', 'in_progress'])
+    .order('created_at', { ascending: false })
+    .limit(5)
+
+  if (error) throw error
+  return data ?? []
 }
 
-// ─── Today's Schedule ───────────────────────────────
+// ─── Today's Schedule (mock — no schedule table) ──────
 
 export async function fetchTodaySchedule(): Promise<ScheduleItem[]> {
   return [
@@ -133,45 +126,52 @@ export async function fetchTodaySchedule(): Promise<ScheduleItem[]> {
   ]
 }
 
-// ─── Property Stats (Top 5) ─────────────────────────
+// ─── Property Stats (Supabase top 5) ─────────────────
 
 export async function fetchPropertyStats(): Promise<PropertyStat[]> {
-  return [
-    { id: 'p1', title: '래미안 대치팰리스', views: 342, inquiries: 12, favorites: 28 },
-    { id: 'p2', title: '힐스테이트 클래시안', views: 287, inquiries: 8, favorites: 19 },
-    { id: 'p3', title: '역삼 센트럴 타워', views: 245, inquiries: 6, favorites: 15 },
-    { id: 'p4', title: '잠실 엘리트', views: 198, inquiries: 5, favorites: 22 },
-    { id: 'p5', title: '반포 자이 아파트', views: 176, inquiries: 4, favorites: 11 },
-  ]
+  const { data, error } = await supabase
+    .from('properties')
+    .select('id, title, view_count, inquiry_count, favorite_count')
+    .order('view_count', { ascending: false })
+    .limit(5)
+
+  if (error) throw error
+
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    title: p.title,
+    views: p.view_count,
+    inquiries: p.inquiry_count,
+    favorites: p.favorite_count,
+  }))
 }
 
-// ─── Activity Feed ──────────────────────────────────
+// ─── Activity Feed (mock — no unified activity table) ──
 
 export async function fetchActivityFeed(): Promise<ActivityItem[]> {
   const now = new Date()
   const ago = (minutes: number) => new Date(now.getTime() - minutes * 60000).toISOString()
   return [
-    { id: 'act-1', icon: '📩', message: '한지연님이 역삼 센트럴 오피스텔을 문의했습니다.', time: ago(5), link: '/admin/inquiries/inq-6' },
-    { id: 'act-2', icon: '✍️', message: '계약서 CT-20260217-001 서명 요청이 전송되었습니다.', time: ago(30), link: '/admin/contracts/ct-2/tracker' },
-    { id: 'act-3', icon: '👁️', message: '래미안 대치팰리스 조회수가 300을 돌파했습니다.', time: ago(90) },
-    { id: 'act-4', icon: '💬', message: '김철수님에게 답변이 발송되었습니다.', time: ago(180), link: '/admin/inquiries/inq-1' },
-    { id: 'act-5', icon: '📝', message: '힐스테이트 클래시안 계약서가 작성되었습니다.', time: ago(360), link: '/admin/contracts/ct-1/tracker' },
-    { id: 'act-6', icon: '🤝', message: '한석규님이 공동중개를 요청했습니다.', time: ago(720), link: '/admin/co-brokerage/requests' },
-    { id: 'act-7', icon: '🔍', message: '대치 쌍용 예가 201동 임장이 완료되었습니다.', time: ago(1200) },
-    { id: 'act-8', icon: '👤', message: '신규 고객 박민수님이 등록되었습니다.', time: ago(1500), link: '/admin/customers/cust-3' },
-    { id: 'act-9', icon: '🏠', message: '역삼 센트럴 타워 매물이 등록되었습니다.', time: ago(2000) },
-    { id: 'act-10', icon: '💰', message: '임대 물건 101동 502호 월세가 입금되었습니다.', time: ago(2800) },
+    { id: 'act-1', icon: '📩', message: '새 문의가 접수되었습니다.', time: ago(5), link: '/admin/inquiries' },
+    { id: 'act-2', icon: '✍️', message: '계약서 서명 요청이 전송되었습니다.', time: ago(30), link: '/admin/contracts' },
+    { id: 'act-3', icon: '👁️', message: '매물 조회수가 증가하고 있습니다.', time: ago(90) },
+    { id: 'act-4', icon: '💬', message: '문의 답변이 발송되었습니다.', time: ago(180), link: '/admin/inquiries' },
+    { id: 'act-5', icon: '📝', message: '새 계약서가 작성되었습니다.', time: ago(360), link: '/admin/contracts' },
+    { id: 'act-6', icon: '🤝', message: '공동중개 요청이 접수되었습니다.', time: ago(720), link: '/admin/co-brokerage/requests' },
+    { id: 'act-7', icon: '🔍', message: '임장이 완료되었습니다.', time: ago(1200) },
+    { id: 'act-8', icon: '👤', message: '신규 고객이 등록되었습니다.', time: ago(1500), link: '/admin/customers' },
+    { id: 'act-9', icon: '🏠', message: '새 매물이 등록되었습니다.', time: ago(2000) },
+    { id: 'act-10', icon: '💰', message: '월세가 입금되었습니다.', time: ago(2800) },
   ]
 }
 
-// ─── Todo List ───────────────────────────────────────
+// ─── Todo List (mock) ─────────────────────────────────
 
 export async function fetchTodoList(): Promise<TodoItem[]> {
   return [
-    { id: 'todo-1', type: 'inquiry', label: '미답변 문의 3건', detail: '한지연, 김철수, 박민수', link: '/admin/inquiries', is_done: false },
-    { id: 'todo-2', type: 'contract', label: 'D-3 잔금일 (CT-20260217-001)', detail: '한지연 오피스텔 월세 잔금 3/1', link: '/admin/contracts/ct-2/tracker', is_done: false },
-    { id: 'todo-3', type: 'contract', label: 'D-25 중도금 (CT-20260215-001)', detail: '최수진 힐스테이트 중도금 3/15', link: '/admin/contracts/ct-1/tracker', is_done: false },
-    { id: 'todo-4', type: 'repair', label: '수리 요청 미처리 2건', detail: '101동 502호 수도꼭지, 203동 1201호 보일러', link: '/admin/rental-mgmt', is_done: false },
-    { id: 'todo-5', type: 'expiring', label: '만기 임박 임대 1건', detail: '203동 1201호 (2026.04 만기)', link: '/admin/rental-mgmt', is_done: false },
+    { id: 'todo-1', type: 'inquiry', label: '미답변 문의 확인', detail: '답변 대기 중인 문의가 있습니다', link: '/admin/inquiries', is_done: false },
+    { id: 'todo-2', type: 'contract', label: '계약 일정 확인', detail: '다가오는 잔금일을 확인하세요', link: '/admin/contracts', is_done: false },
+    { id: 'todo-3', type: 'repair', label: '수리 요청 처리', detail: '미처리 수리 요청이 있습니다', link: '/admin/rental-mgmt', is_done: false },
+    { id: 'todo-4', type: 'expiring', label: '만기 임박 임대', detail: '만기 임박 임대 물건을 확인하세요', link: '/admin/rental-mgmt', is_done: false },
   ]
 }

@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/api/supabase'
 import type { User, AgentProfile } from '@/types/database'
 import { useFeatureStore } from '@/stores/featureStore'
+import { clearCachedIds } from '@/api/helpers'
 
 interface AuthState {
   session: Session | null
@@ -79,10 +80,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  reset: () => set({
-    session: null,
-    user: null,
-    agentProfile: null,
-    isLoading: false,
-  }),
+  reset: () => {
+    clearCachedIds()
+    set({
+      session: null,
+      user: null,
+      agentProfile: null,
+      isLoading: false,
+    })
+  },
 }))

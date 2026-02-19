@@ -1,8 +1,6 @@
-// Mock API functions for properties
-// TODO: Replace with actual Supabase calls when backend is connected
-
-import type { Property, PropertyStatus, TransactionType } from '@/types/database'
-import { mockPropertyList, systemCategories } from '@/utils/propertyMockData'
+import { supabase } from '@/api/supabase'
+import { getAgentProfileId } from '@/api/helpers'
+import type { Property, PropertyCategory, PropertyStatus, TransactionType } from '@/types/database'
 
 export interface PropertyFilters {
   search?: string
@@ -24,11 +22,15 @@ export interface PropertyFilters {
 
 export type SortOption = 'newest' | 'price_asc' | 'price_desc' | 'area_desc' | 'popular'
 
-let _properties = [...mockPropertyList]
-
-function getMainPrice(p: Property): number {
-  if (p.transaction_type === 'sale') return p.sale_price ?? 0
-  return p.deposit ?? 0
+function applySorting(query: ReturnType<typeof supabase.from>, sort: SortOption) {
+  switch (sort) {
+    case 'newest': return query.order('created_at', { ascending: false })
+    case 'price_asc': return query.order('sale_price', { ascending: true, nullsFirst: false })
+    case 'price_desc': return query.order('sale_price', { ascending: false })
+    case 'area_desc': return query.order('exclusive_area_m2', { ascending: false })
+    case 'popular': return query.order('view_count', { ascending: false })
+    default: return query.order('created_at', { ascending: false })
+  }
 }
 
 export async function fetchProperties(
@@ -37,105 +39,134 @@ export async function fetchProperties(
   page = 1,
   pageSize = 12,
 ): Promise<{ data: Property[]; total: number }> {
-  let result = [..._properties]
+  let query = supabase
+    .from('properties')
+    .select('*', { count: 'exact' })
 
-  // Filters
+  // Default: active only for public portal
+  if (filters.status) {
+    query = query.eq('status', filters.status)
+  } else {
+    query = query.eq('status', 'active')
+  }
+
   if (filters.search) {
-    const q = filters.search.toLowerCase()
-    result = result.filter((p) => p.title.toLowerCase().includes(q) || p.address.toLowerCase().includes(q))
+    query = query.or(`title.ilike.%${filters.search}%,address.ilike.%${filters.search}%`)
   }
-  if (filters.categoryId) result = result.filter((p) => p.category_id === filters.categoryId)
-  if (filters.transactionType) result = result.filter((p) => p.transaction_type === filters.transactionType)
-  if (filters.status) result = result.filter((p) => p.status === filters.status)
-  else result = result.filter((p) => p.status === 'active') // default: active only for public
-  if (filters.minPrice != null) result = result.filter((p) => getMainPrice(p) >= filters.minPrice!)
-  if (filters.maxPrice != null) result = result.filter((p) => getMainPrice(p) <= filters.maxPrice!)
-  if (filters.minArea != null) result = result.filter((p) => (p.exclusive_area_m2 ?? 0) >= filters.minArea!)
-  if (filters.maxArea != null) result = result.filter((p) => (p.exclusive_area_m2 ?? 0) <= filters.maxArea!)
-  if (filters.rooms != null) result = result.filter((p) => (p.rooms ?? 0) >= filters.rooms!)
-  if (filters.direction) result = result.filter((p) => p.direction === filters.direction)
-  if (filters.hasElevator) result = result.filter((p) => p.has_elevator)
-  if (filters.petsAllowed) result = result.filter((p) => p.pets_allowed)
-  if (filters.isUrgent) result = result.filter((p) => p.is_urgent)
+  if (filters.categoryId) query = query.eq('category_id', filters.categoryId)
+  if (filters.transactionType) query = query.eq('transaction_type', filters.transactionType)
+  if (filters.minPrice != null) query = query.gte('sale_price', filters.minPrice)
+  if (filters.maxPrice != null) query = query.lte('sale_price', filters.maxPrice)
+  if (filters.minArea != null) query = query.gte('exclusive_area_m2', filters.minArea)
+  if (filters.maxArea != null) query = query.lte('exclusive_area_m2', filters.maxArea)
+  if (filters.rooms != null) query = query.gte('rooms', filters.rooms)
+  if (filters.direction) query = query.eq('direction', filters.direction)
+  if (filters.hasElevator) query = query.eq('has_elevator', true)
+  if (filters.petsAllowed) query = query.eq('pets_allowed', true)
+  if (filters.isUrgent) query = query.eq('is_urgent', true)
 
-  // Sort
-  switch (sort) {
-    case 'newest': result.sort((a, b) => b.created_at.localeCompare(a.created_at)); break
-    case 'price_asc': result.sort((a, b) => getMainPrice(a) - getMainPrice(b)); break
-    case 'price_desc': result.sort((a, b) => getMainPrice(b) - getMainPrice(a)); break
-    case 'area_desc': result.sort((a, b) => (b.exclusive_area_m2 ?? 0) - (a.exclusive_area_m2 ?? 0)); break
-    case 'popular': result.sort((a, b) => b.view_count - a.view_count); break
-  }
+  query = applySorting(query, sort)
 
-  const total = result.length
   const start = (page - 1) * pageSize
-  return { data: result.slice(start, start + pageSize), total }
+  query = query.range(start, start + pageSize - 1)
+
+  const { data, count, error } = await query
+
+  if (error) throw error
+  return { data: data ?? [], total: count ?? 0 }
 }
 
 export async function fetchAdminProperties(
   filters: PropertyFilters & { statusTab?: PropertyStatus | 'all' } = {},
   sort: SortOption = 'newest',
 ): Promise<Property[]> {
-  let result = [..._properties]
+  // RLS automatically filters by agent
+  let query = supabase.from('properties').select('*')
 
   if (filters.statusTab && filters.statusTab !== 'all') {
-    result = result.filter((p) => p.status === filters.statusTab)
+    query = query.eq('status', filters.statusTab)
   }
   if (filters.search) {
-    const q = filters.search.toLowerCase()
-    result = result.filter((p) => p.title.toLowerCase().includes(q) || p.address.toLowerCase().includes(q))
+    query = query.or(`title.ilike.%${filters.search}%,address.ilike.%${filters.search}%`)
   }
-  if (filters.categoryId) result = result.filter((p) => p.category_id === filters.categoryId)
-  if (filters.transactionType) result = result.filter((p) => p.transaction_type === filters.transactionType)
+  if (filters.categoryId) query = query.eq('category_id', filters.categoryId)
+  if (filters.transactionType) query = query.eq('transaction_type', filters.transactionType)
 
-  switch (sort) {
-    case 'newest': result.sort((a, b) => b.created_at.localeCompare(a.created_at)); break
-    case 'price_asc': result.sort((a, b) => getMainPrice(a) - getMainPrice(b)); break
-    case 'price_desc': result.sort((a, b) => getMainPrice(b) - getMainPrice(a)); break
-    case 'area_desc': result.sort((a, b) => (b.exclusive_area_m2 ?? 0) - (a.exclusive_area_m2 ?? 0)); break
-    case 'popular': result.sort((a, b) => b.view_count - a.view_count); break
-  }
+  query = applySorting(query, sort)
 
-  return result
+  const { data, error } = await query
+  if (error) throw error
+  return data ?? []
 }
 
 export async function fetchPropertyById(id: string): Promise<Property | null> {
-  return _properties.find((p) => p.id === id) ?? null
+  const { data, error } = await supabase
+    .from('properties')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') return null
+    throw error
+  }
+  return data
 }
 
-export async function createProperty(data: Omit<Property, 'id' | 'created_at' | 'updated_at' | 'view_count' | 'inquiry_count' | 'favorite_count'>): Promise<Property> {
-  const now = new Date().toISOString()
-  const property: Property = {
-    ...data,
-    id: `p${Date.now()}`,
-    view_count: 0,
-    inquiry_count: 0,
-    favorite_count: 0,
-    created_at: now,
-    updated_at: now,
-  }
-  _properties.unshift(property)
+export async function createProperty(
+  data: Omit<Property, 'id' | 'created_at' | 'updated_at' | 'view_count' | 'inquiry_count' | 'favorite_count'>,
+): Promise<Property> {
+  const agentId = await getAgentProfileId()
+  const { data: property, error } = await supabase
+    .from('properties')
+    .insert({ ...data, agent_id: agentId })
+    .select()
+    .single()
+
+  if (error) throw error
   return property
 }
 
 export async function updateProperty(id: string, data: Partial<Property>): Promise<Property | null> {
-  const idx = _properties.findIndex((p) => p.id === id)
-  if (idx === -1) return null
-  _properties[idx] = { ..._properties[idx], ...data, updated_at: new Date().toISOString() }
-  return _properties[idx]
+  const { data: property, error } = await supabase
+    .from('properties')
+    .update(data)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') return null
+    throw error
+  }
+  return property
 }
 
 export async function deleteProperties(ids: string[]): Promise<void> {
-  _properties = _properties.filter((p) => !ids.includes(p.id))
+  const { error } = await supabase
+    .from('properties')
+    .delete()
+    .in('id', ids)
+
+  if (error) throw error
 }
 
 export async function updatePropertyStatus(ids: string[], status: PropertyStatus): Promise<void> {
-  for (const id of ids) {
-    const idx = _properties.findIndex((p) => p.id === id)
-    if (idx !== -1) _properties[idx] = { ..._properties[idx], status, updated_at: new Date().toISOString() }
-  }
+  const { error } = await supabase
+    .from('properties')
+    .update({ status })
+    .in('id', ids)
+
+  if (error) throw error
 }
 
-export async function fetchCategories() {
-  return systemCategories
+export async function fetchCategories(): Promise<PropertyCategory[]> {
+  const { data, error } = await supabase
+    .from('property_categories')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+
+  if (error) throw error
+  return data ?? []
 }

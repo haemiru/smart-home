@@ -298,6 +298,14 @@ export type RepairRequest = {
   memo: string | null
 }
 
+export type RentalShareLink = {
+  id: string
+  rental_property_id: string
+  token: string
+  expires_at: string
+  created_at: string
+}
+
 export type CoBrokerageRequestStatus = 'pending' | 'approved' | 'rejected'
 
 export type SharedProperty = {
@@ -336,6 +344,14 @@ export type CoBrokerageRequest = {
 }
 
 export type AIGenerationType = 'description' | 'legal_review' | 'inquiry_reply' | 'chatbot' | 'customer_analysis' | 'move_in_guide'
+
+export type AgentSetting = {
+  id: string
+  agent_id: string
+  setting_key: string
+  setting_value: Record<string, unknown>
+  updated_at: string
+}
 
 export type AIGenerationLog = {
   id: string
@@ -948,6 +964,24 @@ export type Database = {
         }
         Relationships: []
       }
+      rental_share_links: {
+        Row: RentalShareLink
+        Insert: {
+          id?: string
+          rental_property_id: string
+          token: string
+          expires_at: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          rental_property_id?: string
+          token?: string
+          expires_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       shared_properties: {
         Row: SharedProperty
         Insert: {
@@ -1022,12 +1056,37 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_settings: {
+        Row: AgentSetting
+        Insert: {
+          id?: string
+          agent_id: string
+          setting_key: string
+          setting_value?: Record<string, unknown>
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          agent_id?: string
+          setting_key?: string
+          setting_value?: Record<string, unknown>
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_inquiry_number: {
+        Args: Record<string, never>
+        Returns: string
+      }
+      generate_contract_number: {
+        Args: Record<string, never>
+        Returns: string
+      }
     }
     Enums: {
       user_role: UserRole

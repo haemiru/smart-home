@@ -1,12 +1,19 @@
-// Mock API for move-in guides
-// TODO: Replace with actual Supabase calls when backend is connected
-
+import { supabase } from '@/api/supabase'
+import { getAgentProfileId } from '@/api/helpers'
 import type { MoveInGuide } from '@/types/database'
 
-const _guides: MoveInGuide[] = []
-
 export async function fetchMoveInGuide(contractId: string): Promise<MoveInGuide | null> {
-  return _guides.find((g) => g.contract_id === contractId) ?? null
+  const { data, error } = await supabase
+    .from('move_in_guides')
+    .select('*')
+    .eq('contract_id', contractId)
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') return null
+    throw error
+  }
+  return data
 }
 
 export async function saveMoveInGuide(data: {
@@ -14,18 +21,23 @@ export async function saveMoveInGuide(data: {
   content: string
   address: string
 }): Promise<MoveInGuide> {
-  // Remove existing guide for same contract
-  const idx = _guides.findIndex((g) => g.contract_id === data.contract_id)
-  if (idx !== -1) _guides.splice(idx, 1)
+  const agentId = await getAgentProfileId()
 
-  const guide: MoveInGuide = {
-    id: `mig-${Date.now()}`,
-    contract_id: data.contract_id,
-    agent_id: 'agent-1',
-    content: data.content,
-    address: data.address,
-    created_at: new Date().toISOString(),
-  }
-  _guides.unshift(guide)
+  // Upsert: if guide exists for this contract, update it
+  const { data: guide, error } = await supabase
+    .from('move_in_guides')
+    .upsert(
+      {
+        contract_id: data.contract_id,
+        agent_id: agentId,
+        content: data.content,
+        address: data.address,
+      },
+      { onConflict: 'contract_id' },
+    )
+    .select()
+    .single()
+
+  if (error) throw error
   return guide
 }

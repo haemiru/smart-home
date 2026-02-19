@@ -119,40 +119,48 @@ export async function generateContent(
 }
 
 // ============================================================
-// AI Generation Log (mock)
+// AI Generation Log (Supabase)
 // ============================================================
 
-export type AIGenerationType = 'description' | 'legal_review' | 'inquiry_reply' | 'chatbot' | 'customer_analysis' | 'move_in_guide'
+import { supabase } from '@/api/supabase'
+import { getAgentProfileId } from '@/api/helpers'
+import type { AIGenerationLog, AIGenerationType } from '@/types/database'
 
-export type AIGenerationLog = {
-  id: string
-  agent_id: string
-  type: AIGenerationType
-  input_data: Record<string, unknown>
-  output_text: string
-  created_at: string
-}
-
-const _logs: AIGenerationLog[] = []
+export type { AIGenerationType, AIGenerationLog }
 
 export async function saveGenerationLog(data: {
   type: AIGenerationType
   input_data: Record<string, unknown>
   output_text: string
 }): Promise<AIGenerationLog> {
-  const log: AIGenerationLog = {
-    id: `aig-${Date.now()}`,
-    agent_id: 'agent-1',
-    type: data.type,
-    input_data: data.input_data,
-    output_text: data.output_text,
-    created_at: new Date().toISOString(),
-  }
-  _logs.unshift(log)
+  const agentId = await getAgentProfileId()
+
+  const { data: log, error } = await supabase
+    .from('ai_generation_logs')
+    .insert({
+      agent_id: agentId,
+      type: data.type,
+      input_data: data.input_data,
+      output_text: data.output_text,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
   return log
 }
 
 export async function fetchGenerationLogs(type?: AIGenerationType): Promise<AIGenerationLog[]> {
-  if (type) return _logs.filter((l) => l.type === type)
-  return [..._logs]
+  let query = supabase
+    .from('ai_generation_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (type) {
+    query = query.eq('type', type)
+  }
+
+  const { data, error } = await query
+  if (error) throw error
+  return data ?? []
 }

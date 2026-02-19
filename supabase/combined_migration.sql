@@ -227,6 +227,7 @@ CREATE TRIGGER set_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_updated_at();
 
+
 -- ============================================
 -- Migration: 00002_properties.sql
 -- ============================================
@@ -467,6 +468,7 @@ INSERT INTO public.property_categories (agent_id, name, icon, sort_order, is_sys
   (NULL, '재개발', '🔨', 11, true, true),
   (NULL, '숙박/펜션', '🏕️', 12, true, true);
 
+
 -- ============================================
 -- Migration: 00003_inquiries_crm.sql
 -- ============================================
@@ -610,6 +612,7 @@ CREATE TRIGGER set_customers_updated_at
   BEFORE UPDATE ON customers
   FOR EACH ROW EXECUTE FUNCTION handle_updated_at();
 
+
 -- ============================================
 -- Migration: 00004_contracts.sql
 -- ============================================
@@ -721,6 +724,7 @@ CREATE TRIGGER set_contracts_updated_at
   BEFORE UPDATE ON contracts
   FOR EACH ROW EXECUTE FUNCTION handle_updated_at();
 
+
 -- ============================================
 -- Migration: 00005_ai_generation_logs.sql
 -- ============================================
@@ -780,6 +784,7 @@ CREATE POLICY "Users read own guides"
       WHERE (c.buyer_info->>'user_id')::uuid = auth.uid()
     )
   );
+
 
 -- ============================================
 -- Migration: 00006_inspection_rental_legal.sql
@@ -907,6 +912,7 @@ CREATE POLICY "Public can read valid share links"
   ON rental_share_links FOR SELECT
   USING (expires_at > now());
 
+
 -- ============================================
 -- Migration: 00007_co_brokerage.sql
 -- ============================================
@@ -994,10 +1000,18 @@ CREATE POLICY "Property owners can update request status"
     )
   );
 
+
 -- ============================================
 -- Migration: 00008_auth_trigger.sql
 -- ============================================
+-- ============================================
 -- Auth Trigger: auth.users → public.users 자동 프로필 생성
+-- ============================================
+-- 회원가입 시 auth.users에 새 유저가 생성되면
+-- 자동으로 public.users에 프로필 레코드를 생성합니다.
+-- SECURITY DEFINER로 실행되어 RLS를 우회합니다.
+-- 이메일 확인(Email Confirmation) 활성화 시에도 프로필이 먼저 생성됩니다.
+-- ============================================
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
@@ -1026,7 +1040,275 @@ BEGIN
 END;
 $$;
 
+-- auth.users INSERT 시 트리거 실행
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
+
+
+-- ============================================
+-- Migration: 00009_auth_trigger_agent.sql
+-- ============================================
+-- ============================================
+-- Auth Trigger 확장: agent_profiles 자동 생성
+-- ============================================
+-- 회원가입 시 role='agent'이고 agent_data가 메타데이터에 있으면
+-- public.agent_profiles도 자동 생성합니다.
+-- SECURITY DEFINER로 RLS를 우회합니다.
+-- ============================================
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  _agent_data JSONB;
+BEGIN
+  INSERT INTO public.users (id, email, role, display_name, phone)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(
+      (NEW.raw_user_meta_data ->> 'role')::public.user_role,
+      'customer'
+    ),
+    COALESCE(
+      NEW.raw_user_meta_data ->> 'display_name',
+      SPLIT_PART(NEW.email, '@', 1)
+    ),
+    NEW.raw_user_meta_data ->> 'phone'
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  -- agent_profiles 자동 생성
+  IF (NEW.raw_user_meta_data ->> 'role') = 'agent' THEN
+    _agent_data := NEW.raw_user_meta_data -> 'agent_data';
+    IF _agent_data IS NOT NULL THEN
+      INSERT INTO public.agent_profiles (
+        user_id, office_name, representative, business_number,
+        license_number, address, phone, is_verified
+      ) VALUES (
+        NEW.id,
+        _agent_data ->> 'officeName',
+        _agent_data ->> 'representative',
+        _agent_data ->> 'businessNumber',
+        _agent_data ->> 'licenseNumber',
+        _agent_data ->> 'address',
+        _agent_data ->> 'phone',
+        false
+      )
+      ON CONFLICT (user_id) DO NOTHING;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+-- ============================================
+-- Migration: 00010_fix_rls_recursion.sql
+-- ============================================
+-- ============================================
+-- Fix: RLS 무한 재귀 해결
+-- ============================================
+-- 문제: users_select_office_members → staff_members 조회
+--       → staff_members_select_office가 자기 자신 재조회 → 무한 루프
+-- 해결: staff_members 정책에서 자기참조 제거
+-- ============================================
+
+-- 1. 기존 문제 정책 삭제
+DROP POLICY IF EXISTS "staff_members_select_office" ON public.staff_members;
+DROP POLICY IF EXISTS "users_select_office_members" ON public.users;
+
+-- 2. staff_members: 자기참조 없는 정책으로 교체
+--    - 본인이 해당 스태프이거나
+--    - 본인이 해당 사무소의 대표(agent_profile 소유자)인 경우
+CREATE POLICY "staff_members_select_office"
+  ON public.staff_members FOR SELECT
+  USING (
+    user_id = auth.uid()
+    OR agent_profile_id IN (
+      SELECT ap.id FROM public.agent_profiles ap WHERE ap.user_id = auth.uid()
+    )
+  );
+
+-- 3. users: staff_members 조회 시 더 이상 재귀 안 함
+--    - 본인이 대표인 사무소의 스태프 유저를 볼 수 있음
+--    - 본인이 스태프인 사무소의 대표를 볼 수 있음
+CREATE POLICY "users_select_office_members"
+  ON public.users FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.agent_profiles ap
+      JOIN public.staff_members sm ON sm.agent_profile_id = ap.id
+      WHERE ap.user_id = auth.uid()
+        AND sm.user_id = public.users.id
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.staff_members sm
+      JOIN public.agent_profiles ap ON ap.id = sm.agent_profile_id
+      WHERE sm.user_id = auth.uid()
+        AND ap.user_id = public.users.id
+    )
+  );
+
+
+-- ============================================
+-- Migration: 00011_subscription_plans.sql
+-- ============================================
+-- ============================================
+-- Subscription Plan 컬럼 추가
+-- ============================================
+-- agent_profiles에 구독 플랜 정보를 추가합니다.
+-- 가입 즉시 Free 플랜으로 시작하여 SaaS 형태로 운영됩니다.
+-- ============================================
+
+-- 1. subscription_plan 컬럼 추가
+ALTER TABLE public.agent_profiles
+  ADD COLUMN IF NOT EXISTS subscription_plan TEXT NOT NULL DEFAULT 'free'
+  CHECK (subscription_plan IN ('free', 'basic', 'pro', 'enterprise'));
+
+-- 2. subscription_started_at 컬럼 추가
+ALTER TABLE public.agent_profiles
+  ADD COLUMN IF NOT EXISTS subscription_started_at TIMESTAMPTZ DEFAULT now();
+
+-- 3. handle_new_user() 트리거 업데이트: 가입 시 subscription_plan 포함
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  _agent_data JSONB;
+BEGIN
+  INSERT INTO public.users (id, email, role, display_name, phone)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(
+      (NEW.raw_user_meta_data ->> 'role')::public.user_role,
+      'customer'
+    ),
+    COALESCE(
+      NEW.raw_user_meta_data ->> 'display_name',
+      SPLIT_PART(NEW.email, '@', 1)
+    ),
+    NEW.raw_user_meta_data ->> 'phone'
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  -- agent_profiles 자동 생성
+  IF (NEW.raw_user_meta_data ->> 'role') = 'agent' THEN
+    _agent_data := NEW.raw_user_meta_data -> 'agent_data';
+    IF _agent_data IS NOT NULL THEN
+      INSERT INTO public.agent_profiles (
+        user_id, office_name, representative, business_number,
+        license_number, address, phone, is_verified,
+        subscription_plan, subscription_started_at
+      ) VALUES (
+        NEW.id,
+        _agent_data ->> 'officeName',
+        _agent_data ->> 'representative',
+        _agent_data ->> 'businessNumber',
+        _agent_data ->> 'licenseNumber',
+        _agent_data ->> 'address',
+        _agent_data ->> 'phone',
+        false,
+        'free',
+        now()
+      )
+      ON CONFLICT (user_id) DO NOTHING;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+-- ============================================
+-- Migration: 00012_sequences_and_settings.sql
+-- ============================================
+-- Inquiry/contract number sequences + agent_settings table
+
+-- ──────────────────────────────────────────
+-- 1. Inquiry number sequence + RPC
+-- ──────────────────────────────────────────
+CREATE SEQUENCE IF NOT EXISTS public.inquiry_number_seq START WITH 1;
+
+CREATE OR REPLACE FUNCTION public.generate_inquiry_number()
+RETURNS TEXT AS $$
+DECLARE
+  seq_val INT;
+BEGIN
+  seq_val := nextval('public.inquiry_number_seq');
+  RETURN 'INQ-' || to_char(now(), 'YYYYMMDD') || '-' || lpad(seq_val::text, 3, '0');
+END;
+$$ LANGUAGE plpgsql;
+
+-- ──────────────────────────────────────────
+-- 2. Contract number sequence + RPC
+-- ──────────────────────────────────────────
+CREATE SEQUENCE IF NOT EXISTS public.contract_number_seq START WITH 1;
+
+CREATE OR REPLACE FUNCTION public.generate_contract_number()
+RETURNS TEXT AS $$
+DECLARE
+  seq_val INT;
+BEGIN
+  seq_val := nextval('public.contract_number_seq');
+  RETURN 'CT-' || to_char(now(), 'YYYYMMDD') || '-' || lpad(seq_val::text, 3, '0');
+END;
+$$ LANGUAGE plpgsql;
+
+-- ──────────────────────────────────────────
+-- 3. agent_settings table (JSONB key-value per agent)
+-- ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.agent_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id UUID NOT NULL REFERENCES public.agent_profiles(id) ON DELETE CASCADE,
+  setting_key TEXT NOT NULL,
+  setting_value JSONB NOT NULL DEFAULT '{}',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(agent_id, setting_key)
+);
+
+ALTER TABLE public.agent_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "agent_settings_select_own"
+  ON public.agent_settings FOR SELECT
+  USING (
+    agent_id IN (
+      SELECT ap.id FROM public.agent_profiles ap WHERE ap.user_id = auth.uid()
+      UNION
+      SELECT sm.agent_profile_id FROM public.staff_members sm WHERE sm.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "agent_settings_insert_own"
+  ON public.agent_settings FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.agent_profiles ap
+      WHERE ap.id = agent_id AND ap.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "agent_settings_update_own"
+  ON public.agent_settings FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.agent_profiles ap
+      WHERE ap.id = agent_id AND ap.user_id = auth.uid()
+    )
+  );
+
+CREATE TRIGGER agent_settings_updated_at
+  BEFORE UPDATE ON public.agent_settings
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();

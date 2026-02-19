@@ -1,9 +1,8 @@
-// Mock API functions for inspections
-// TODO: Replace with actual Supabase calls when backend is connected
+import { supabase } from '@/api/supabase'
+import { getCurrentUserId } from '@/api/helpers'
+import type { Inspection, InspectionCheckItem, InspectionStatus, InspectionGrade } from '@/types/database'
 
-import type { Inspection, InspectionCheckItem, InspectionStatus, InspectionGrade, CheckItemStatus } from '@/types/database'
-
-// Standard checklist template
+// Standard checklist template — pure data
 export const checklistTemplate: { category: string; items: string[] }[] = [
   {
     category: '구조/외관',
@@ -35,6 +34,7 @@ export const checklistTemplate: { category: string; items: string[] }[] = [
   },
 ]
 
+// Pure function — create checklist items
 export function createChecklistItems(): InspectionCheckItem[] {
   const items: InspectionCheckItem[] = []
   let id = 1
@@ -53,11 +53,12 @@ export function createChecklistItems(): InspectionCheckItem[] {
   return items
 }
 
+// Pure function — calculate grade
 export function calculateGrade(checklist: InspectionCheckItem[]): InspectionGrade {
-  const rated = checklist.filter((c) => c.status !== null)
+  const rated = checklist.filter((c: InspectionCheckItem) => c.status !== null)
   if (rated.length === 0) return 'C'
-  const goodCount = rated.filter((c) => c.status === 'good').length
-  const badCount = rated.filter((c) => c.status === 'bad').length
+  const goodCount = rated.filter((c: InspectionCheckItem) => c.status === 'good').length
+  const badCount = rated.filter((c: InspectionCheckItem) => c.status === 'bad').length
   const goodRatio = goodCount / rated.length
   const badRatio = badCount / rated.length
 
@@ -68,86 +69,32 @@ export function calculateGrade(checklist: InspectionCheckItem[]): InspectionGrad
   return 'C'
 }
 
-// Mock data
-const _inspections: Inspection[] = [
-  {
-    id: 'ins-1',
-    agent_id: 'agent-1',
-    property_id: 'p1',
-    property_title: '래미안 대치팰리스 102동 1502호',
-    address: '서울 강남구 대치동 890-5',
-    status: 'completed',
-    scheduled_date: '2026-02-10',
-    completed_date: '2026-02-10',
-    checklist: (() => {
-      const items = createChecklistItems()
-      // Set some statuses for the completed inspection
-      const statuses: CheckItemStatus[] = ['good', 'good', 'good', 'good', 'normal', 'good', 'good', 'normal', 'good', 'good', 'good', 'good', 'good', 'normal', 'good', 'good', 'bad', 'good', 'good', 'good', 'good', 'good', 'good']
-      items.forEach((item, i) => { item.status = statuses[i] ?? 'good' })
-      items[16].note = '에어컨 냉매 부족 — 보충 필요'
-      return items
-    })(),
-    overall_comment: '전반적으로 양호한 상태. 에어컨 냉매 보충 필요.',
-    grade: 'B',
-    ai_comment: null,
-    photos: [],
-    created_at: '2026-02-09T10:00:00Z',
-    updated_at: '2026-02-10T16:00:00Z',
-  },
-  {
-    id: 'ins-2',
-    agent_id: 'agent-1',
-    property_id: 'p3',
-    property_title: '힐스테이트 클래시안 201동 802호',
-    address: '서울 서초구 반포동 123-4',
-    status: 'scheduled',
-    scheduled_date: '2026-02-20',
-    completed_date: null,
-    checklist: createChecklistItems(),
-    overall_comment: null,
-    grade: null,
-    ai_comment: null,
-    photos: [],
-    created_at: '2026-02-17T09:00:00Z',
-    updated_at: '2026-02-17T09:00:00Z',
-  },
-  {
-    id: 'ins-3',
-    agent_id: 'agent-1',
-    property_id: 'p5',
-    property_title: '반포 자이 아파트 103동 2201호',
-    address: '서울 서초구 반포동 45-2',
-    status: 'in_progress',
-    scheduled_date: '2026-02-18',
-    completed_date: null,
-    checklist: (() => {
-      const items = createChecklistItems()
-      items[0].status = 'good'
-      items[1].status = 'good'
-      items[2].status = 'normal'
-      items[2].note = '엘리베이터 다소 노후'
-      return items
-    })(),
-    overall_comment: null,
-    grade: null,
-    ai_comment: null,
-    photos: [],
-    created_at: '2026-02-18T08:00:00Z',
-    updated_at: '2026-02-18T10:00:00Z',
-  },
-]
-
 export async function fetchInspections(filter?: InspectionStatus | 'all'): Promise<Inspection[]> {
-  let result = [..._inspections]
+  let query = supabase.from('inspections').select('*')
+
   if (filter && filter !== 'all') {
-    result = result.filter((i) => i.status === filter)
+    query = query.eq('status', filter)
   }
-  result.sort((a, b) => b.created_at.localeCompare(a.created_at))
-  return result
+
+  query = query.order('created_at', { ascending: false })
+
+  const { data, error } = await query
+  if (error) throw error
+  return data ?? []
 }
 
 export async function fetchInspectionById(id: string): Promise<Inspection | null> {
-  return _inspections.find((i) => i.id === id) ?? null
+  const { data, error } = await supabase
+    .from('inspections')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') return null
+    throw error
+  }
+  return data
 }
 
 export async function createInspection(data: {
@@ -156,54 +103,70 @@ export async function createInspection(data: {
   address: string
   scheduled_date: string | null
 }): Promise<Inspection> {
-  const now = new Date().toISOString()
-  const inspection: Inspection = {
-    id: `ins-${Date.now()}`,
-    agent_id: 'agent-1',
-    property_id: data.property_id,
-    property_title: data.property_title,
-    address: data.address,
-    status: data.scheduled_date ? 'scheduled' : 'in_progress',
-    scheduled_date: data.scheduled_date,
-    completed_date: null,
-    checklist: createChecklistItems(),
-    overall_comment: null,
-    grade: null,
-    ai_comment: null,
-    photos: [],
-    created_at: now,
-    updated_at: now,
-  }
-  _inspections.unshift(inspection)
+  const agentId = await getCurrentUserId()
+
+  const { data: inspection, error } = await supabase
+    .from('inspections')
+    .insert({
+      agent_id: agentId,
+      property_id: data.property_id,
+      property_title: data.property_title,
+      address: data.address,
+      status: data.scheduled_date ? 'scheduled' : 'in_progress',
+      scheduled_date: data.scheduled_date,
+      checklist: createChecklistItems() as unknown as InspectionCheckItem[],
+      photos: [],
+    })
+    .select()
+    .single()
+
+  if (error) throw error
   return inspection
 }
 
 export async function updateInspection(id: string, data: Partial<Inspection>): Promise<Inspection | null> {
-  const idx = _inspections.findIndex((i) => i.id === id)
-  if (idx === -1) return null
-  _inspections[idx] = { ..._inspections[idx], ...data, updated_at: new Date().toISOString() }
-  return _inspections[idx]
+  const { data: inspection, error } = await supabase
+    .from('inspections')
+    .update(data)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') return null
+    throw error
+  }
+  return inspection
 }
 
 export async function completeInspection(id: string, checklist: InspectionCheckItem[], overallComment: string): Promise<Inspection | null> {
-  const idx = _inspections.findIndex((i) => i.id === id)
-  if (idx === -1) return null
   const grade = calculateGrade(checklist)
-  _inspections[idx] = {
-    ..._inspections[idx],
-    status: 'completed',
-    completed_date: new Date().toISOString().slice(0, 10),
-    checklist,
-    overall_comment: overallComment,
-    grade,
-    updated_at: new Date().toISOString(),
+
+  const { data: inspection, error } = await supabase
+    .from('inspections')
+    .update({
+      status: 'completed' as InspectionStatus,
+      completed_date: new Date().toISOString().slice(0, 10),
+      checklist: checklist as unknown as InspectionCheckItem[],
+      overall_comment: overallComment,
+      grade,
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') return null
+    throw error
   }
-  return _inspections[idx]
+  return inspection
 }
 
 export async function saveAIComment(id: string, comment: string): Promise<void> {
-  const idx = _inspections.findIndex((i) => i.id === id)
-  if (idx !== -1) {
-    _inspections[idx] = { ..._inspections[idx], ai_comment: comment, updated_at: new Date().toISOString() }
-  }
+  const { error } = await supabase
+    .from('inspections')
+    .update({ ai_comment: comment })
+    .eq('id', id)
+
+  if (error) throw error
 }

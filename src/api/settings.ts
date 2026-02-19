@@ -1,10 +1,9 @@
-// Mock API functions for admin settings
-// TODO: Replace with actual Supabase calls when backend is connected
-
+import { supabase } from '@/api/supabase'
+import { getAgentProfileId } from '@/api/helpers'
 import type { AgentProfile, AgentFeatureSetting, StaffMember, PropertyCategory, StaffRole, PlanType } from '@/types/database'
 
 // ──────────────────────────────────────────
-// Office Settings
+// Office Settings (agent_profiles table)
 // ──────────────────────────────────────────
 
 export type BusinessHours = {
@@ -17,52 +16,33 @@ export type InsuranceInfo = {
   expiry_date: string
 }
 
-const mockAgentProfile: AgentProfile = {
-  id: 'ap-1',
-  user_id: 'u-agent-1',
-  office_name: '스마트 공인중개사사무소',
-  representative: '김중개',
-  business_number: '123-45-67890',
-  license_number: '제2024-서울강남-00123호',
-  address: '서울 강남구 역삼동 123-4 스마트빌딩 3층',
-  phone: '02-1234-5678',
-  fax: '02-1234-5679',
-  business_hours: {
-    월: { open: '09:00', close: '18:00', isOpen: true },
-    화: { open: '09:00', close: '18:00', isOpen: true },
-    수: { open: '09:00', close: '18:00', isOpen: true },
-    목: { open: '09:00', close: '18:00', isOpen: true },
-    금: { open: '09:00', close: '18:00', isOpen: true },
-    토: { open: '10:00', close: '15:00', isOpen: true },
-    일: { open: '10:00', close: '15:00', isOpen: false },
-  },
-  logo_url: null,
-  description: '강남 지역 아파트 전문 중개사무소입니다. 20년 경력의 전문 중개사가 친절하게 상담해 드립니다.',
-  specialties: ['아파트', '오피스텔', '상가'],
-  insurance_info: {
-    company: 'DB손해보험',
-    policy_number: 'DB-2025-12345',
-    expiry_date: '2026-12-31',
-  },
-  is_verified: true,
-  subscription_plan: 'free',
-  subscription_started_at: '2024-01-01T00:00:00Z',
-  created_at: '2024-01-01T00:00:00Z',
-}
-
-let _agentProfile = { ...mockAgentProfile }
-
 export async function fetchOfficeSettings(): Promise<AgentProfile> {
-  return { ..._agentProfile }
+  const agentId = await getAgentProfileId()
+  const { data, error } = await supabase
+    .from('agent_profiles')
+    .select('*')
+    .eq('id', agentId)
+    .single()
+
+  if (error) throw error
+  return data
 }
 
 export async function updateOfficeSettings(data: Partial<AgentProfile>): Promise<AgentProfile> {
-  _agentProfile = { ..._agentProfile, ...data }
-  return { ..._agentProfile }
+  const agentId = await getAgentProfileId()
+  const { data: updated, error } = await supabase
+    .from('agent_profiles')
+    .update(data)
+    .eq('id', agentId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return updated
 }
 
 // ──────────────────────────────────────────
-// Staff Management
+// Staff Management (staff_members + users tables)
 // ──────────────────────────────────────────
 
 export type StaffWithUser = StaffMember & {
@@ -72,109 +52,123 @@ export type StaffWithUser = StaffMember & {
   last_login: string | null
 }
 
-const mockStaff: StaffWithUser[] = [
-  {
-    id: 'staff-1',
-    agent_profile_id: 'ap-1',
-    user_id: 'u-staff-1',
-    role: 'lead_agent',
-    permissions: {
-      property_create: true, property_delete: true,
-      contract_create: true, contract_approve: true, e_signature: true,
-      customer_view: true, ai_tools: true, co_brokerage: true, settings: true,
-    },
-    is_active: true,
-    created_at: '2024-06-01T00:00:00Z',
-    display_name: '박공인',
-    email: 'park@smartrealty.com',
-    phone: '010-1234-5678',
-    last_login: '2026-02-18T09:15:00Z',
-  },
-  {
-    id: 'staff-2',
-    agent_profile_id: 'ap-1',
-    user_id: 'u-staff-2',
-    role: 'associate_agent',
-    permissions: {
-      property_create: true, property_delete: false,
-      contract_create: true, contract_approve: false, e_signature: false,
-      customer_view: true, ai_tools: true, co_brokerage: false, settings: false,
-    },
-    is_active: true,
-    created_at: '2025-01-15T00:00:00Z',
-    display_name: '이소속',
-    email: 'lee@smartrealty.com',
-    phone: '010-2345-6789',
-    last_login: '2026-02-17T14:30:00Z',
-  },
-  {
-    id: 'staff-3',
-    agent_profile_id: 'ap-1',
-    user_id: 'u-staff-3',
-    role: 'assistant',
-    permissions: {
-      property_create: true, property_delete: false,
-      contract_create: false, contract_approve: false, e_signature: false,
-      customer_view: true, ai_tools: false, co_brokerage: false, settings: false,
-    },
-    is_active: false,
-    created_at: '2025-03-10T00:00:00Z',
-    display_name: '최보조',
-    email: 'choi@smartrealty.com',
-    phone: '010-3456-7890',
-    last_login: '2026-01-05T10:00:00Z',
-  },
-]
-
-let _staff = [...mockStaff]
-
 export async function fetchStaffList(): Promise<StaffWithUser[]> {
-  return [..._staff]
+  const agentId = await getAgentProfileId()
+  const { data, error } = await supabase
+    .from('staff_members')
+    .select('*, users!inner(display_name, email, phone)')
+    .eq('agent_profile_id', agentId)
+
+  if (error) throw error
+
+  return (data ?? []).map((s) => {
+    const user = s.users as unknown as { display_name: string; email: string; phone: string | null }
+    return {
+      id: s.id,
+      agent_profile_id: s.agent_profile_id,
+      user_id: s.user_id,
+      role: s.role,
+      permissions: s.permissions,
+      is_active: s.is_active,
+      created_at: s.created_at,
+      display_name: user.display_name,
+      email: user.email,
+      phone: user.phone,
+      last_login: null, // Supabase Auth doesn't expose this easily
+    }
+  })
 }
 
 export async function inviteStaff(email: string, role: StaffRole): Promise<StaffWithUser> {
-  const newStaff: StaffWithUser = {
-    id: `staff-${Date.now()}`,
-    agent_profile_id: 'ap-1',
-    user_id: `u-staff-${Date.now()}`,
-    role,
-    permissions: role === 'lead_agent'
-      ? { property_create: true, property_delete: true, contract_create: true, contract_approve: true, e_signature: true, customer_view: true, ai_tools: true, co_brokerage: true, settings: true }
-      : role === 'associate_agent'
-        ? { property_create: true, property_delete: false, contract_create: true, contract_approve: false, e_signature: false, customer_view: true, ai_tools: true, co_brokerage: false, settings: false }
-        : { property_create: true, property_delete: false, contract_create: false, contract_approve: false, e_signature: false, customer_view: true, ai_tools: false, co_brokerage: false, settings: false },
-    is_active: true,
-    created_at: new Date().toISOString(),
-    display_name: email.split('@')[0],
-    email,
-    phone: null,
+  const agentId = await getAgentProfileId()
+
+  // Look up user by email
+  const { data: users, error: userError } = await supabase
+    .from('users')
+    .select('id, display_name, email, phone')
+    .eq('email', email)
+    .limit(1)
+
+  if (userError) throw userError
+  if (!users || users.length === 0) throw new Error('해당 이메일의 사용자를 찾을 수 없습니다.')
+
+  const user = users[0]
+
+  const defaultPermissions = role === 'lead_agent'
+    ? { property_create: true, property_delete: true, contract_create: true, contract_approve: true, e_signature: true, customer_view: true, ai_tools: true, co_brokerage: true, settings: true }
+    : role === 'associate_agent'
+      ? { property_create: true, property_delete: false, contract_create: true, contract_approve: false, e_signature: false, customer_view: true, ai_tools: true, co_brokerage: false, settings: false }
+      : { property_create: true, property_delete: false, contract_create: false, contract_approve: false, e_signature: false, customer_view: true, ai_tools: false, co_brokerage: false, settings: false }
+
+  const { data: staff, error } = await supabase
+    .from('staff_members')
+    .insert({
+      agent_profile_id: agentId,
+      user_id: user.id,
+      role,
+      permissions: defaultPermissions,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+
+  return {
+    ...staff,
+    display_name: user.display_name,
+    email: user.email,
+    phone: user.phone,
     last_login: null,
   }
-  _staff.push(newStaff)
-  return newStaff
 }
 
 export async function updateStaffRole(staffId: string, role: StaffRole): Promise<void> {
-  const idx = _staff.findIndex((s) => s.id === staffId)
-  if (idx !== -1) _staff[idx] = { ..._staff[idx], role }
+  const { error } = await supabase
+    .from('staff_members')
+    .update({ role })
+    .eq('id', staffId)
+
+  if (error) throw error
 }
 
 export async function updateStaffPermissions(staffId: string, permissions: Record<string, unknown>): Promise<void> {
-  const idx = _staff.findIndex((s) => s.id === staffId)
-  if (idx !== -1) _staff[idx] = { ..._staff[idx], permissions }
+  const { error } = await supabase
+    .from('staff_members')
+    .update({ permissions })
+    .eq('id', staffId)
+
+  if (error) throw error
 }
 
 export async function toggleStaffActive(staffId: string): Promise<void> {
-  const idx = _staff.findIndex((s) => s.id === staffId)
-  if (idx !== -1) _staff[idx] = { ..._staff[idx], is_active: !_staff[idx].is_active }
+  // Fetch current state
+  const { data: staff, error: fetchError } = await supabase
+    .from('staff_members')
+    .select('is_active')
+    .eq('id', staffId)
+    .single()
+
+  if (fetchError) throw fetchError
+
+  const { error } = await supabase
+    .from('staff_members')
+    .update({ is_active: !staff.is_active })
+    .eq('id', staffId)
+
+  if (error) throw error
 }
 
 export async function deleteStaff(staffId: string): Promise<void> {
-  _staff = _staff.filter((s) => s.id !== staffId)
+  const { error } = await supabase
+    .from('staff_members')
+    .delete()
+    .eq('id', staffId)
+
+  if (error) throw error
 }
 
 // ──────────────────────────────────────────
-// Feature Settings
+// Feature Settings (agent_feature_settings table)
 // ──────────────────────────────────────────
 
 export type FeatureGroup = {
@@ -194,7 +188,8 @@ export type FeatureDefinition = {
   gemini?: boolean
 }
 
-const featureGroups: FeatureGroup[] = [
+// Static feature group definitions (metadata only)
+const featureGroupDefs: FeatureGroup[] = [
   {
     key: 'core', label: '핵심업무', icon: '🔒',
     features: [
@@ -269,24 +264,20 @@ const featureGroups: FeatureGroup[] = [
   },
 ]
 
-let _featureSettings: AgentFeatureSetting[] = featureGroups.flatMap((g) =>
-  g.features.map((f) => ({
-    id: `fs-${f.key}`,
-    agent_id: 'u-agent-1',
-    feature_key: f.key,
-    is_enabled: f.is_enabled,
-    is_locked: f.is_locked,
-    settings_json: null,
-    updated_at: '2026-01-01T00:00:00Z',
-  }))
-)
-
 export async function fetchFeatureGroups(): Promise<FeatureGroup[]> {
-  // Merge current settings into groups
-  return featureGroups.map((g) => ({
+  const agentId = await getAgentProfileId()
+  const { data: settings, error } = await supabase
+    .from('agent_feature_settings')
+    .select('*')
+    .eq('agent_id', agentId)
+
+  if (error) throw error
+
+  // Merge DB settings into static definitions
+  return featureGroupDefs.map((g) => ({
     ...g,
     features: g.features.map((f) => {
-      const setting = _featureSettings.find((s) => s.feature_key === f.key)
+      const setting = settings?.find((s) => s.feature_key === f.key)
       return {
         ...f,
         is_enabled: setting?.is_enabled ?? f.is_enabled,
@@ -296,79 +287,124 @@ export async function fetchFeatureGroups(): Promise<FeatureGroup[]> {
 }
 
 export async function toggleFeature(featureKey: string, enabled: boolean): Promise<void> {
-  const idx = _featureSettings.findIndex((s) => s.feature_key === featureKey)
-  if (idx !== -1) {
-    _featureSettings[idx] = { ..._featureSettings[idx], is_enabled: enabled, updated_at: new Date().toISOString() }
-  }
+  const agentId = await getAgentProfileId()
+
+  const { error } = await supabase
+    .from('agent_feature_settings')
+    .upsert(
+      { agent_id: agentId, feature_key: featureKey, is_enabled: enabled },
+      { onConflict: 'agent_id,feature_key' },
+    )
+
+  if (error) throw error
 }
 
 export async function fetchFeatureSettings(): Promise<AgentFeatureSetting[]> {
-  return [..._featureSettings]
+  const agentId = await getAgentProfileId()
+  const { data, error } = await supabase
+    .from('agent_feature_settings')
+    .select('*')
+    .eq('agent_id', agentId)
+
+  if (error) throw error
+  return data ?? []
 }
 
 // ──────────────────────────────────────────
-// Category Settings
+// Category Settings (property_categories table)
 // ──────────────────────────────────────────
 
-const mockCategories: PropertyCategory[] = [
-  // 주거
-  { id: 'cat-apt', agent_id: null, name: '아파트', icon: '🏢', color: '#3B82F6', sort_order: 1, is_system: true, is_active: true, required_fields: null },
-  { id: 'cat-officetel-r', agent_id: null, name: '오피스텔(주거)', icon: '🏨', color: '#6366F1', sort_order: 2, is_system: true, is_active: true, required_fields: null },
-  { id: 'cat-villa', agent_id: null, name: '빌라', icon: '🏘️', color: '#8B5CF6', sort_order: 3, is_system: true, is_active: true, required_fields: null },
-  { id: 'cat-house', agent_id: null, name: '단독/다가구', icon: '🏠', color: '#A855F7', sort_order: 4, is_system: true, is_active: true, required_fields: null },
-  { id: 'cat-oneroom', agent_id: null, name: '원룸/투룸', icon: '🛏️', color: '#D946EF', sort_order: 5, is_system: true, is_active: true, required_fields: null },
-  { id: 'cat-urban', agent_id: null, name: '도시형', icon: '🏙️', color: '#EC4899', sort_order: 6, is_system: true, is_active: false, required_fields: null },
-  { id: 'cat-mixed', agent_id: null, name: '주상복합', icon: '🌆', color: '#F43F5E', sort_order: 7, is_system: true, is_active: false, required_fields: null },
-  // 상업
-  { id: 'cat-store', agent_id: null, name: '상가(일반)', icon: '🏪', color: '#F59E0B', sort_order: 8, is_system: true, is_active: true, required_fields: null },
-  { id: 'cat-complex-store', agent_id: null, name: '단지내상가', icon: '🏬', color: '#D97706', sort_order: 9, is_system: true, is_active: false, required_fields: null },
-  { id: 'cat-office', agent_id: null, name: '사무실', icon: '💼', color: '#10B981', sort_order: 10, is_system: true, is_active: true, required_fields: null },
-  { id: 'cat-officetel-b', agent_id: null, name: '오피스텔(업무)', icon: '🏢', color: '#059669', sort_order: 11, is_system: true, is_active: true, required_fields: null },
-  { id: 'cat-knowledge', agent_id: null, name: '지식산업센터', icon: '🏗️', color: '#14B8A6', sort_order: 12, is_system: true, is_active: false, required_fields: null },
-  // 산업
-  { id: 'cat-factory', agent_id: null, name: '공장', icon: '🏭', color: '#6B7280', sort_order: 13, is_system: true, is_active: false, required_fields: null },
-  { id: 'cat-warehouse', agent_id: null, name: '창고', icon: '📦', color: '#9CA3AF', sort_order: 14, is_system: true, is_active: false, required_fields: null },
-  // 토지
-  { id: 'cat-land', agent_id: null, name: '대지', icon: '🌍', color: '#84CC16', sort_order: 15, is_system: true, is_active: false, required_fields: null },
-  { id: 'cat-forest', agent_id: null, name: '임야', icon: '🌲', color: '#22C55E', sort_order: 16, is_system: true, is_active: false, required_fields: null },
-  { id: 'cat-farm', agent_id: null, name: '농지', icon: '🌾', color: '#65A30D', sort_order: 17, is_system: true, is_active: false, required_fields: null },
-  // 건물
-  { id: 'cat-building', agent_id: null, name: '건물(통매매)', icon: '🏦', color: '#EF4444', sort_order: 18, is_system: true, is_active: false, required_fields: null },
-  { id: 'cat-pension', agent_id: null, name: '숙박/펜션', icon: '🏕️', color: '#F97316', sort_order: 19, is_system: true, is_active: false, required_fields: null },
-]
-
-let _categories = [...mockCategories]
-
 export async function fetchSettingsCategories(): Promise<PropertyCategory[]> {
-  return [..._categories].sort((a, b) => a.sort_order - b.sort_order)
+  const { data, error } = await supabase
+    .from('property_categories')
+    .select('*')
+    .order('sort_order', { ascending: true })
+
+  if (error) throw error
+  return data ?? []
 }
 
 export async function toggleCategory(id: string, isActive: boolean): Promise<void> {
-  const idx = _categories.findIndex((c) => c.id === id)
-  if (idx !== -1) _categories[idx] = { ..._categories[idx], is_active: isActive }
+  const { error } = await supabase
+    .from('property_categories')
+    .update({ is_active: isActive })
+    .eq('id', id)
+
+  if (error) throw error
 }
 
 export async function reorderCategories(orderedIds: string[]): Promise<void> {
-  orderedIds.forEach((id, i) => {
-    const idx = _categories.findIndex((c) => c.id === id)
-    if (idx !== -1) _categories[idx] = { ..._categories[idx], sort_order: i + 1 }
-  })
+  // Update sort_order for each category
+  const updates = orderedIds.map((id, i) =>
+    supabase
+      .from('property_categories')
+      .update({ sort_order: i + 1 })
+      .eq('id', id),
+  )
+  await Promise.all(updates)
 }
 
 export async function addCustomCategory(data: { name: string; icon: string; color: string }): Promise<PropertyCategory> {
-  const cat: PropertyCategory = {
-    id: `cat-custom-${Date.now()}`,
-    agent_id: 'u-agent-1',
-    name: data.name,
-    icon: data.icon,
-    color: data.color,
-    sort_order: _categories.length + 1,
-    is_system: false,
-    is_active: true,
-    required_fields: null,
-  }
-  _categories.push(cat)
+  const agentId = await getAgentProfileId()
+
+  // Get max sort_order
+  const { data: maxRow } = await supabase
+    .from('property_categories')
+    .select('sort_order')
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .single()
+
+  const nextOrder = (maxRow?.sort_order ?? 0) + 1
+
+  const { data: cat, error } = await supabase
+    .from('property_categories')
+    .insert({
+      agent_id: agentId,
+      name: data.name,
+      icon: data.icon,
+      color: data.color,
+      sort_order: nextOrder,
+      is_system: false,
+      is_active: true,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
   return cat
+}
+
+// ──────────────────────────────────────────
+// JSONB Settings (agent_settings table)
+// ──────────────────────────────────────────
+
+async function fetchAgentSetting<T>(settingKey: string, defaultValue: T): Promise<T> {
+  const agentId = await getAgentProfileId()
+  const { data, error } = await supabase
+    .from('agent_settings')
+    .select('setting_value')
+    .eq('agent_id', agentId)
+    .eq('setting_key', settingKey)
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') return defaultValue
+    throw error
+  }
+  return data.setting_value as T
+}
+
+async function upsertAgentSetting(settingKey: string, value: Record<string, unknown>): Promise<void> {
+  const agentId = await getAgentProfileId()
+  const { error } = await supabase
+    .from('agent_settings')
+    .upsert(
+      { agent_id: agentId, setting_key: settingKey, setting_value: value },
+      { onConflict: 'agent_id,setting_key' },
+    )
+
+  if (error) throw error
 }
 
 // ──────────────────────────────────────────
@@ -432,14 +468,13 @@ const defaultSearchSettings: SearchSettings = {
   map_zoom: 14,
 }
 
-let _searchSettings = { ...defaultSearchSettings }
-
 export async function fetchSearchSettings(): Promise<SearchSettings> {
-  return { ..._searchSettings }
+  return fetchAgentSetting('search', defaultSearchSettings)
 }
 
 export async function updateSearchSettings(data: Partial<SearchSettings>): Promise<void> {
-  _searchSettings = { ..._searchSettings, ...data }
+  const current = await fetchSearchSettings()
+  await upsertAgentSetting('search', { ...current, ...data } as unknown as Record<string, unknown>)
 }
 
 // ──────────────────────────────────────────
@@ -457,7 +492,7 @@ export type UnitSettings = {
   time_format: '24h' | '12h'
 }
 
-let _unitSettings: UnitSettings = {
+const defaultUnitSettings: UnitSettings = {
   area_unit: 'sqm',
   area_dual_display: true,
   price_unit: 'man',
@@ -469,11 +504,12 @@ let _unitSettings: UnitSettings = {
 }
 
 export async function fetchUnitSettings(): Promise<UnitSettings> {
-  return { ..._unitSettings }
+  return fetchAgentSetting('unit', defaultUnitSettings)
 }
 
 export async function updateUnitSettings(data: Partial<UnitSettings>): Promise<void> {
-  _unitSettings = { ..._unitSettings, ...data }
+  const current = await fetchUnitSettings()
+  await upsertAgentSetting('unit', { ...current, ...data } as unknown as Record<string, unknown>)
 }
 
 // ──────────────────────────────────────────
@@ -495,7 +531,7 @@ export type FloatingSettings = {
   fab_color: string
 }
 
-let _floatingSettings: FloatingSettings = {
+const defaultFloatingSettings: FloatingSettings = {
   buttons: [
     { key: 'kakao', label: '카카오상담', icon: '💬', is_enabled: true, sort_order: 1, url: 'https://pf.kakao.com/_example' },
     { key: 'naver', label: '네이버예약', icon: '📗', is_enabled: false, sort_order: 2, url: '' },
@@ -506,11 +542,12 @@ let _floatingSettings: FloatingSettings = {
 }
 
 export async function fetchFloatingSettings(): Promise<FloatingSettings> {
-  return JSON.parse(JSON.stringify(_floatingSettings))
+  return fetchAgentSetting('floating', defaultFloatingSettings)
 }
 
 export async function updateFloatingSettings(data: Partial<FloatingSettings>): Promise<void> {
-  _floatingSettings = { ..._floatingSettings, ...data }
+  const current = await fetchFloatingSettings()
+  await upsertAgentSetting('floating', { ...current, ...data } as unknown as Record<string, unknown>)
 }
 
 // ──────────────────────────────────────────
@@ -526,7 +563,7 @@ export type NotificationSetting = {
   channels: Record<NotificationChannel, boolean>
 }
 
-let _notificationSettings: NotificationSetting[] = [
+const defaultNotificationSettings: NotificationSetting[] = [
   { type: 'inquiry', label: '문의 접수', channels: { push: true, email: true, alimtalk: false } },
   { type: 'inspection', label: '임장 예약', channels: { push: true, email: false, alimtalk: false } },
   { type: 'contract_schedule', label: '계약 일정', channels: { push: true, email: true, alimtalk: true } },
@@ -537,17 +574,15 @@ let _notificationSettings: NotificationSetting[] = [
 ]
 
 export async function fetchNotificationSettings(): Promise<NotificationSetting[]> {
-  return [..._notificationSettings.map((s) => ({ ...s, channels: { ...s.channels } }))]
+  return fetchAgentSetting('notifications', defaultNotificationSettings)
 }
 
 export async function updateNotificationSetting(type: NotificationType, channel: NotificationChannel, enabled: boolean): Promise<void> {
-  const idx = _notificationSettings.findIndex((s) => s.type === type)
-  if (idx !== -1) {
-    _notificationSettings[idx] = {
-      ..._notificationSettings[idx],
-      channels: { ..._notificationSettings[idx].channels, [channel]: enabled },
-    }
-  }
+  const current = await fetchNotificationSettings()
+  const updated = current.map((s) =>
+    s.type === type ? { ...s, channels: { ...s.channels, [channel]: enabled } } : s,
+  )
+  await upsertAgentSetting('notifications', { value: updated } as unknown as Record<string, unknown>)
 }
 
 // ──────────────────────────────────────────
@@ -564,8 +599,8 @@ export type IntegrationConfig = {
   account_id?: string
 }
 
-let _integrations: IntegrationConfig[] = [
-  { key: 'kakao_channel', label: '카카오톡채널', icon: '💬', category: '메시징', is_connected: true, url: 'https://pf.kakao.com/_example' },
+const defaultIntegrations: IntegrationConfig[] = [
+  { key: 'kakao_channel', label: '카카오톡채널', icon: '💬', category: '메시징', is_connected: false, url: '' },
   { key: 'naver_place', label: '네이버스마트플레이스', icon: '📗', category: '예약', is_connected: false, url: '' },
   { key: 'google_calendar', label: 'Google캘린더', icon: '📅', category: '일정', is_connected: false },
   { key: 'instagram', label: '인스타그램', icon: '📸', category: 'SNS', is_connected: false, account_id: '' },
@@ -576,18 +611,19 @@ let _integrations: IntegrationConfig[] = [
 ]
 
 export async function fetchIntegrations(): Promise<IntegrationConfig[]> {
-  return [..._integrations.map((i) => ({ ...i }))]
+  return fetchAgentSetting('integrations', defaultIntegrations)
 }
 
 export async function toggleIntegration(key: string, connected: boolean, data?: { url?: string; account_id?: string }): Promise<void> {
-  const idx = _integrations.findIndex((i) => i.key === key)
-  if (idx !== -1) {
-    _integrations[idx] = { ..._integrations[idx], is_connected: connected, ...data }
-  }
+  const current = await fetchIntegrations()
+  const updated = current.map((i) =>
+    i.key === key ? { ...i, is_connected: connected, ...data } : i,
+  )
+  await upsertAgentSetting('integrations', { value: updated } as unknown as Record<string, unknown>)
 }
 
 // ──────────────────────────────────────────
-// Billing / Plan
+// Billing / Plan (agent_profiles.subscription_plan)
 // ──────────────────────────────────────────
 
 export type BillingInfo = {
@@ -606,7 +642,8 @@ const PLAN_META: Record<PlanType, { label: string; price: number }> = {
 }
 
 export async function fetchBillingInfo(): Promise<BillingInfo> {
-  const plan = _agentProfile.subscription_plan as PlanType
+  const profile = await fetchOfficeSettings()
+  const plan = profile.subscription_plan as PlanType
   const meta = PLAN_META[plan]
   return {
     current_plan: plan,
@@ -624,15 +661,20 @@ export async function fetchBillingInfo(): Promise<BillingInfo> {
 }
 
 export async function changePlan(plan: PlanType): Promise<void> {
-  _agentProfile = {
-    ..._agentProfile,
-    subscription_plan: plan,
-    subscription_started_at: new Date().toISOString(),
-  }
+  const agentId = await getAgentProfileId()
+  const { error } = await supabase
+    .from('agent_profiles')
+    .update({
+      subscription_plan: plan,
+      subscription_started_at: new Date().toISOString(),
+    })
+    .eq('id', agentId)
+
+  if (error) throw error
 }
 
 // ──────────────────────────────────────────
-// Security Settings
+// Security Settings (mock — Supabase Auth domain)
 // ──────────────────────────────────────────
 
 export type LoginRecord = {
