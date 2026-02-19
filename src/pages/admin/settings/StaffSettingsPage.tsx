@@ -67,8 +67,7 @@ export function StaffSettingsPage() {
     try {
       const code = await fetchInviteCode()
       setInviteCode(code)
-    } catch (err) {
-      console.error('fetchInviteCode error:', err)
+    } catch {
       toast.error('초대코드를 불러오지 못했습니다.')
     } finally {
       setCodeLoading(false)
