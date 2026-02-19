@@ -131,27 +131,12 @@ export async function getAgentProfile(userId: string) {
 }
 
 export async function validateInviteCode(code: string): Promise<{ officeName: string; agentProfileId: string } | null> {
-  const { data: settings, error } = await supabase
-    .from('agent_settings')
-    .select('agent_id, setting_value')
-    .eq('setting_key', 'invite_code')
-
-  if (error || !settings) return null
-
-  const upperCode = code.toUpperCase()
-  const matched = settings.find((s) => {
-    const val = s.setting_value as { code?: string } | null
-    return val?.code === upperCode
+  const { data, error } = await supabase.rpc('validate_invite_code', {
+    _code: code.toUpperCase(),
   })
 
-  if (!matched) return null
+  if (error || !data || data.length === 0) return null
 
-  const { data: profile } = await supabase
-    .from('agent_profiles')
-    .select('id, office_name')
-    .eq('id', matched.agent_id)
-    .single()
-
-  if (!profile) return null
-  return { officeName: profile.office_name, agentProfileId: profile.id }
+  const row = data[0] as { office_name: string; agent_profile_id: string }
+  return { officeName: row.office_name, agentProfileId: row.agent_profile_id }
 }

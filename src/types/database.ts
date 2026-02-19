@@ -1090,6 +1090,10 @@ export type Database = {
         Args: Record<string, never>
         Returns: string
       }
+      validate_invite_code: {
+        Args: { _code: string }
+        Returns: { office_name: string; agent_profile_id: string }[]
+      }
     }
     Enums: {
       user_role: UserRole
