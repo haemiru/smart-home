@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, Input } from '@/components/common'
-import { signUpWithEmail, signInWithGoogle, validateInviteCode } from '@/api/auth'
+import { signUpWithEmail, validateInviteCode } from '@/api/auth'
 import type { UserRole } from '@/types/database'
 import toast from 'react-hot-toast'
 
@@ -118,14 +118,6 @@ export function SignupPage() {
     }
   }
 
-  const handleGoogleSignup = async () => {
-    try {
-      await signInWithGoogle()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Google 회원가입에 실패했습니다.')
-    }
-  }
-
   // Step 1: Role selection
   if (step === 'role') {
     return (
@@ -158,16 +150,6 @@ export function SignupPage() {
             <p className="mt-1 text-sm text-gray-500">소속 사무소의 초대코드로 가입</p>
           </button>
         </div>
-
-        <div className="my-4 flex items-center gap-3">
-          <div className="h-px flex-1 bg-gray-200" />
-          <span className="text-xs text-gray-400">또는</span>
-          <div className="h-px flex-1 bg-gray-200" />
-        </div>
-
-        <Button variant="outline" className="w-full" onClick={handleGoogleSignup}>
-          Google로 회원가입
-        </Button>
 
         <p className="mt-6 text-center text-sm text-gray-500">
           이미 계정이 있으신가요?{' '}
