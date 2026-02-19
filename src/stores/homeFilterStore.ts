@@ -1,8 +1,7 @@
 import { create } from 'zustand'
-import type { PropertyCategoryId } from '@/utils/mockData'
 
 interface HomeFilterState {
-  selectedCategory: PropertyCategoryId
+  selectedCategory: string
   selectedDealType: string | null
   selectedPrice: string | null
   selectedArea: string | null
@@ -10,14 +9,14 @@ interface HomeFilterState {
   selectedFloor: string | null
   searchQuery: string
 
-  setCategory: (category: PropertyCategoryId) => void
+  setCategory: (category: string) => void
   setFilter: (group: string, value: string | null) => void
   setSearchQuery: (query: string) => void
   resetFilters: () => void
 }
 
 export const useHomeFilterStore = create<HomeFilterState>((set) => ({
-  selectedCategory: 'apartment',
+  selectedCategory: '',
   selectedDealType: null,
   selectedPrice: null,
   selectedArea: null,

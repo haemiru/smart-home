@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { useHomeFilterStore } from '@/stores/homeFilterStore'
 import { heroQuickChips } from '@/utils/mockData'
-import type { PropertyCategoryId } from '@/utils/mockData'
+import { useCategories } from '@/hooks/useCategories'
 
 export function HeroSection() {
   const { searchQuery, setSearchQuery, setCategory } = useHomeFilterStore()
+  const { categories } = useCategories()
   const [localQuery, setLocalQuery] = useState(searchQuery)
 
   const handleSearch = (e: FormEvent) => {
@@ -12,9 +13,10 @@ export function HeroSection() {
     setSearchQuery(localQuery)
   }
 
-  const handleChipClick = (id: PropertyCategoryId) => {
-    setCategory(id)
-    // Scroll to category section
+  const handleChipClick = (chipLabel: string) => {
+    // Match chip label to DB category name
+    const match = categories.find((c) => c.name === chipLabel)
+    if (match) setCategory(match.id)
     document.getElementById('category-tabs')?.scrollIntoView({ behavior: 'smooth' })
   }
 
@@ -72,7 +74,7 @@ export function HeroSection() {
           {heroQuickChips.map((chip) => (
             <button
               key={chip.id}
-              onClick={() => handleChipClick(chip.id as PropertyCategoryId)}
+              onClick={() => handleChipClick(chip.label)}
               className="rounded-full bg-white/15 px-4 py-1.5 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/25"
             >
               {chip.label}

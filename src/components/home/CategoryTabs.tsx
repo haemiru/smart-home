@@ -1,10 +1,20 @@
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import { useHomeFilterStore } from '@/stores/homeFilterStore'
-import { propertyCategories } from '@/utils/mockData'
+import { useCategories } from '@/hooks/useCategories'
 
 export function CategoryTabs() {
   const { selectedCategory, setCategory } = useHomeFilterStore()
+  const { categories, isLoading } = useCategories()
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Auto-select the first category once loaded
+  useEffect(() => {
+    if (!selectedCategory && categories.length > 0) {
+      setCategory(categories[0].id)
+    }
+  }, [categories, selectedCategory, setCategory])
+
+  if (isLoading || categories.length === 0) return null
 
   return (
     <section id="category-tabs" className="sticky top-16 z-20 border-b border-gray-200 bg-white">
@@ -13,7 +23,7 @@ export function CategoryTabs() {
           ref={scrollRef}
           className="scrollbar-hide flex overflow-x-auto"
         >
-          {propertyCategories.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setCategory(cat.id)}
@@ -23,7 +33,7 @@ export function CategoryTabs() {
                   : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
               }`}
             >
-              {cat.label}
+              {cat.name}
             </button>
           ))}
         </div>

@@ -1,14 +1,25 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
-import { mockProperties } from '@/utils/mockData'
+import { fetchProperties } from '@/api/properties'
+import type { Property } from '@/types/database'
 import { PropertyCard } from './PropertyCard'
 
 export function AIRecommendations() {
   const { session } = useAuthStore()
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [recommended, setRecommended] = useState<Property[]>([])
 
-  const recommended = mockProperties.filter((p) => p.matchRate)
+  useEffect(() => {
+    if (!session) return
+    let cancelled = false
+    fetchProperties({}, 'popular', 1, 6)
+      .then(({ data }) => {
+        if (!cancelled) setRecommended(data)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [session])
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollRef.current) return
@@ -41,6 +52,8 @@ export function AIRecommendations() {
       </section>
     )
   }
+
+  if (recommended.length === 0) return null
 
   return (
     <section>
@@ -75,7 +88,7 @@ export function AIRecommendations() {
       >
         {recommended.map((p) => (
           <div key={p.id} className="w-64 shrink-0 snap-start sm:w-72">
-            <PropertyCard property={p} showMatchRate />
+            <PropertyCard property={p} />
           </div>
         ))}
       </div>

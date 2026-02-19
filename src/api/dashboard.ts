@@ -81,24 +81,70 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
   }
 }
 
-// ─── Monthly Performance (mock — no aggregation table) ──
+// ─── Monthly Performance (Supabase) ─────────────────
 
 export async function fetchMonthlyPerformance(): Promise<MonthlyPerformance> {
+  const now = new Date()
+  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+
+  // Build 6 month range for trend
+  const months: { start: Date; end: Date; label: string }[] = []
+  for (let i = 5; i >= 0; i--) {
+    const s = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const e = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
+    months.push({ start: s, end: e, label: `${s.getMonth() + 1}월` })
+  }
+
+  // Fetch properties and contracts created in the last 6 months
+  const sixMonthsAgo = months[0].start.toISOString()
+
+  const [{ data: props }, { data: contracts }] = await Promise.all([
+    supabase.from('properties').select('created_at').gte('created_at', sixMonthsAgo),
+    supabase.from('contracts').select('created_at, status, price_info').gte('created_at', sixMonthsAgo),
+  ])
+
+  type PropRow = { created_at: string }
+  type ContractRow = { created_at: string; status: string; price_info: Record<string, unknown> | null }
+
+  const propList: PropRow[] = (props ?? []) as PropRow[]
+  const contractList: ContractRow[] = (contracts ?? []) as ContractRow[]
+
+  const monthlyTrend = months.map(({ start, end, label }) => {
+    const sISO = start.toISOString()
+    const eISO = end.toISOString()
+    return {
+      month: label,
+      registrations: propList.filter((p) => p.created_at >= sISO && p.created_at < eISO).length,
+      contracts: contractList.filter((c) => c.created_at >= sISO && c.created_at < eISO && (c.status === 'signed' || c.status === 'completed')).length,
+    }
+  })
+
+  const thisISO = thisMonth.toISOString()
+  const prevISO = prevMonth.toISOString()
+
+  const thisProps = propList.filter((p) => p.created_at >= thisISO)
+  const prevProps = propList.filter((p) => p.created_at >= prevISO && p.created_at < thisISO)
+
+  const isClosed = (c: ContractRow) => c.status === 'signed' || c.status === 'completed'
+  const getAmount = (c: ContractRow) => {
+    const pi = c.price_info
+    if (!pi) return 0
+    const v = (pi as Record<string, number>).salePrice ?? (pi as Record<string, number>).deposit ?? 0
+    return typeof v === 'number' ? v : 0
+  }
+
+  const thisContracts = contractList.filter((c) => c.created_at >= thisISO && isClosed(c))
+  const prevContracts = contractList.filter((c) => c.created_at >= prevISO && c.created_at < thisISO && isClosed(c))
+
   return {
-    propertyRegistrations: 5,
-    contractsClosed: 2,
-    totalTransactionAmount: 135300,
-    prevPropertyRegistrations: 3,
-    prevContractsClosed: 1,
-    prevTransactionAmount: 85000,
-    monthlyTrend: [
-      { month: '9월', registrations: 2, contracts: 1 },
-      { month: '10월', registrations: 4, contracts: 2 },
-      { month: '11월', registrations: 3, contracts: 1 },
-      { month: '12월', registrations: 6, contracts: 3 },
-      { month: '1월', registrations: 3, contracts: 1 },
-      { month: '2월', registrations: 5, contracts: 2 },
-    ],
+    propertyRegistrations: thisProps.length,
+    contractsClosed: thisContracts.length,
+    totalTransactionAmount: thisContracts.reduce((s, c) => s + getAmount(c), 0),
+    prevPropertyRegistrations: prevProps.length,
+    prevContractsClosed: prevContracts.length,
+    prevTransactionAmount: prevContracts.reduce((s, c) => s + getAmount(c), 0),
+    monthlyTrend,
   }
 }
 
@@ -116,14 +162,40 @@ export async function fetchUnansweredInquiries(): Promise<Inquiry[]> {
   return data ?? []
 }
 
-// ─── Today's Schedule (mock — no schedule table) ──────
+// ─── Today's Schedule (Supabase — inspections) ──────
 
 export async function fetchTodaySchedule(): Promise<ScheduleItem[]> {
-  return [
-    { id: 'sch-1', time: '10:30', title: '래미안 대치팰리스 102동 1502호', address: '서울 강남구 대치동', customer: '김철수', type: 'today' },
-    { id: 'sch-2', time: '14:00', title: '힐스테이트 클래시안 205동 1201호', address: '서울 서초구 반포동', customer: '이영희', type: 'today' },
-    { id: 'sch-3', time: '11:00', title: '역삼 아이파크 302동 801호', address: '서울 강남구 역삼동', customer: '박민수', type: 'tomorrow' },
-  ]
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const dayAfter = new Date(today)
+  dayAfter.setDate(dayAfter.getDate() + 2)
+
+  const { data, error } = await supabase
+    .from('inspections')
+    .select('id, scheduled_date, property_title, address')
+    .gte('scheduled_date', today.toISOString().slice(0, 10))
+    .lt('scheduled_date', dayAfter.toISOString().slice(0, 10) + 'T23:59:59')
+    .order('scheduled_date', { ascending: true })
+
+  if (error) throw error
+
+  const todayStr = today.toISOString().slice(0, 10)
+
+  return (data ?? []).map((row) => {
+    const dateStr = typeof row.scheduled_date === 'string' ? row.scheduled_date.slice(0, 10) : ''
+    const timeStr = typeof row.scheduled_date === 'string' && row.scheduled_date.length > 10
+      ? row.scheduled_date.slice(11, 16)
+      : '09:00'
+    return {
+      id: row.id,
+      time: timeStr,
+      title: row.property_title ?? '',
+      address: row.address ?? '',
+      type: dateStr === todayStr ? 'today' as const : 'tomorrow' as const,
+    }
+  })
 }
 
 // ─── Property Stats (Supabase top 5) ─────────────────
@@ -146,32 +218,78 @@ export async function fetchPropertyStats(): Promise<PropertyStat[]> {
   }))
 }
 
-// ─── Activity Feed (mock — no unified activity table) ──
+// ─── Activity Feed (Supabase — recent rows merged) ──
 
 export async function fetchActivityFeed(): Promise<ActivityItem[]> {
-  const now = new Date()
-  const ago = (minutes: number) => new Date(now.getTime() - minutes * 60000).toISOString()
-  return [
-    { id: 'act-1', icon: '📩', message: '새 문의가 접수되었습니다.', time: ago(5), link: '/admin/inquiries' },
-    { id: 'act-2', icon: '✍️', message: '계약서 서명 요청이 전송되었습니다.', time: ago(30), link: '/admin/contracts' },
-    { id: 'act-3', icon: '👁️', message: '매물 조회수가 증가하고 있습니다.', time: ago(90) },
-    { id: 'act-4', icon: '💬', message: '문의 답변이 발송되었습니다.', time: ago(180), link: '/admin/inquiries' },
-    { id: 'act-5', icon: '📝', message: '새 계약서가 작성되었습니다.', time: ago(360), link: '/admin/contracts' },
-    { id: 'act-6', icon: '🤝', message: '공동중개 요청이 접수되었습니다.', time: ago(720), link: '/admin/co-brokerage/requests' },
-    { id: 'act-7', icon: '🔍', message: '임장이 완료되었습니다.', time: ago(1200) },
-    { id: 'act-8', icon: '👤', message: '신규 고객이 등록되었습니다.', time: ago(1500), link: '/admin/customers' },
-    { id: 'act-9', icon: '🏠', message: '새 매물이 등록되었습니다.', time: ago(2000) },
-    { id: 'act-10', icon: '💰', message: '월세가 입금되었습니다.', time: ago(2800) },
-  ]
+  const [
+    { data: inquiries },
+    { data: contracts },
+    { data: customers },
+    { data: properties },
+    { data: inspections },
+  ] = await Promise.all([
+    supabase.from('inquiries').select('id, created_at').order('created_at', { ascending: false }).limit(5),
+    supabase.from('contracts').select('id, created_at, status').order('created_at', { ascending: false }).limit(5),
+    supabase.from('customers').select('id, created_at, name').order('created_at', { ascending: false }).limit(5),
+    supabase.from('properties').select('id, created_at, title').order('created_at', { ascending: false }).limit(5),
+    supabase.from('inspections').select('id, created_at, status').order('created_at', { ascending: false }).limit(5),
+  ])
+
+  const items: ActivityItem[] = []
+
+  for (const row of inquiries ?? []) {
+    items.push({ id: `inq-${row.id}`, icon: '\uD83D\uDCE9', message: '새 문의가 접수되었습니다.', time: row.created_at, link: '/admin/inquiries' })
+  }
+  for (const row of contracts ?? []) {
+    const msg = row.status === 'signed' || row.status === 'completed'
+      ? '계약이 체결되었습니다.'
+      : '새 계약서가 작성되었습니다.'
+    items.push({ id: `con-${row.id}`, icon: '\u270D\uFE0F', message: msg, time: row.created_at, link: '/admin/contracts' })
+  }
+  for (const row of customers ?? []) {
+    items.push({ id: `cus-${row.id}`, icon: '\uD83D\uDC64', message: `신규 고객(${row.name})이 등록되었습니다.`, time: row.created_at, link: '/admin/customers' })
+  }
+  for (const row of properties ?? []) {
+    items.push({ id: `prp-${row.id}`, icon: '\uD83C\uDFE0', message: `매물 "${row.title}" 이(가) 등록되었습니다.`, time: row.created_at })
+  }
+  for (const row of inspections ?? []) {
+    const msg = row.status === 'completed' ? '임장이 완료되었습니다.' : '임장이 등록되었습니다.'
+    items.push({ id: `ins-${row.id}`, icon: '\uD83D\uDD0D', message: msg, time: row.created_at, link: '/admin/inspection' })
+  }
+
+  items.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+  return items.slice(0, 10)
 }
 
-// ─── Todo List (mock) ─────────────────────────────────
+// ─── Todo List (Supabase — dynamic counts) ──────────
 
 export async function fetchTodoList(): Promise<TodoItem[]> {
-  return [
-    { id: 'todo-1', type: 'inquiry', label: '미답변 문의 확인', detail: '답변 대기 중인 문의가 있습니다', link: '/admin/inquiries', is_done: false },
-    { id: 'todo-2', type: 'contract', label: '계약 일정 확인', detail: '다가오는 잔금일을 확인하세요', link: '/admin/contracts', is_done: false },
-    { id: 'todo-3', type: 'repair', label: '수리 요청 처리', detail: '미처리 수리 요청이 있습니다', link: '/admin/rental-mgmt', is_done: false },
-    { id: 'todo-4', type: 'expiring', label: '만기 임박 임대', detail: '만기 임박 임대 물건을 확인하세요', link: '/admin/rental-mgmt', is_done: false },
-  ]
+  const [
+    { count: unansweredCount },
+    { count: repairCount },
+    { count: expiringCount },
+    { count: upcomingContractCount },
+  ] = await Promise.all([
+    supabase.from('inquiries').select('*', { count: 'exact', head: true }).in('status', ['new', 'checked', 'in_progress']),
+    supabase.from('repair_requests').select('*', { count: 'exact', head: true }).in('status', ['requested', 'confirmed']),
+    supabase.from('rental_properties').select('*', { count: 'exact', head: true }).eq('status', 'expiring'),
+    supabase.from('contracts').select('*', { count: 'exact', head: true }).in('status', ['drafting', 'pending_sign']),
+  ])
+
+  const items: TodoItem[] = []
+
+  if ((unansweredCount ?? 0) > 0) {
+    items.push({ id: 'todo-inq', type: 'inquiry', label: '미답변 문의 확인', detail: `답변 대기 중인 문의 ${unansweredCount}건`, link: '/admin/inquiries', is_done: false })
+  }
+  if ((upcomingContractCount ?? 0) > 0) {
+    items.push({ id: 'todo-con', type: 'contract', label: '계약 일정 확인', detail: `진행 중인 계약 ${upcomingContractCount}건`, link: '/admin/contracts', is_done: false })
+  }
+  if ((repairCount ?? 0) > 0) {
+    items.push({ id: 'todo-rep', type: 'repair', label: '수리 요청 처리', detail: `미처리 수리 요청 ${repairCount}건`, link: '/admin/rental-mgmt', is_done: false })
+  }
+  if ((expiringCount ?? 0) > 0) {
+    items.push({ id: 'todo-exp', type: 'expiring', label: '만기 임박 임대', detail: `만기 임박 ${expiringCount}건`, link: '/admin/rental-mgmt', is_done: false })
+  }
+
+  return items
 }

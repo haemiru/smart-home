@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { Property } from '@/types/database'
 import { formatPropertyPrice, formatArea, propertyStatusLabel, propertyStatusColor, transactionTypeLabel, formatDate } from '@/utils/format'
-import { systemCategories } from '@/utils/propertyMockData'
+import { useCategories } from '@/hooks/useCategories'
 
 interface AdminPropertyTableProps {
   properties: Property[]
@@ -11,6 +11,7 @@ interface AdminPropertyTableProps {
 }
 
 export function AdminPropertyTable({ properties, selectedIds, onSelect, onSelectAll }: AdminPropertyTableProps) {
+  const { findCategory } = useCategories()
   const allSelected = properties.length > 0 && properties.every((p) => selectedIds.has(p.id))
 
   return (
@@ -33,7 +34,7 @@ export function AdminPropertyTable({ properties, selectedIds, onSelect, onSelect
         </thead>
         <tbody className="divide-y divide-gray-50">
           {properties.map((p) => {
-            const cat = systemCategories.find((c) => c.id === p.category_id)
+            const cat = findCategory(p.category_id)
             return (
               <tr key={p.id} className={`transition-colors hover:bg-gray-50 ${selectedIds.has(p.id) ? 'bg-primary-50/50' : ''}`}>
                 <td className="px-4 py-3">

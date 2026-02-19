@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import type { Property } from '@/types/database'
 import { fetchPropertyById } from '@/api/properties'
-import { systemCategories } from '@/utils/propertyMockData'
+import { useCategories } from '@/hooks/useCategories'
 import { formatPropertyPrice, formatArea, formatPrice, transactionTypeLabel, formatDate } from '@/utils/format'
 import { Button, Input } from '@/components/common'
 import { Modal } from '@/components/common/Modal'
@@ -12,6 +12,7 @@ import toast from 'react-hot-toast'
 
 export function PropertyDetailPage() {
   const { id } = useParams()
+  const { findCategory } = useCategories()
   const [property, setProperty] = useState<Property | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [currentPhoto, setCurrentPhoto] = useState(0)
@@ -38,7 +39,7 @@ export function PropertyDetailPage() {
   }
 
   const p = property
-  const cat = systemCategories.find((c) => c.id === p.category_id)
+  const cat = findCategory(p.category_id)
   const photos = p.photos?.length ? p.photos : ['https://placehold.co/800x600/e2e8f0/94a3b8?text=No+Image']
 
   return (

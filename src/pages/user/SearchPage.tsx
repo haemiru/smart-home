@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Property, TransactionType } from '@/types/database'
 import { fetchProperties, type SortOption, type PropertyFilters } from '@/api/properties'
-import { systemCategories } from '@/utils/propertyMockData'
+import { useCategories } from '@/hooks/useCategories'
 import { formatPropertyPrice, formatArea, transactionTypeLabel } from '@/utils/format'
 
 const sortOptions: { value: SortOption; label: string }[] = [
@@ -15,6 +15,7 @@ const sortOptions: { value: SortOption; label: string }[] = [
 const directionOptions = ['남향', '남동향', '남서향', '동향', '서향', '북향']
 
 export function SearchPage() {
+  const { categories } = useCategories()
   const [properties, setProperties] = useState<Property[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -95,7 +96,7 @@ export function SearchPage() {
             className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${!categoryId ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
             전체
           </button>
-          {systemCategories.map((c) => (
+          {categories.map((c) => (
             <button key={c.id} onClick={() => setCategoryId(c.id)}
               className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${categoryId === c.id ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
               {c.icon} {c.name}
@@ -201,7 +202,8 @@ export function SearchPage() {
 }
 
 function SearchResultCard({ property: p }: { property: Property }) {
-  const cat = systemCategories.find((c) => c.id === p.category_id)
+  const { findCategory } = useCategories()
+  const cat = findCategory(p.category_id)
   const txBadge: Record<string, string> = { sale: 'bg-blue-100 text-blue-700', jeonse: 'bg-green-100 text-green-700', monthly: 'bg-orange-100 text-orange-700' }
 
   return (

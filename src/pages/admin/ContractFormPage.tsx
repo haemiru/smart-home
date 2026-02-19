@@ -5,7 +5,7 @@ import { fetchAdminProperties } from '@/api/properties'
 import { createContract, recommendTemplate } from '@/api/contracts'
 import { Button } from '@/components/common'
 import { formatPropertyPrice, formatArea, transactionTypeLabel, contractTemplateLabel, formatNumber, parseCommaNumber, formatPrice } from '@/utils/format'
-import { systemCategories } from '@/utils/propertyMockData'
+import { useCategories } from '@/hooks/useCategories'
 import toast from 'react-hot-toast'
 
 type Step = 1 | 2 | 3 | 4
@@ -195,6 +195,7 @@ export function ContractFormPage() {
 function Step1PropertySelect({ properties, search, onSearchChange, selected, onSelect }: {
   properties: Property[]; search: string; onSearchChange: (v: string) => void; selected: Property | null; onSelect: (p: Property) => void
 }) {
+  const { findCategory } = useCategories()
   return (
     <div className="space-y-4">
       <div className="relative max-w-md">
@@ -209,7 +210,7 @@ function Step1PropertySelect({ properties, search, onSearchChange, selected, onS
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {properties.map((p) => {
-          const cat = systemCategories.find((c) => c.id === p.category_id)
+          const cat = findCategory(p.category_id)
           const isSelected = selected?.id === p.id
           return (
             <button
@@ -451,6 +452,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
   priceInfo: { salePrice: string; deposit: string; monthlyRent: string; downPayment: string; downPaymentDate: string; midPayment: string; midPaymentDate: string; finalPayment: string; finalPaymentDate: string }
   specialTerms: string
 }) {
+  const { findCategory } = useCategories()
   const isSale = txType === 'sale'
   const isMonthly = txType === 'monthly'
 
@@ -467,7 +469,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
           <table className="w-full text-sm">
             <tbody>
               <Row label="소재지" value={property?.address ?? '-'} />
-              <Row label="구조/용도" value={`${systemCategories.find((c) => c.id === property?.category_id)?.name ?? '-'}`} />
+              <Row label="구조/용도" value={`${findCategory(property?.category_id)?.name ?? '-'}`} />
               <Row label="전용면적" value={formatArea(property?.exclusive_area_m2)} />
               <Row label="공급면적" value={formatArea(property?.supply_area_m2)} />
               {property?.floor && <Row label="해당층/총층" value={`${property.floor}층 / ${property.total_floors}층`} />}

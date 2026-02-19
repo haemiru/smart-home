@@ -1,32 +1,59 @@
-import { useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useHomeFilterStore } from '@/stores/homeFilterStore'
-import { mockProperties } from '@/utils/mockData'
+import { fetchProperties } from '@/api/properties'
+import type { Property, TransactionType } from '@/types/database'
 import { PropertyCard } from './PropertyCard'
+
+const dealTypeMap: Record<string, TransactionType> = { sale: 'sale', jeonse: 'jeonse', monthly: 'monthly' }
 
 export function PropertyGrid() {
   const { selectedCategory, selectedDealType } = useHomeFilterStore()
+  const [properties, setProperties] = useState<Property[]>([])
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(false)
 
-  const filtered = useMemo(() => {
-    return mockProperties.filter((p) => {
-      if (p.category !== selectedCategory) return false
-      if (selectedDealType) {
-        const dealMap: Record<string, string> = { sale: '매매', jeonse: '전세', monthly: '월세' }
-        if (p.dealType !== dealMap[selectedDealType]) return false
-      }
-      return true
-    })
+  useEffect(() => {
+    if (!selectedCategory) return
+    let cancelled = false
+    setLoading(true)
+
+    fetchProperties({
+      categoryId: selectedCategory,
+      transactionType: selectedDealType ? dealTypeMap[selectedDealType] : undefined,
+    }, 'newest', 1, 12)
+      .then(({ data, total }) => {
+        if (!cancelled) {
+          setProperties(data)
+          setTotal(total)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProperties([])
+          setTotal(0)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => { cancelled = true }
   }, [selectedCategory, selectedDealType])
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-bold text-gray-900">지역별 인기 매물</h2>
-        <span className="text-sm text-gray-500">{filtered.length}건</span>
+        <span className="text-sm text-gray-500">{total}건</span>
       </div>
 
-      {filtered.length > 0 ? (
+      {loading ? (
+        <div className="rounded-xl bg-gray-50 py-16 text-center">
+          <p className="text-gray-400">매물을 불러오는 중...</p>
+        </div>
+      ) : properties.length > 0 ? (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((p) => (
+          {properties.map((p) => (
             <PropertyCard key={p.id} property={p} />
           ))}
         </div>

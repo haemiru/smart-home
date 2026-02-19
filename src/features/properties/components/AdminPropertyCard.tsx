@@ -1,6 +1,6 @@
 import type { Property } from '@/types/database'
 import { formatPropertyPrice, formatArea, propertyStatusLabel, propertyStatusColor, transactionTypeLabel, formatDate } from '@/utils/format'
-import { systemCategories } from '@/utils/propertyMockData'
+import { useCategories } from '@/hooks/useCategories'
 
 interface AdminPropertyCardProps {
   property: Property
@@ -9,7 +9,8 @@ interface AdminPropertyCardProps {
 }
 
 export function AdminPropertyCard({ property: p, isSelected, onSelect }: AdminPropertyCardProps) {
-  const cat = systemCategories.find((c) => c.id === p.category_id)
+  const { findCategory } = useCategories()
+  const cat = findCategory(p.category_id)
 
   return (
     <div className={`overflow-hidden rounded-xl bg-white shadow-sm ring-1 transition-all ${isSelected ? 'ring-primary-400 ring-2' : 'ring-gray-200'}`}>
