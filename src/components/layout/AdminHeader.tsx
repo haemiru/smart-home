@@ -63,9 +63,7 @@ export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
           </svg>
         </button>
         <Link to="/admin/dashboard" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 text-sm font-bold text-white">
-            S
-          </div>
+          <img src="/logo.png" alt="Smart Home" className="h-9 w-9 rounded-lg object-contain" />
           <span className="hidden text-lg font-bold text-primary-700 sm:inline">Smart Home</span>
         </Link>
       </div>

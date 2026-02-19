@@ -23,9 +23,7 @@ export function UserGNB() {
           <div className="flex h-16 items-center justify-between">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 text-sm font-bold text-white">
-                S
-              </div>
+              <img src="/logo.png" alt="Smart Home" className="h-9 w-9 rounded-lg object-contain" />
               <span className="text-lg font-bold text-primary-700">Smart Home</span>
             </Link>
 
