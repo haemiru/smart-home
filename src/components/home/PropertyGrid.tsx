@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useHomeFilterStore } from '@/stores/homeFilterStore'
 import { fetchProperties } from '@/api/properties'
+import { fetchPublicRegionSettings } from '@/api/settings'
+import type { RegionSetting } from '@/api/settings'
 import type { Property, TransactionType } from '@/types/database'
 import { PropertyCard } from './PropertyCard'
 
@@ -11,6 +13,13 @@ export function PropertyGrid() {
   const [properties, setProperties] = useState<Property[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [regions, setRegions] = useState<RegionSetting[]>([])
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
+
+  // Load region settings once
+  useEffect(() => {
+    fetchPublicRegionSettings().then(setRegions).catch(() => setRegions([]))
+  }, [])
 
   useEffect(() => {
     if (!selectedCategory) return
@@ -20,6 +29,7 @@ export function PropertyGrid() {
     fetchProperties({
       categoryId: selectedCategory,
       transactionType: selectedDealType ? dealTypeMap[selectedDealType] : undefined,
+      addressSearch: selectedRegion ?? undefined,
     }, 'newest', 1, 12)
       .then(({ data, total }) => {
         if (!cancelled) {
@@ -38,7 +48,7 @@ export function PropertyGrid() {
       })
 
     return () => { cancelled = true }
-  }, [selectedCategory, selectedDealType])
+  }, [selectedCategory, selectedDealType, selectedRegion])
 
   return (
     <div>
@@ -46,6 +56,34 @@ export function PropertyGrid() {
         <h2 className="text-lg font-bold text-gray-900">지역별 인기 매물</h2>
         <span className="text-sm text-gray-500">{total}건</span>
       </div>
+
+      {regions.length > 0 && (
+        <div className="mb-4 flex gap-2 overflow-x-auto scrollbar-hide">
+          <button
+            onClick={() => setSelectedRegion(null)}
+            className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+              selectedRegion === null
+                ? 'bg-primary-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            전체
+          </button>
+          {regions.map((region) => (
+            <button
+              key={region.name}
+              onClick={() => setSelectedRegion(region.name)}
+              className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                selectedRegion === region.name
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {region.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <div className="rounded-xl bg-gray-50 py-16 text-center">

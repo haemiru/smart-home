@@ -18,6 +18,7 @@ export interface PropertyFilters {
   hasElevator?: boolean
   petsAllowed?: boolean
   isUrgent?: boolean
+  addressSearch?: string
   tags?: string[]
   minBuiltYear?: number
   minParkingPerUnit?: number
@@ -56,6 +57,9 @@ export async function fetchProperties(
 
   if (filters.search) {
     query = query.or(`title.ilike.%${filters.search}%,address.ilike.%${filters.search}%`)
+  }
+  if (filters.addressSearch) {
+    query = query.ilike('address', `%${filters.addressSearch}%`)
   }
   if (filters.categoryId) query = query.eq('category_id', filters.categoryId)
   if (filters.transactionType) query = query.eq('transaction_type', filters.transactionType)

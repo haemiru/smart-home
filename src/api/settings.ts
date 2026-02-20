@@ -395,6 +395,38 @@ async function upsertAgentSetting(settingKey: string, value: Record<string, unkn
 }
 
 // ──────────────────────────────────────────
+// Region Settings (지역별 인기매물)
+// ──────────────────────────────────────────
+
+export type RegionSetting = {
+  name: string    // "오송읍", "세종시", "청주시 흥덕구"
+  nameEn: string  // "Oseong", "Sejong", "Heungdeok"
+}
+
+export async function fetchRegionSettings(): Promise<RegionSetting[]> {
+  return fetchAgentSetting<RegionSetting[]>('regions', [])
+}
+
+export async function updateRegionSettings(regions: RegionSetting[]): Promise<void> {
+  await upsertAgentSetting('regions', regions as unknown as Record<string, unknown>)
+}
+
+/** Public: fetch the first agent's region settings for the user portal */
+export async function fetchPublicRegionSettings(): Promise<RegionSetting[]> {
+  const { data, error } = await supabase
+    .from('agent_settings')
+    .select('setting_value')
+    .eq('setting_key', 'regions')
+    .limit(1)
+    .single()
+
+  if (error || !data) return []
+  const value = data.setting_value
+  if (Array.isArray(value)) return value as RegionSetting[]
+  return []
+}
+
+// ──────────────────────────────────────────
 // Search Settings
 // ──────────────────────────────────────────
 

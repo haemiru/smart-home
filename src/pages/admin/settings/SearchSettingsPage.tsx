@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { fetchSearchSettings, updateSearchSettings } from '@/api/settings'
-import type { SearchSettings, QuickSearchCard } from '@/api/settings'
+import { fetchSearchSettings, updateSearchSettings, fetchRegionSettings, updateRegionSettings } from '@/api/settings'
+import type { SearchSettings, QuickSearchCard, RegionSetting } from '@/api/settings'
 import { useCategories } from '@/hooks/useCategories'
 import toast from 'react-hot-toast'
 
@@ -33,9 +33,12 @@ function CategoryBadges({ categories }: { categories?: string[] }) {
 export function SearchSettingsPage() {
   const [settings, setSettings] = useState<SearchSettings | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [regions, setRegions] = useState<RegionSetting[]>([])
+  const [regionSaving, setRegionSaving] = useState(false)
 
   useEffect(() => {
     fetchSearchSettings().then(setSettings)
+    fetchRegionSettings().then(setRegions).catch(() => setRegions([]))
   }, [])
 
   if (!settings) return <div className="flex h-40 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" /></div>
@@ -65,8 +68,91 @@ export function SearchSettingsPage() {
     toast.success('저장되었습니다.')
   }
 
+  const handleRegionChange = (index: number, field: keyof RegionSetting, value: string) => {
+    setRegions(regions.map((r, i) => i === index ? { ...r, [field]: value } : r))
+  }
+
+  const handleAddRegion = () => {
+    if (regions.length >= 4) {
+      toast.error('최대 4개까지 추가할 수 있습니다.')
+      return
+    }
+    setRegions([...regions, { name: '', nameEn: '' }])
+  }
+
+  const handleDeleteRegion = (index: number) => {
+    setRegions(regions.filter((_, i) => i !== index))
+  }
+
+  const handleSaveRegions = async () => {
+    const valid = regions.filter((r) => r.name.trim())
+    if (valid.some((r) => !r.nameEn.trim())) {
+      toast.error('영문명을 입력해주세요.')
+      return
+    }
+    setRegionSaving(true)
+    try {
+      await updateRegionSettings(valid)
+      setRegions(valid)
+      toast.success('지역 설정이 저장되었습니다.')
+    } catch {
+      toast.error('저장에 실패했습니다.')
+    } finally {
+      setRegionSaving(false)
+    }
+  }
+
   return (
     <div className="space-y-5">
+      {/* Region Settings */}
+      <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+        <h2 className="text-sm font-bold">지역별 인기매물 지역 설정</h2>
+        <p className="mt-1 text-xs text-gray-400">사용자 포털에 표시할 지역을 설정합니다 (최대 4개)</p>
+        <div className="mt-4 space-y-3">
+          {regions.map((region, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <span className="w-5 shrink-0 text-xs text-gray-400">{idx + 1}</span>
+              <input
+                type="text"
+                value={region.name}
+                onChange={(e) => handleRegionChange(idx, 'name', e.target.value)}
+                placeholder="지역명 (예: 오송읍)"
+                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none"
+              />
+              <input
+                type="text"
+                value={region.nameEn}
+                onChange={(e) => handleRegionChange(idx, 'nameEn', e.target.value)}
+                placeholder="영문명 (예: Oseong)"
+                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none"
+              />
+              <button
+                onClick={() => handleDeleteRegion(idx)}
+                className="shrink-0 rounded-lg px-2.5 py-2 text-sm text-gray-400 hover:bg-red-50 hover:text-red-500"
+              >
+                삭제
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            onClick={handleAddRegion}
+            disabled={regions.length >= 4}
+            className="rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-200 disabled:opacity-40"
+          >
+            + 지역 추가
+          </button>
+          <button
+            onClick={handleSaveRegions}
+            disabled={regionSaving}
+            className="rounded-lg bg-primary-600 px-4 py-2 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-60"
+          >
+            {regionSaving ? '저장 중...' : '저장'}
+          </button>
+        </div>
+      </div>
+
       {/* Filter Groups */}
       <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
         <h2 className="text-sm font-bold">사이드 필터 설정</h2>
