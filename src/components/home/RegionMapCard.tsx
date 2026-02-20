@@ -1,97 +1,59 @@
 import { useMemo } from 'react'
+import { regionMaps, regionParents } from '@/data/regionMaps'
+import type { RegionMapData } from '@/data/regionMaps'
 
 type Props = {
   name: string
   nameEn?: string
   selected: boolean
   onClick: () => void
-  highlight?: boolean
 }
 
-/* ── Seeded PRNG ── */
+/* ── Region → map data lookup ── */
 
-function hash(s: string): number {
-  let h = 5381
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0
-  return Math.abs(h)
-}
-
-function rng(seed: number) {
-  let s = ((seed % 2147483647) + 2147483647) % 2147483647 || 1
-  return () => {
-    s = (s * 16807) % 2147483647
-    return (s - 1) / 2147483646
-  }
-}
-
-/* ── Catmull-Rom → Cubic Bézier (closed loop) ── */
-
-function smooth(pts: [number, number][]): string {
-  const n = pts.length
-  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`
-  for (let i = 0; i < n; i++) {
-    const p0 = pts[(i - 1 + n) % n]
-    const p1 = pts[i]
-    const p2 = pts[(i + 1) % n]
-    const p3 = pts[(i + 2) % n]
-    d += `C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)},${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)},${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`
-  }
-  return d + 'Z'
-}
-
-/* ── Map data generation ── */
-
-function genMap(name: string, hi: boolean) {
-  const rand = rng(hash(name))
-  const cx = 55, cy = 50
-
-  // Outer boundary — polar coords with noise
-  const outer: [number, number][] = []
-  for (let i = 0; i < 18; i++) {
-    const a = (Math.PI * 2 * i) / 18
-    const r = 32 + rand() * 14
-    outer.push([cx + r * Math.cos(a), cy + r * Math.sin(a)])
+function findMap(name: string): { data: RegionMapData; highlights: string[] } | null {
+  // 1. Exact match in regionParents (e.g. "청주시 흥덕구" → "충청북도")
+  if (regionParents[name]) {
+    const d = regionMaps[regionParents[name]]
+    if (d) return { data: d, highlights: [name] }
   }
 
-  // Jittered 5×5 grid → 4×4 = 16 cells
-  const gs = 5, cw = 20
-  const sx = cx - (gs - 1) * cw / 2
-  const sy = cy - (gs - 1) * cw / 2
-  const gp: [number, number][][] = []
-  for (let r = 0; r < gs; r++) {
-    gp[r] = []
-    for (let c = 0; c < gs; c++) {
-      gp[r][c] = [sx + c * cw + (rand() - 0.5) * 7, sy + r * cw + (rand() - 0.5) * 7]
+  // 2. Name is a province itself (e.g. "세종특별자치시")
+  if (regionMaps[name]) {
+    return { data: regionMaps[name], highlights: Object.keys(regionMaps[name].regions) }
+  }
+
+  // 3. Partial match in province names (e.g. "세종시" → "세종특별자치시")
+  for (const prov of Object.keys(regionMaps)) {
+    const short = prov.replace(/특별자치시$|특별자치도$|특별시$|광역시$|도$/, '')
+    if (name.includes(short) || short.includes(name.replace(/시$|도$/, ''))) {
+      return { data: regionMaps[prov], highlights: Object.keys(regionMaps[prov].regions) }
     }
   }
 
-  // Highlight one center-ish cell
-  const hR = 1 + Math.floor(rand() * 2)
-  const hC = 1 + Math.floor(rand() * 2)
-
-  const cells: { d: string; fill: boolean }[] = []
-  for (let r = 0; r < gs - 1; r++) {
-    for (let c = 0; c < gs - 1; c++) {
-      const cn = [gp[r][c], gp[r][c + 1], gp[r + 1][c + 1], gp[r + 1][c]]
-      const mx = (cn[0][0] + cn[1][0] + cn[2][0] + cn[3][0]) / 4
-      const my = (cn[0][1] + cn[1][1] + cn[2][1] + cn[3][1]) / 4
-      const k = 0.88
-      const sc = cn.map(([px, py]): [number, number] => [mx + (px - mx) * k, my + (py - my) * k])
-      cells.push({
-        d: `M${sc[0][0].toFixed(1)},${sc[0][1].toFixed(1)}L${sc[1][0].toFixed(1)},${sc[1][1].toFixed(1)}L${sc[2][0].toFixed(1)},${sc[2][1].toFixed(1)}L${sc[3][0].toFixed(1)},${sc[3][1].toFixed(1)}Z`,
-        fill: hi && r === hR && c === hC,
-      })
+  // 4. Prefix match (e.g. "청주시" → highlights all "청주시 *" in 충청북도)
+  for (const [region, parent] of Object.entries(regionParents)) {
+    if (region.startsWith(name) || name.startsWith(region)) {
+      const d = regionMaps[parent]
+      if (d) {
+        const hl = Object.keys(d.regions).filter(r => r.startsWith(name) || name.startsWith(r))
+        if (hl.length > 0) return { data: d, highlights: hl }
+      }
     }
   }
 
-  return { outerPath: smooth(outer), cells }
+  return null
 }
 
 /* ── Component ── */
 
-export function RegionMapCard({ name, nameEn, selected, onClick, highlight = true }: Props) {
-  const { outerPath, cells } = useMemo(() => genMap(name, highlight), [name, highlight])
-  const clipId = `rc${hash(name)}`
+export function RegionMapCard({ name, nameEn, selected, onClick }: Props) {
+  const match = useMemo(() => findMap(name), [name])
+
+  if (!match) return null
+
+  const { data, highlights } = match
+  const hlSet = new Set(highlights)
 
   return (
     <button
@@ -101,31 +63,23 @@ export function RegionMapCard({ name, nameEn, selected, onClick, highlight = tru
       }`}
       style={{ minWidth: 130 }}
     >
-      <svg viewBox="0 0 110 100" className="h-20 w-24">
-        <defs>
-          <clipPath id={clipId}>
-            <path d={outerPath} />
-          </clipPath>
-        </defs>
-        <g clipPath={`url(#${clipId})`}>
-          {cells.map((cell, i) => (
-            <path
-              key={i}
-              d={cell.d}
-              fill={cell.fill ? '#0F766E' : '#CCFBF1'}
-              stroke="#A7F3D0"
-              strokeWidth={0.5}
-            />
-          ))}
-        </g>
-        <path d={outerPath} fill="none" stroke="#5EEAD4" strokeWidth={1.5} />
+      <svg viewBox={data.viewBox} className="h-24 w-28">
+        {Object.entries(data.regions).map(([rName, path]) => (
+          <path
+            key={rName}
+            d={path}
+            fill={hlSet.has(rName) ? '#0F766E' : '#CCFBF1'}
+            stroke="#5EEAD4"
+            strokeWidth={0.4}
+          />
+        ))}
       </svg>
       {nameEn && (
-        <span className="mt-1.5 text-[10px] font-medium tracking-widest text-gray-400">
+        <span className="mt-1 text-[10px] font-medium tracking-widest text-gray-400">
           {nameEn.toUpperCase()}
         </span>
       )}
-      <span className={`${nameEn ? '' : 'mt-1.5 '}text-base font-bold text-gray-800`}>{name}</span>
+      <span className={`${nameEn ? '' : 'mt-1 '}text-base font-bold text-gray-800`}>{name}</span>
     </button>
   )
 }
