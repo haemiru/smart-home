@@ -73,7 +73,7 @@ BEGIN
         ) VALUES (
           _agent_profile_id,
           NEW.id,
-          _staff_role,
+          _staff_role::public.staff_role,
           CASE WHEN _staff_role = 'associate_agent'
             THEN '{"property_create":true,"property_delete":false,"contract_create":true,"contract_approve":false,"e_signature":false,"customer_view":true,"ai_tools":true,"co_brokerage":false,"settings":false}'::jsonb
             ELSE '{"property_create":true,"property_delete":false,"contract_create":false,"contract_approve":false,"e_signature":false,"customer_view":true,"ai_tools":false,"co_brokerage":false,"settings":false}'::jsonb

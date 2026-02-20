@@ -63,3 +63,25 @@ export function isNavItemVisible(navKey: string, features: Record<string, boolea
   // Visible if at least one related feature is in the plan AND enabled
   return featureKeys.some((fk) => isFeatureInPlan(fk, plan) && features[fk] !== false)
 }
+
+// Mapping from sidebar nav keys to staff permission keys
+const NAV_PERMISSION_MAP: Record<string, string> = {
+  properties: 'property_create',
+  customers: 'customer_view',
+  contracts: 'contract_create',
+  'ai-tools': 'ai_tools',
+  'co-brokerage': 'co_brokerage',
+  settings: 'settings',
+}
+
+/** Check if a nav item is permitted for the current staff member */
+export function isNavItemPermitted(navKey: string, userRole: string | undefined, staffPermissions: Record<string, boolean> | null): boolean {
+  // Non-staff (agent) → all permitted
+  if (userRole !== 'staff') return true
+  const permKey = NAV_PERMISSION_MAP[navKey]
+  // No mapping (dashboard, inquiries, analytics, legal, inspection, rental-mgmt) → always permitted
+  if (!permKey) return true
+  // Staff with no permissions loaded → deny mapped items
+  if (!staffPermissions) return false
+  return staffPermissions[permKey] === true
+}

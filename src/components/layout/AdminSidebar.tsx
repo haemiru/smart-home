@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { useNotificationStore } from '@/stores/notificationStore'
-import { useFeatureStore, isNavItemVisible } from '@/stores/featureStore'
+import { useFeatureStore, isNavItemVisible, isNavItemPermitted } from '@/stores/featureStore'
+import { useAuthStore } from '@/stores/authStore'
 
 export type AdminNavItem = {
   key: string
@@ -32,11 +33,14 @@ interface AdminSidebarProps {
 export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
   const { unansweredInquiryCount } = useNotificationStore()
   const { features, plan, isLoaded } = useFeatureStore()
+  const { user, staffPermissions } = useAuthStore()
 
-  // Filter nav items by plan + feature settings
+  // Filter nav items by plan + feature settings + staff permissions
   const visibleItems = isLoaded
-    ? baseNavItems.filter((item) => isNavItemVisible(item.key, features, plan))
+    ? baseNavItems.filter((item) => isNavItemVisible(item.key, features, plan) && isNavItemPermitted(item.key, user?.role, staffPermissions))
     : baseNavItems
+
+  const showSettings = isNavItemPermitted('settings', user?.role, staffPermissions)
 
   const mainNavItems: AdminNavItem[] = visibleItems.map((item) => ({
     ...item,
@@ -89,22 +93,24 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
           </nav>
 
           {/* Bottom: Settings */}
-          <div className="border-t border-gray-200 p-3">
-            <NavLink
-              to="/admin/settings"
-              onClick={onClose}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-                  isActive
-                    ? 'bg-primary-50 font-medium text-primary-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`
-              }
-            >
-              <span className="text-base">⚙️</span>
-              <span>환경설정</span>
-            </NavLink>
-          </div>
+          {showSettings && (
+            <div className="border-t border-gray-200 p-3">
+              <NavLink
+                to="/admin/settings"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                    isActive
+                      ? 'bg-primary-50 font-medium text-primary-700'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`
+                }
+              >
+                <span className="text-base">⚙️</span>
+                <span>환경설정</span>
+              </NavLink>
+            </div>
+          )}
         </div>
       </aside>
     </>

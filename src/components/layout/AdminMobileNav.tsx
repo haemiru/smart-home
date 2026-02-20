@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
-import { useFeatureStore, isNavItemVisible } from '@/stores/featureStore'
+import { useFeatureStore, isNavItemVisible, isNavItemPermitted } from '@/stores/featureStore'
+import { useAuthStore } from '@/stores/authStore'
 
 const tabs = [
   { key: 'dashboard', label: '대시보드', path: '/admin/dashboard', icon: '📊' },
@@ -14,9 +15,10 @@ interface AdminMobileNavProps {
 
 export function AdminMobileNav({ onOpenMore }: AdminMobileNavProps) {
   const { features, plan, isLoaded } = useFeatureStore()
+  const { user, staffPermissions } = useAuthStore()
 
   const visibleTabs = isLoaded
-    ? tabs.filter((tab) => tab.key === 'more' || isNavItemVisible(tab.key, features, plan))
+    ? tabs.filter((tab) => tab.key === 'more' || (isNavItemVisible(tab.key, features, plan) && isNavItemPermitted(tab.key, user?.role, staffPermissions)))
     : tabs
 
   return (

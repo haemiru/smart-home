@@ -9,6 +9,8 @@ interface AuthState {
   session: Session | null
   user: User | null
   agentProfile: AgentProfile | null
+  staffRole: string | null
+  staffPermissions: Record<string, boolean> | null
   isLoading: boolean
   isInitialized: boolean
 
@@ -22,6 +24,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   user: null,
   agentProfile: null,
+  staffRole: null,
+  staffPermissions: null,
   isLoading: true,
   isInitialized: false,
 
@@ -40,7 +44,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (session?.user) {
           await get().fetchUserProfile(session.user.id)
         } else {
-          set({ user: null, agentProfile: null })
+          set({ user: null, agentProfile: null, staffRole: null, staffPermissions: null })
           useFeatureStore.getState().setPlan('free')
         }
       })
@@ -75,14 +79,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .single()
         agentProfile = data
       } else {
-        // staff: look up via staff_members → agent_profile_id
+        // staff: look up via staff_members → agent_profile_id, role, permissions
         const { data: staffRow } = await supabase
           .from('staff_members')
-          .select('agent_profile_id')
+          .select('agent_profile_id, role, permissions')
           .eq('user_id', userId)
           .single()
 
         if (staffRow) {
+          set({
+            staffRole: staffRow.role ?? null,
+            staffPermissions: (staffRow.permissions as Record<string, boolean>) ?? null,
+          })
           const { data } = await supabase
             .from('agent_profiles')
             .select('*')
@@ -107,6 +115,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       session: null,
       user: null,
       agentProfile: null,
+      staffRole: null,
+      staffPermissions: null,
       isLoading: false,
     })
   },
