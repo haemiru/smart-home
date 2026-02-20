@@ -411,8 +411,16 @@ export async function updateRegionSettings(regions: RegionSetting[]): Promise<vo
   await upsertAgentSetting('regions', regions as unknown as Record<string, unknown>)
 }
 
-/** Public: fetch the first agent's region settings for the user portal */
+/** Public: fetch region settings for the user portal.
+ *  Tries authenticated path first (RLS), falls back to public read. */
 export async function fetchPublicRegionSettings(): Promise<RegionSetting[]> {
+  // Try authenticated fetch (works if user is logged in as agent/staff)
+  try {
+    const regions = await fetchRegionSettings()
+    if (regions.length > 0) return regions
+  } catch { /* not logged in or not agent — fall through */ }
+
+  // Fallback: public read (requires public RLS policy on agent_settings)
   const { data, error } = await supabase
     .from('agent_settings')
     .select('setting_value')

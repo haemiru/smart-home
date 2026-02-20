@@ -42,6 +42,17 @@ function findMap(name: string): { data: RegionMapData; highlights: string[] } | 
     }
   }
 
+  // 5. Suffix/contains match (e.g. "흥덕구" → "청주시 흥덕구", "상당구" → "청주시 상당구")
+  for (const [region, parent] of Object.entries(regionParents)) {
+    if (region.endsWith(name) || region.includes(name)) {
+      const d = regionMaps[parent]
+      if (d) {
+        const hl = Object.keys(d.regions).filter(r => r.endsWith(name) || r.includes(name))
+        if (hl.length > 0) return { data: d, highlights: hl }
+      }
+    }
+  }
+
   return null
 }
 
@@ -61,9 +72,9 @@ export function RegionMapCard({ name, nameEn, selected, onClick }: Props) {
       className={`flex shrink-0 flex-col items-center rounded-2xl px-4 py-3 transition-all ${
         selected ? 'bg-white shadow-lg ring-2 ring-teal-500' : 'bg-gray-50 hover:bg-white hover:shadow-md'
       }`}
-      style={{ minWidth: 130 }}
+      style={{ minWidth: 260 }}
     >
-      <svg viewBox={data.viewBox} className="h-24 w-28">
+      <svg viewBox={data.viewBox} className="h-48 w-56">
         {Object.entries(data.regions).map(([rName, path]) => (
           <path
             key={rName}

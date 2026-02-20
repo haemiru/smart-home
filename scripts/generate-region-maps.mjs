@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Downloads Korean administrative boundary GeoJSON from statgarten/maps
-// and generates SVG path data for region map cards.
+// Downloads Korean administrative boundary GeoJSON and generates SVG path data.
+// Level 1: 시/도 → 시/군/구 (from statgarten/maps)
+// Level 2: 시/군/구 → 읍/면/동 (from raqoon886/Local_HangJeongDong)
 // Run: node scripts/generate-region-maps.mjs
 
 import { writeFileSync, mkdirSync } from 'node:fs'
@@ -10,7 +11,8 @@ import { dirname, join } from 'node:path'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..')
 
-const BASE = 'https://raw.githubusercontent.com/statgarten/maps/main/json/'
+const SIGUNGGU_BASE = 'https://raw.githubusercontent.com/statgarten/maps/main/json/'
+const DONG_BASE = 'https://raw.githubusercontent.com/raqoon886/Local_HangJeongDong/master/'
 
 const PROVINCES = [
   '서울특별시', '부산광역시', '대구광역시', '인천광역시',
@@ -43,8 +45,6 @@ function simplify(pts, eps) {
   return [pts[0], pts[pts.length - 1]]
 }
 
-/* ── Pre-sample to avoid deep recursion ── */
-
 function presample(ring, max = 400) {
   if (ring.length <= max) return ring
   const step = ring.length / max
@@ -69,11 +69,11 @@ function getBounds(features) {
   return { minX, minY, maxX, maxY }
 }
 
-function processRing(ring, bounds, scale, eps) {
+function processRing(ring, bounds, scale, eps, flipY = true) {
   const sampled = presample(ring)
   const normalized = sampled.map(([x, y]) => [
     (x - bounds.minX) * scale,
-    (bounds.maxY - y) * scale, // flip Y for SVG
+    flipY ? (bounds.maxY - y) * scale : (y - bounds.minY) * scale,
   ])
   return simplify(normalized, eps)
 }
@@ -87,12 +87,12 @@ function ptsToSvg(pts) {
   return d + 'Z'
 }
 
-function featureToPath(geom, bounds, scale, eps) {
+function featureToPath(geom, bounds, scale, eps, flipY = true) {
   const rings = geom.type === 'Polygon'
     ? geom.coordinates
     : geom.coordinates.flat()
   return rings
-    .map(r => ptsToSvg(processRing(r, bounds, scale, eps)))
+    .map(r => ptsToSvg(processRing(r, bounds, scale, eps, flipY)))
     .filter(Boolean)
     .join('')
 }
@@ -104,9 +104,14 @@ async function main() {
   const parents = {}
   const VB = 200
 
+  // ═══════════════════════════════════════════
+  // Phase 1: 시/도 → 시/군/구 (statgarten/maps)
+  // ═══════════════════════════════════════════
+  console.log('📍 Phase 1: 시/군/구 level\n')
+
   for (const prov of PROVINCES) {
     const fileName = `${prov}_시군구_경계.json`
-    const url = BASE + encodeURIComponent(fileName)
+    const url = SIGUNGGU_BASE + encodeURIComponent(fileName)
     process.stdout.write(`  ${prov}... `)
 
     try {
@@ -123,13 +128,12 @@ async function main() {
       const scale = VB / maxRange
       const vbW = rangeX * scale
       const vbH = rangeY * scale
-      const eps = 0.8
 
       const regions = {}
       for (const f of geo.features) {
         const name = f.properties.title
         if (!name) continue
-        const path = featureToPath(f.geometry, bounds, scale, eps)
+        const path = featureToPath(f.geometry, bounds, scale, 0.8)
         if (path) {
           regions[name] = path
           parents[name] = prov
@@ -143,7 +147,74 @@ async function main() {
     }
   }
 
-  // Province name aliases for lookup
+  // ═══════════════════════════════════════════
+  // Phase 2: 시/군/구 → 읍/면/동 (raqoon886)
+  // ═══════════════════════════════════════════
+  console.log('\n📍 Phase 2: 읍/면/동 level\n')
+
+  for (const prov of PROVINCES) {
+    const fileName = `hangjeongdong_${prov}.geojson`
+    const url = DONG_BASE + encodeURIComponent(fileName)
+    process.stdout.write(`  ${prov}... `)
+
+    try {
+      const res = await fetch(url)
+      if (!res.ok) { console.log(`⚠ ${res.status}`); continue }
+
+      const geo = await res.json()
+      if (!geo.features?.length) { console.log('⚠ empty'); continue }
+
+      // Group features by 시/군/구 (sggnm)
+      const groups = {}
+      for (const f of geo.features) {
+        const sggnm = f.properties.sggnm
+        if (!sggnm) continue
+        if (!groups[sggnm]) groups[sggnm] = []
+        groups[sggnm].push(f)
+      }
+
+      let dongCount = 0
+      for (const [sggnm, features] of Object.entries(groups)) {
+        // Build the full 시/군/구 key matching Phase 1 data
+        // sggnm examples: "충주시", "청주시흥덕구" (no space)
+        // Phase 1 names: "충주시", "청주시 흥덕구" (with space)
+        const sggKey = sggnm.replace(/시([가-힣]+[구군])$/, '시 $1')
+
+        const bounds = getBounds(features)
+        const rangeX = bounds.maxX - bounds.minX
+        const rangeY = bounds.maxY - bounds.minY
+        if (rangeX === 0 || rangeY === 0) continue
+        const maxRange = Math.max(rangeX, rangeY)
+        const scale = VB / maxRange
+        const vbW = rangeX * scale
+        const vbH = rangeY * scale
+
+        const regions = {}
+        for (const f of features) {
+          // Last part of adm_nm (e.g. "충청북도 청주시흥덕구 오송읍" → "오송읍")
+          const fullName = f.properties.adm_nm
+          const dongName = fullName.split(' ').pop()
+          if (!dongName) continue
+          const path = featureToPath(f.geometry, bounds, scale, 0.8, true)
+          if (path) {
+            regions[dongName] = path
+            parents[dongName] = sggKey
+          }
+        }
+
+        if (Object.keys(regions).length > 0) {
+          maps[sggKey] = { viewBox: `0 0 ${vbW.toFixed(1)} ${vbH.toFixed(1)}`, regions }
+          dongCount += Object.keys(regions).length
+        }
+      }
+
+      console.log(`✓ ${Object.keys(groups).length} 시군구, ${dongCount} 읍면동`)
+    } catch (e) {
+      console.log(`✗ ${e.message}`)
+    }
+  }
+
+  // Province name aliases
   for (const prov of PROVINCES) {
     const short = prov.replace(/특별자치시$|특별자치도$|특별시$|광역시$/, '')
     if (short && short !== prov) {
@@ -158,7 +229,7 @@ async function main() {
 
   const ts = [
     '// Auto-generated — run: node scripts/generate-region-maps.mjs',
-    '// Source: https://github.com/statgarten/maps (MIT, SGIS 2020)',
+    '// Sources: statgarten/maps (MIT), raqoon886/Local_HangJeongDong',
     '',
     'export type RegionMapData = { viewBox: string; regions: Record<string, string> }',
     '',
@@ -174,7 +245,7 @@ async function main() {
 
   const sizeKB = (Buffer.byteLength(ts) / 1024).toFixed(0)
   console.log(`\n✅ ${outPath}`)
-  console.log(`   ${Object.keys(maps).length} provinces, ${Object.keys(parents).length} entries, ${sizeKB}KB`)
+  console.log(`   ${Object.keys(maps).length} maps, ${Object.keys(parents).length} entries, ${sizeKB}KB`)
 }
 
 console.log('🗺️  Generating Korean region map data...\n')
