@@ -60,19 +60,13 @@ export function PropertyGrid() {
 
       {regions.length > 0 && (
         <div className="mb-6 flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-          <RegionMapCard
-            name="전체"
-            selected={selectedRegion === null}
-            onClick={() => setSelectedRegion(null)}
-            highlight={false}
-          />
           {regions.map((region) => (
             <RegionMapCard
               key={region.name}
               name={region.name}
               nameEn={region.nameEn}
               selected={selectedRegion === region.name}
-              onClick={() => setSelectedRegion(region.name)}
+              onClick={() => setSelectedRegion(selectedRegion === region.name ? null : region.name)}
             />
           ))}
         </div>
