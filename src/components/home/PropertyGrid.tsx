@@ -5,6 +5,7 @@ import { fetchPublicRegionSettings } from '@/api/settings'
 import type { RegionSetting } from '@/api/settings'
 import type { Property, TransactionType } from '@/types/database'
 import { PropertyCard } from './PropertyCard'
+import { RegionMapCard } from './RegionMapCard'
 
 const dealTypeMap: Record<string, TransactionType> = { sale: 'sale', jeonse: 'jeonse', monthly: 'monthly' }
 
@@ -58,29 +59,21 @@ export function PropertyGrid() {
       </div>
 
       {regions.length > 0 && (
-        <div className="mb-4 flex gap-2 overflow-x-auto scrollbar-hide">
-          <button
+        <div className="mb-6 flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          <RegionMapCard
+            name="전체"
+            selected={selectedRegion === null}
             onClick={() => setSelectedRegion(null)}
-            className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              selectedRegion === null
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            전체
-          </button>
+            highlight={false}
+          />
           {regions.map((region) => (
-            <button
+            <RegionMapCard
               key={region.name}
+              name={region.name}
+              nameEn={region.nameEn}
+              selected={selectedRegion === region.name}
               onClick={() => setSelectedRegion(region.name)}
-              className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                selectedRegion === region.name
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {region.name}
-            </button>
+            />
           ))}
         </div>
       )}

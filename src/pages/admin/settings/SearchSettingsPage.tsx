@@ -68,8 +68,8 @@ export function SearchSettingsPage() {
     toast.success('저장되었습니다.')
   }
 
-  const handleRegionChange = (index: number, value: string) => {
-    setRegions(regions.map((r, i) => i === index ? { name: value } : r))
+  const handleRegionChange = (index: number, field: 'name' | 'nameEn', value: string) => {
+    setRegions(regions.map((r, i) => i === index ? { ...r, [field]: value } : r))
   }
 
   const handleAddRegion = () => {
@@ -121,9 +121,17 @@ export function SearchSettingsPage() {
               <input
                 type="text"
                 value={region.name}
-                onChange={(e) => handleRegionChange(idx, e.target.value)}
-                placeholder={`지역 ${idx + 1}`}
-                className="w-28 border-none bg-transparent py-2 text-sm focus:outline-none"
+                onChange={(e) => handleRegionChange(idx, 'name', e.target.value)}
+                placeholder="지역명"
+                className="w-24 border-none bg-transparent py-2 text-sm focus:outline-none"
+              />
+              <span className="text-gray-300">|</span>
+              <input
+                type="text"
+                value={region.nameEn ?? ''}
+                onChange={(e) => handleRegionChange(idx, 'nameEn', e.target.value)}
+                placeholder="영문 (선택)"
+                className="w-20 border-none bg-transparent py-2 text-xs text-gray-400 focus:outline-none"
               />
               <button
                 onClick={() => handleDeleteRegion(idx)}
