@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
+import { isNavItemPermitted } from '@/stores/featureStore'
 import { signOut } from '@/api/auth'
 import { formatRelativeTime } from '@/utils/format'
 
@@ -10,7 +11,7 @@ interface AdminHeaderProps {
 }
 
 export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
-  const { user, agentProfile } = useAuthStore()
+  const { user, agentProfile, staffPermissions } = useAuthStore()
   const { notifications, unreadCount, markAsRead, markAllAsRead, refreshUnansweredCount, unansweredInquiryCount } = useNotificationStore()
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
@@ -176,13 +177,15 @@ export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
                   <p className="mt-0.5 text-xs text-primary-600">{agentProfile.office_name}</p>
                 )}
               </div>
-              <Link
-                to="/admin/settings"
-                onClick={() => setIsProfileOpen(false)}
-                className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-              >
-                환경설정
-              </Link>
+              {isNavItemPermitted('settings', user?.role, staffPermissions) && (
+                <Link
+                  to="/admin/settings"
+                  onClick={() => setIsProfileOpen(false)}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  환경설정
+                </Link>
+              )}
               <Link
                 to="/"
                 onClick={() => setIsProfileOpen(false)}
