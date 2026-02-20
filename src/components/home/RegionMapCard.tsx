@@ -70,7 +70,7 @@ export function RegionMapCard({ name, nameEn, selected, onClick }: Props) {
     <button
       onClick={onClick}
       className={`flex shrink-0 flex-col items-center rounded-2xl px-4 py-3 transition-all ${
-        selected ? 'bg-white shadow-lg ring-2 ring-teal-500' : 'bg-gray-50 hover:bg-white hover:shadow-md'
+        selected ? 'bg-white shadow-lg ring-2 ring-blue-500' : 'bg-gray-50 hover:bg-white hover:shadow-md'
       }`}
       style={{ minWidth: 260 }}
     >
@@ -79,8 +79,8 @@ export function RegionMapCard({ name, nameEn, selected, onClick }: Props) {
           <path
             key={rName}
             d={path}
-            fill={hlSet.has(rName) ? '#0F766E' : '#CCFBF1'}
-            stroke="#5EEAD4"
+            fill={hlSet.has(rName) ? '#1D4ED8' : '#DBEAFE'}
+            stroke="#93C5FD"
             strokeWidth={0.4}
           />
         ))}
