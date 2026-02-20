@@ -400,7 +400,6 @@ async function upsertAgentSetting(settingKey: string, value: Record<string, unkn
 
 export type RegionSetting = {
   name: string    // "오송읍", "세종시", "청주시 흥덕구"
-  nameEn: string  // "Oseong", "Sejong", "Heungdeok"
 }
 
 export async function fetchRegionSettings(): Promise<RegionSetting[]> {

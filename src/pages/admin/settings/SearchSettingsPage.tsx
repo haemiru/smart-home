@@ -68,8 +68,8 @@ export function SearchSettingsPage() {
     toast.success('저장되었습니다.')
   }
 
-  const handleRegionChange = (index: number, field: keyof RegionSetting, value: string) => {
-    setRegions(regions.map((r, i) => i === index ? { ...r, [field]: value } : r))
+  const handleRegionChange = (index: number, value: string) => {
+    setRegions(regions.map((r, i) => i === index ? { name: value } : r))
   }
 
   const handleAddRegion = () => {
@@ -77,7 +77,7 @@ export function SearchSettingsPage() {
       toast.error('최대 4개까지 추가할 수 있습니다.')
       return
     }
-    setRegions([...regions, { name: '', nameEn: '' }])
+    setRegions([...regions, { name: '' }])
   }
 
   const handleDeleteRegion = (index: number) => {
@@ -86,10 +86,6 @@ export function SearchSettingsPage() {
 
   const handleSaveRegions = async () => {
     const valid = regions.filter((r) => r.name.trim())
-    if (valid.some((r) => !r.nameEn.trim())) {
-      toast.error('영문명을 입력해주세요.')
-      return
-    }
     setRegionSaving(true)
     try {
       await updateRegionSettings(valid)
@@ -106,43 +102,11 @@ export function SearchSettingsPage() {
     <div className="space-y-5">
       {/* Region Settings */}
       <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
-        <h2 className="text-sm font-bold">지역별 인기매물 지역 설정</h2>
-        <p className="mt-1 text-xs text-gray-400">사용자 포털에 표시할 지역을 설정합니다 (최대 4개)</p>
-        <div className="mt-4 space-y-3">
-          {regions.map((region, idx) => (
-            <div key={idx} className="flex items-center gap-2">
-              <span className="w-5 shrink-0 text-xs text-gray-400">{idx + 1}</span>
-              <input
-                type="text"
-                value={region.name}
-                onChange={(e) => handleRegionChange(idx, 'name', e.target.value)}
-                placeholder="지역명 (예: 오송읍)"
-                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none"
-              />
-              <input
-                type="text"
-                value={region.nameEn}
-                onChange={(e) => handleRegionChange(idx, 'nameEn', e.target.value)}
-                placeholder="영문명 (예: Oseong)"
-                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none"
-              />
-              <button
-                onClick={() => handleDeleteRegion(idx)}
-                className="shrink-0 rounded-lg px-2.5 py-2 text-sm text-gray-400 hover:bg-red-50 hover:text-red-500"
-              >
-                삭제
-              </button>
-            </div>
-          ))}
-        </div>
-        <div className="mt-3 flex items-center gap-2">
-          <button
-            onClick={handleAddRegion}
-            disabled={regions.length >= 4}
-            className="rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-200 disabled:opacity-40"
-          >
-            + 지역 추가
-          </button>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold">지역별 인기매물 지역 설정</h2>
+            <p className="mt-1 text-xs text-gray-400">사용자 포털에 표시할 지역을 설정합니다 (최대 4개)</p>
+          </div>
           <button
             onClick={handleSaveRegions}
             disabled={regionSaving}
@@ -150,6 +114,33 @@ export function SearchSettingsPage() {
           >
             {regionSaving ? '저장 중...' : '저장'}
           </button>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {regions.map((region, idx) => (
+            <div key={idx} className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 pl-3 pr-1">
+              <input
+                type="text"
+                value={region.name}
+                onChange={(e) => handleRegionChange(idx, e.target.value)}
+                placeholder={`지역 ${idx + 1}`}
+                className="w-28 border-none bg-transparent py-2 text-sm focus:outline-none"
+              />
+              <button
+                onClick={() => handleDeleteRegion(idx)}
+                className="rounded p-1 text-gray-400 hover:text-red-500"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+          ))}
+          {regions.length < 4 && (
+            <button
+              onClick={handleAddRegion}
+              className="rounded-lg border border-dashed border-gray-300 px-4 py-2 text-xs font-medium text-gray-500 hover:border-primary-400 hover:text-primary-600"
+            >
+              + 추가
+            </button>
+          )}
         </div>
       </div>
 
