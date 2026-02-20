@@ -3,17 +3,42 @@ import { useHomeFilterStore } from '@/stores/homeFilterStore'
 import { useCategories } from '@/hooks/useCategories'
 import { fetchAgentSpecialties } from '@/api/settings'
 
+const HERO_IMAGES: Record<string, string> = {
+  '아파트': 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=1600&q=80',
+  '오피스텔': 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1600&q=80',
+  '빌라': 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1600&q=80',
+  '상가': 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&q=80',
+  '사무실': 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1600&q=80',
+  '전원주택': 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=1600&q=80',
+  '공장': 'https://images.unsplash.com/photo-1513828583688-c52571021e40?w=1600&q=80',
+  '창고': 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=1600&q=80',
+  '토지': 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1600&q=80',
+  '건물': 'https://images.unsplash.com/photo-1464938050520-ef2270bb8ce8?w=1600&q=80',
+  '지식산업센터': 'https://images.unsplash.com/photo-1554469384-e58fac16e23a?w=1600&q=80',
+}
+
+const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1600&q=80'
+
 export function HeroSection() {
   const { searchQuery, setSearchQuery, setCategory } = useHomeFilterStore()
   const { categories } = useCategories()
   const [localQuery, setLocalQuery] = useState(searchQuery)
   const [specialties, setSpecialties] = useState<string[]>([])
+  const [imageLoaded, setImageLoaded] = useState(false)
 
   useEffect(() => {
     fetchAgentSpecialties()
       .then(setSpecialties)
       .catch(() => {})
   }, [])
+
+  const heroImage = (specialties.length > 0 && HERO_IMAGES[specialties[0]]) || DEFAULT_HERO_IMAGE
+
+  useEffect(() => {
+    const img = new Image()
+    img.src = heroImage
+    img.onload = () => setImageLoaded(true)
+  }, [heroImage])
 
   const handleSearch = (e: FormEvent) => {
     e.preventDefault()
@@ -27,14 +52,17 @@ export function HeroSection() {
   }
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-primary-700 via-primary-600 to-primary-800">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'radial-gradient(circle at 25% 50%, white 1px, transparent 1px), radial-gradient(circle at 75% 50%, white 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
-        }} />
-      </div>
+    <section className="relative overflow-hidden bg-primary-800">
+      {/* Background Image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center transition-opacity duration-700"
+        style={{
+          backgroundImage: `url(${heroImage})`,
+          opacity: imageLoaded ? 1 : 0,
+        }}
+      />
+      {/* Dark overlay for text readability */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70" />
 
       <div className="relative mx-auto max-w-4xl px-4 py-16 text-center sm:py-20 lg:py-24">
         <h1 className="text-2xl font-bold leading-tight text-white sm:text-3xl lg:text-4xl">
