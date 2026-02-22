@@ -46,6 +46,9 @@ export function SearchPage() {
   const pageSize = 12
   const totalPages = Math.ceil(total / pageSize)
 
+  // Region filter from URL
+  const activeRegion = searchParams.get('region')
+
   // Resolve quick search param on mount
   useEffect(() => {
     const quickKey = searchParams.get('quick')
@@ -78,6 +81,7 @@ export function SearchPage() {
       maxArea: maxArea ? parseFloat(maxArea) : undefined,
       rooms: rooms ? parseInt(rooms) : undefined,
       direction: direction || undefined,
+      addressSearch: activeRegion || undefined,
     }
 
     // Merge quick search filters
@@ -99,7 +103,7 @@ export function SearchPage() {
     setProperties(data)
     setTotal(resolvedQuick?.clientFilters.length ? data.length : res.total)
     setIsLoading(false)
-  }, [search, categoryId, txType, sort, page, minPrice, maxPrice, minArea, maxArea, rooms, direction, resolvedQuick])
+  }, [search, categoryId, txType, sort, page, minPrice, maxPrice, minArea, maxArea, rooms, direction, resolvedQuick, activeRegion])
 
   useEffect(() => { void load() }, [load])
 
@@ -109,12 +113,18 @@ export function SearchPage() {
     if (isFirstRender.current) { isFirstRender.current = false; return }
     setPage(1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, categoryId, txType, sort, minPrice, maxPrice, minArea, maxArea, rooms, direction, resolvedQuick])
+  }, [search, categoryId, txType, sort, minPrice, maxPrice, minArea, maxArea, rooms, direction, resolvedQuick, activeRegion])
 
   const clearQuickSearch = () => {
     setSearchParams({})
     setActiveQuickCard(null)
     setResolvedQuick(null)
+  }
+
+  const clearRegion = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('region')
+    setSearchParams(next)
   }
 
   return (
@@ -134,6 +144,23 @@ export function SearchPage() {
             className="shrink-0 rounded-lg border border-primary-300 bg-white px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50"
           >
             조건 해제
+          </button>
+        </div>
+      )}
+
+      {/* Active Region Banner */}
+      {activeRegion && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl bg-blue-50 px-4 py-3 ring-1 ring-blue-200">
+          <span className="text-2xl">📍</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-blue-800">{activeRegion} 지역 매물 검색 중</p>
+            <p className="text-xs text-blue-600">해당 지역의 매물만 표시됩니다</p>
+          </div>
+          <button
+            onClick={clearRegion}
+            className="shrink-0 rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50"
+          >
+            지역 해제
           </button>
         </div>
       )}

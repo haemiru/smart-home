@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useHomeFilterStore } from '@/stores/homeFilterStore'
 import { fetchProperties } from '@/api/properties'
 import { fetchPublicRegionSettings } from '@/api/settings'
@@ -6,16 +7,17 @@ import type { RegionSetting } from '@/api/settings'
 import type { Property, TransactionType } from '@/types/database'
 import { PropertyCard } from './PropertyCard'
 import { RegionMapCard } from './RegionMapCard'
+import { QuickSearchGrid } from './QuickSearchGrid'
 
 const dealTypeMap: Record<string, TransactionType> = { sale: 'sale', jeonse: 'jeonse', monthly: 'monthly' }
 
 export function PropertyGrid() {
+  const navigate = useNavigate()
   const { selectedCategory, selectedDealType } = useHomeFilterStore()
   const [properties, setProperties] = useState<Property[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [regions, setRegions] = useState<RegionSetting[]>([])
-  const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
 
   // Load region settings once
   useEffect(() => {
@@ -28,9 +30,8 @@ export function PropertyGrid() {
     setLoading(true)
 
     fetchProperties({
-      categoryId: selectedCategory,
+      categoryId: selectedCategory || undefined,
       transactionType: selectedDealType ? dealTypeMap[selectedDealType] : undefined,
-      addressSearch: selectedRegion ?? undefined,
     }, 'newest', 1, 12)
       .then(({ data, total }) => {
         if (!cancelled) {
@@ -49,7 +50,7 @@ export function PropertyGrid() {
       })
 
     return () => { cancelled = true }
-  }, [selectedCategory, selectedDealType, selectedRegion])
+  }, [selectedCategory, selectedDealType])
 
   return (
     <div>
@@ -65,12 +66,15 @@ export function PropertyGrid() {
               key={region.name}
               name={region.name}
               nameEn={region.nameEn}
-              selected={selectedRegion === region.name}
-              onClick={() => setSelectedRegion(selectedRegion === region.name ? null : region.name)}
+              selected={false}
+              onClick={() => navigate(`/search?region=${encodeURIComponent(region.name)}`)}
             />
           ))}
         </div>
       )}
+
+      {/* 원클릭 조건별 검색 — 지도 바로 아래 */}
+      <QuickSearchGrid />
 
       {loading ? (
         <div className="rounded-xl bg-gray-50 py-16 text-center">
