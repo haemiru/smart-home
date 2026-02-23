@@ -55,6 +55,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 342, inquiry_count: 28, favorite_count: 56,
     built_year: 2009, tags: ['한강뷰', '로열층', '리모델링'],
     photos: [photo('apt-raemian-1'), photo('apt-raemian-2'), photo('apt-raemian-3')],
+    extra_info: { household_count: 2444, heating_type: '지역난방' },
     created_at: daysAgo(3), updated_at: daysAgo(1),
   },
   {
@@ -73,6 +74,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 187, inquiry_count: 15, favorite_count: 33,
     built_year: 2012, tags: ['역세권', '학군우수'],
     photos: [photo('apt-banpo-1'), photo('apt-banpo-2')],
+    extra_info: { household_count: 3002, heating_type: '지역난방' },
     created_at: daysAgo(7), updated_at: daysAgo(5),
   },
   {
@@ -91,6 +93,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 256, inquiry_count: 22, favorite_count: 44,
     built_year: 2008, tags: ['초역세권', '넓은평수', '주차편리'],
     photos: [photo('apt-lcentz-1'), photo('apt-lcentz-2'), photo('apt-lcentz-3')],
+    extra_info: { household_count: 5563, heating_type: '지역난방' },
     created_at: daysAgo(2), updated_at: daysAgo(1),
   },
 
@@ -111,6 +114,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 412, inquiry_count: 35, favorite_count: 67,
     built_year: 2020, tags: ['역세권', '풀옵션', '즉시입주'],
     photos: [photo('oft-gangnam-1'), photo('oft-gangnam-2')],
+    extra_info: { household_count: 320, heating_type: '개별난방' },
     created_at: daysAgo(1), updated_at: daysAgo(0),
   },
   {
@@ -129,6 +133,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 198, inquiry_count: 12, favorite_count: 29,
     built_year: 2018, tags: ['투자용', '업무지구'],
     photos: [photo('oft-yeouido-1'), photo('oft-yeouido-2')],
+    extra_info: { household_count: 580, heating_type: '중앙난방' },
     created_at: daysAgo(10), updated_at: daysAgo(8),
   },
   {
@@ -147,6 +152,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 305, inquiry_count: 25, favorite_count: 48,
     built_year: 2024, tags: ['신축', '반려동물', '역세권'],
     photos: [photo('oft-seongsu-1'), photo('oft-seongsu-2')],
+    extra_info: { household_count: 210, heating_type: '개별난방' },
     created_at: daysAgo(5), updated_at: daysAgo(3),
   },
 
@@ -167,6 +173,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 567, inquiry_count: 45, favorite_count: 89,
     built_year: null, tags: ['분양권', '프리미엄', '반포'],
     photos: [photo('pre-raemian-1'), photo('pre-raemian-2')],
+    extra_info: { expected_move_in: '2028년 6월', builder: '삼성물산', premium: 30000 },
     created_at: daysAgo(4), updated_at: daysAgo(2),
   },
   {
@@ -185,6 +192,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 423, inquiry_count: 38, favorite_count: 72,
     built_year: null, tags: ['분양권', '강남학군', '재건축'],
     photos: [photo('pre-dh-1'), photo('pre-dh-2')],
+    extra_info: { expected_move_in: '2028년 12월', builder: '현대건설', premium: 50000 },
     created_at: daysAgo(6), updated_at: daysAgo(4),
   },
   {
@@ -203,6 +211,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 312, inquiry_count: 27, favorite_count: 55,
     built_year: null, tags: ['분양권', '신도시', '역세권'],
     photos: [photo('pre-gwacheon-1'), photo('pre-gwacheon-2')],
+    extra_info: { expected_move_in: '2027년 9월', builder: '두산건설', premium: 15000 },
     created_at: daysAgo(2), updated_at: daysAgo(1),
   },
 
@@ -223,6 +232,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 145, inquiry_count: 11, favorite_count: 22,
     built_year: 2023, tags: ['신축', '올수리', '역세권'],
     photos: [photo('villa-mapo-1'), photo('villa-mapo-2')],
+    extra_info: { household_count: 12, heating_type: '개별난방' },
     created_at: daysAgo(8), updated_at: daysAgo(6),
   },
   {
@@ -241,6 +251,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 89, inquiry_count: 7, favorite_count: 14,
     built_year: 2015, tags: ['전세', '깨끗'],
     photos: [photo('villa-nowon-1'), photo('villa-nowon-2')],
+    extra_info: { household_count: 16, heating_type: '개별난방' },
     created_at: daysAgo(12), updated_at: daysAgo(10),
   },
   {
@@ -259,6 +270,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 178, inquiry_count: 14, favorite_count: 31,
     built_year: 2021, tags: ['테라스', '탑층', '급매'],
     photos: [photo('villa-gwanak-1'), photo('villa-gwanak-2')],
+    extra_info: { household_count: 8, heating_type: '개별난방' },
     created_at: daysAgo(1), updated_at: daysAgo(0),
   },
 
@@ -279,6 +291,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 523, inquiry_count: 18, favorite_count: 95,
     built_year: 1965, tags: ['한옥', '북촌', '문화재'],
     photos: [photo('house-bukchon-1'), photo('house-bukchon-2'), photo('house-bukchon-3')],
+    extra_info: { household_count: 1, heating_type: '온돌' },
     created_at: daysAgo(15), updated_at: daysAgo(10),
   },
   {
@@ -297,6 +310,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 234, inquiry_count: 16, favorite_count: 42,
     built_year: 2019, tags: ['타운하우스', '정원', '주차편리'],
     photos: [photo('house-yongin-1'), photo('house-yongin-2')],
+    extra_info: { household_count: 32, heating_type: '개별난방' },
     created_at: daysAgo(9), updated_at: daysAgo(7),
   },
   {
@@ -315,6 +329,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 678, inquiry_count: 8, favorite_count: 120,
     built_year: 2005, tags: ['단독주택', '북한산뷰', '프라이빗'],
     photos: [photo('house-pyeongchang-1'), photo('house-pyeongchang-2'), photo('house-pyeongchang-3')],
+    extra_info: { household_count: 1, heating_type: '개별난방' },
     created_at: daysAgo(20), updated_at: daysAgo(15),
   },
 
@@ -335,6 +350,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 289, inquiry_count: 32, favorite_count: 51,
     built_year: 2019, tags: ['풀옵션', '역세권', '대학가'],
     photos: [photo('one-sinchon-1'), photo('one-sinchon-2')],
+    extra_info: { household_count: 24, heating_type: '개별난방' },
     created_at: daysAgo(3), updated_at: daysAgo(1),
   },
   {
@@ -353,6 +369,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 198, inquiry_count: 22, favorite_count: 38,
     built_year: 2020, tags: ['역세권', '깔끔', '즉시입주'],
     photos: [photo('one-konkuk-1'), photo('one-konkuk-2')],
+    extra_info: { household_count: 30, heating_type: '개별난방' },
     created_at: daysAgo(1), updated_at: daysAgo(0),
   },
   {
@@ -371,6 +388,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 156, inquiry_count: 18, favorite_count: 27,
     built_year: 2017, tags: ['역세권', '소형'],
     photos: [photo('one-hongdae-1'), photo('one-hongdae-2')],
+    extra_info: { household_count: 18, heating_type: '개별난방' },
     created_at: daysAgo(6), updated_at: daysAgo(4),
   },
 
@@ -391,6 +409,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 345, inquiry_count: 25, favorite_count: 58,
     built_year: 2010, tags: ['1층', '코너', '대로변'],
     photos: [photo('store-gangnam-1'), photo('store-gangnam-2')],
+    extra_info: { business_restriction: '없음', key_money: 20000, foot_traffic: '일 25,000명', frontage_width: 8.5 },
     created_at: daysAgo(11), updated_at: daysAgo(8),
   },
   {
@@ -409,6 +428,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 267, inquiry_count: 20, favorite_count: 42,
     built_year: 2015, tags: ['1층', '메인거리', '즉시입주'],
     photos: [photo('store-hongdae-1'), photo('store-hongdae-2')],
+    extra_info: { business_restriction: '음식점/카페', key_money: 15000, foot_traffic: '일 30,000명', frontage_width: 6.0 },
     created_at: daysAgo(2), updated_at: daysAgo(1),
   },
   {
@@ -427,6 +447,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 189, inquiry_count: 14, favorite_count: 33,
     built_year: 2018, tags: ['핵심상권', '유동인구'],
     photos: [photo('store-jamsil-1'), photo('store-jamsil-2')],
+    extra_info: { business_restriction: '없음', key_money: 25000, foot_traffic: '일 40,000명', frontage_width: 7.2 },
     created_at: daysAgo(7), updated_at: daysAgo(5),
   },
 
@@ -447,6 +468,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 178, inquiry_count: 10, favorite_count: 25,
     built_year: 2015, tags: ['A급오피스', '금융중심', '여의도'],
     photos: [photo('office-yeouido-1'), photo('office-yeouido-2')],
+    extra_info: { ceiling_height: 2.8, building_structure: '철근콘크리트 커튼월' },
     created_at: daysAgo(14), updated_at: daysAgo(10),
   },
   {
@@ -465,6 +487,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 234, inquiry_count: 18, favorite_count: 37,
     built_year: 2018, tags: ['소형', '스타트업', '강남역'],
     photos: [photo('office-gangnam-1'), photo('office-gangnam-2')],
+    extra_info: { ceiling_height: 2.6, building_structure: '철근콘크리트' },
     created_at: daysAgo(5), updated_at: daysAgo(3),
   },
   {
@@ -483,6 +506,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 156, inquiry_count: 8, favorite_count: 19,
     built_year: 2020, tags: ['판교', 'IT밸리', '대형'],
     photos: [photo('office-pangyo-1'), photo('office-pangyo-2')],
+    extra_info: { ceiling_height: 3.0, building_structure: '철골조 커튼월' },
     created_at: daysAgo(18), updated_at: daysAgo(14),
   },
 
@@ -503,6 +527,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 234, inquiry_count: 12, favorite_count: 45,
     built_year: null, tags: ['전원주택부지', '남한강', '조망'],
     photos: [photo('land-yangpyeong-1'), photo('land-yangpyeong-2')],
+    extra_info: { land_area_m2: 661, land_category: '대', zoning: '계획관리지역', road_frontage: '6m 포장도로', bcr_far: '40%/80%', slope_terrain: '완경사' },
     created_at: daysAgo(20), updated_at: daysAgo(15),
   },
   {
@@ -521,6 +546,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 156, inquiry_count: 9, favorite_count: 28,
     built_year: null, tags: ['상업용지', '신도시', '대로변'],
     photos: [photo('land-paju-1'), photo('land-paju-2')],
+    extra_info: { land_area_m2: 992, land_category: '대', zoning: '일반상업지역', road_frontage: '20m 대로변 코너', bcr_far: '80%/800%', slope_terrain: '평지' },
     created_at: daysAgo(3), updated_at: daysAgo(1),
   },
   {
@@ -539,6 +565,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 312, inquiry_count: 15, favorite_count: 67,
     built_year: null, tags: ['제주', '농지', '전원생활'],
     photos: [photo('land-jeju-1'), photo('land-jeju-2')],
+    extra_info: { land_area_m2: 1322, land_category: '전', zoning: '농림지역', road_frontage: '4m 농로', bcr_far: '20%/80%', slope_terrain: '완경사' },
     created_at: daysAgo(25), updated_at: daysAgo(20),
   },
 
@@ -559,6 +586,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 89, inquiry_count: 5, favorite_count: 12,
     built_year: 2016, tags: ['물류창고', '고속도로인접', '대형'],
     photos: [photo('factory-hwaseong-1'), photo('factory-hwaseong-2')],
+    extra_info: { land_area_m2: 1320, building_area_m2: 990, building_structure: '철골조', ceiling_height: 10, zoning: '계획관리지역', road_frontage: '12m 포장도로', bcr_far: '40%/80%', power_capacity: '300kW', truck_access: true, loading_dock: true, cold_storage: false, land_category: '공장용지' },
     created_at: daysAgo(30), updated_at: daysAgo(25),
   },
   {
@@ -577,6 +605,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 67, inquiry_count: 4, favorite_count: 8,
     built_year: 2008, tags: ['남동공단', '제조업', '화물차진입'],
     photos: [photo('factory-incheon-1'), photo('factory-incheon-2')],
+    extra_info: { land_area_m2: 2000, building_area_m2: 1650, building_structure: '철근콘크리트', ceiling_height: 8, zoning: '일반공업지역', road_frontage: '15m 포장도로', bcr_far: '70%/200%', power_capacity: '500kW', truck_access: true, loading_dock: true, cold_storage: false, land_category: '공장용지' },
     created_at: daysAgo(22), updated_at: daysAgo(18),
   },
   {
@@ -595,6 +624,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 45, inquiry_count: 3, favorite_count: 6,
     built_year: 2012, tags: ['냉동창고', '식품물류', '급매'],
     photos: [photo('factory-icheon-1'), photo('factory-icheon-2')],
+    extra_info: { land_area_m2: 1100, building_area_m2: 825, building_structure: '조립식패널', ceiling_height: 6, zoning: '계획관리지역', road_frontage: '8m 포장도로', bcr_far: '40%/80%', power_capacity: '200kW', truck_access: true, loading_dock: true, cold_storage: true, land_category: '창고용지' },
     created_at: daysAgo(5), updated_at: daysAgo(2),
   },
 
@@ -615,6 +645,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 789, inquiry_count: 55, favorite_count: 134,
     built_year: 1982, tags: ['한남3구역', '재개발', '입주권'],
     photos: [photo('redev-hannam-1'), photo('redev-hannam-2')],
+    extra_info: { land_area_m2: 110, land_category: '대', zoning: '제3종일반주거', road_frontage: '8m 포장도로', bcr_far: '50%/250%', project_phase: '관리처분 인가', member_price: 95000, expected_households: 5816 },
     created_at: daysAgo(8), updated_at: daysAgo(5),
   },
   {
@@ -633,6 +664,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 456, inquiry_count: 35, favorite_count: 78,
     built_year: 1985, tags: ['흑석뉴타운', '재개발', '조합원'],
     photos: [photo('redev-heukseok-1'), photo('redev-heukseok-2')],
+    extra_info: { land_area_m2: 85, land_category: '대', zoning: '제2종일반주거', road_frontage: '6m 포장도로', bcr_far: '60%/200%', project_phase: '사업시행 인가', member_price: 55000, expected_households: 3200 },
     created_at: daysAgo(4), updated_at: daysAgo(2),
   },
   {
@@ -651,6 +683,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 267, inquiry_count: 18, favorite_count: 45,
     built_year: 1978, tags: ['영등포', '역세권', '재개발'],
     photos: [photo('redev-ydp-1'), photo('redev-ydp-2')],
+    extra_info: { land_area_m2: 66, land_category: '대', zoning: '일반상업지역', road_frontage: '12m 대로변', bcr_far: '80%/800%', project_phase: '조합설립 인가', member_price: 40000, expected_households: 4500 },
     created_at: daysAgo(12), updated_at: daysAgo(9),
   },
 
@@ -671,6 +704,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 345, inquiry_count: 22, favorite_count: 56,
     built_year: 2018, tags: ['풀빌라', '호수인근', '수영장'],
     photos: [photo('pension-gapyeong-1'), photo('pension-gapyeong-2'), photo('pension-gapyeong-3')],
+    extra_info: { land_area_m2: 1200, building_area_m2: 496, building_structure: '경량철골조', room_count: 8, monthly_avg_revenue: 3500, business_license: '숙박업 등록' },
     created_at: daysAgo(16), updated_at: daysAgo(12),
   },
   {
@@ -689,6 +723,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 478, inquiry_count: 30, favorite_count: 89,
     built_year: 2020, tags: ['해변', '오션뷰', '게스트하우스'],
     photos: [photo('pension-gangneung-1'), photo('pension-gangneung-2'), photo('pension-gangneung-3')],
+    extra_info: { land_area_m2: 660, building_area_m2: 330, building_structure: '철근콘크리트', room_count: 6, monthly_avg_revenue: 2800, business_license: '숙박업 등록' },
     created_at: daysAgo(3), updated_at: daysAgo(1),
   },
   {
@@ -707,6 +742,7 @@ const mockProperties: Property[] = [
     internal_memo: null, view_count: 567, inquiry_count: 35, favorite_count: 112,
     built_year: 2022, tags: ['서핑', '복합시설', '양양'],
     photos: [photo('pension-yangyang-1'), photo('pension-yangyang-2'), photo('pension-yangyang-3')],
+    extra_info: { land_area_m2: 1500, building_area_m2: 660, building_structure: '철근콘크리트', room_count: 12, monthly_avg_revenue: 6500, business_license: '숙박업 + 일반음식점' },
     created_at: daysAgo(10), updated_at: daysAgo(7),
   },
 ]

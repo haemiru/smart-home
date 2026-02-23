@@ -103,6 +103,45 @@ export type AgentFeatureSetting = {
   updated_at: string
 }
 
+export type PropertyExtraInfo = {
+  // 주거 공통
+  household_count?: number
+  heating_type?: string
+  // 분양권
+  expected_move_in?: string
+  builder?: string
+  premium?: number
+  // 상가
+  business_restriction?: string
+  key_money?: number
+  foot_traffic?: string
+  frontage_width?: number
+  // 사무실
+  ceiling_height?: number
+  building_structure?: string
+  // 토지
+  land_area_m2?: number
+  land_category?: string
+  zoning?: string
+  road_frontage?: string
+  bcr_far?: string
+  slope_terrain?: string
+  // 공장/창고
+  building_area_m2?: number
+  power_capacity?: string
+  truck_access?: boolean
+  loading_dock?: boolean
+  cold_storage?: boolean
+  // 재개발
+  project_phase?: string
+  member_price?: number
+  expected_households?: number
+  // 숙박/펜션
+  room_count?: number
+  monthly_avg_revenue?: number
+  business_license?: string
+}
+
 export type Property = {
   id: string
   agent_id: string
@@ -143,6 +182,7 @@ export type Property = {
   built_year: number | null
   tags: string[] | null
   photos: string[] | null
+  extra_info: PropertyExtraInfo | null
   created_at: string
   updated_at: string
 }
@@ -560,6 +600,7 @@ export type Database = {
           built_year?: number | null
           tags?: string[] | null
           photos?: string[] | null
+          extra_info?: PropertyExtraInfo | null
           created_at?: string
           updated_at?: string
         }
@@ -603,6 +644,7 @@ export type Database = {
           built_year?: number | null
           tags?: string[] | null
           photos?: string[] | null
+          extra_info?: PropertyExtraInfo | null
           created_at?: string
           updated_at?: string
         }

@@ -3,7 +3,8 @@ import { useParams, Link } from 'react-router-dom'
 import type { Property } from '@/types/database'
 import { fetchPropertyById } from '@/api/properties'
 import { useCategories } from '@/hooks/useCategories'
-import { formatPropertyPrice, formatArea, formatPrice, transactionTypeLabel, formatDate } from '@/utils/format'
+import { formatPropertyPrice, formatPrice, transactionTypeLabel } from '@/utils/format'
+import { getInfoFieldsForCategory } from '@/utils/propertyInfoFields'
 import { Button, Input } from '@/components/common'
 import { Modal } from '@/components/common/Modal'
 import { createInquiry } from '@/api/inquiries'
@@ -104,21 +105,10 @@ export function PropertyDetailPage() {
           <div className="rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
             <h2 className="border-b border-gray-100 px-5 py-3 text-sm font-semibold">기본 정보</h2>
             <div className="grid grid-cols-2 gap-px bg-gray-100 sm:grid-cols-3">
-              {([
-                ['공급면적', formatArea(p.supply_area_m2)],
-                ['전용면적', formatArea(p.exclusive_area_m2)],
-                ['방/욕실', `${p.rooms ?? '-'}룸 / ${p.bathrooms ?? '-'}욕실`],
-                ['해당층/총층', `${p.floor ?? '-'}층 / ${p.total_floors ?? '-'}층`],
-                ['방향', p.direction || '-'],
-                ['입주가능일', formatDate(p.move_in_date)],
-                ['주차', p.parking_per_unit != null ? `${p.parking_per_unit}대/세대` : '-'],
-                ['엘리베이터', p.has_elevator ? '있음' : '없음'],
-                ['반려동물', p.pets_allowed ? '허용' : '불가'],
-                ['준공연도', p.built_year ? `${p.built_year}년` : '-'],
-              ] as [string, string][]).map(([label, value]) => (
-                <div key={label} className="bg-white px-5 py-3">
-                  <p className="text-xs text-gray-400">{label}</p>
-                  <p className="mt-0.5 text-sm font-medium">{value}</p>
+              {getInfoFieldsForCategory(cat?.name).map((field) => (
+                <div key={field.key} className="bg-white px-5 py-3">
+                  <p className="text-xs text-gray-400">{field.label}</p>
+                  <p className="mt-0.5 text-sm font-medium">{field.getValue(p)}</p>
                 </div>
               ))}
             </div>

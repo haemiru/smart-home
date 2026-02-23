@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type { Property } from '@/types/database'
 import { formatPropertyPrice, formatArea, transactionTypeLabel } from '@/utils/format'
 
@@ -19,7 +20,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
   const imageUrl = property.photos?.[0] ?? 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Image'
 
   return (
-    <div className="group cursor-pointer overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+    <Link to={`/properties/${property.id}`} className="group block cursor-pointer overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
       {/* Image */}
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
         <img
@@ -59,6 +60,6 @@ export function PropertyCard({ property }: PropertyCardProps) {
           </div>
         )}
       </div>
-    </div>
+    </Link>
   )
 }
