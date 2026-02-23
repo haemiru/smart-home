@@ -1,24 +1,43 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { Modal } from '@/components/common/Modal'
 import { Button } from '@/components/common/Button'
 import { Input } from '@/components/common/Input'
 import { AIChatbot } from '@/components/layout/AIChatbot'
 import { createInquiry } from '@/api/inquiries'
+import { fetchPublicFloatingSettings, type FloatingSettings } from '@/api/settings'
+import { useTenantStore } from '@/stores/tenantStore'
 import type { InquiryType } from '@/types/database'
 import toast from 'react-hot-toast'
 
-// 실제로는 agent_feature_settings에서 가져옴
-const fabConfig = {
+const defaultFabConfig = {
   phone: { enabled: true, number: '02-1234-5678' },
   kakao: { enabled: true, url: 'https://pf.kakao.com/_example' },
   naver: { enabled: true, url: 'https://booking.naver.com/example' },
   inquiry: { enabled: true },
 }
 
+function toFabConfig(settings: FloatingSettings) {
+  const btn = (key: string) => settings.buttons.find((b) => b.key === key)
+  return {
+    phone: { enabled: btn('phone')?.is_enabled ?? true, number: btn('phone')?.phone ?? '02-1234-5678' },
+    kakao: { enabled: btn('kakao')?.is_enabled ?? true, url: btn('kakao')?.url ?? '' },
+    naver: { enabled: btn('naver')?.is_enabled ?? false, url: btn('naver')?.url ?? '' },
+    inquiry: { enabled: btn('inquiry')?.is_enabled ?? true },
+  }
+}
+
 export function FloatingFAB() {
   const [isExpanded, setIsExpanded] = useState(false)
   const [isInquiryOpen, setIsInquiryOpen] = useState(false)
   const [isChatbotOpen, setIsChatbotOpen] = useState(false)
+  const agentId = useTenantStore((s) => s.agentId)
+  const [fabConfig, setFabConfig] = useState(defaultFabConfig)
+
+  useEffect(() => {
+    fetchPublicFloatingSettings(agentId ?? undefined)
+      .then((settings) => setFabConfig(toFabConfig(settings)))
+      .catch(() => {})
+  }, [agentId])
 
   // Hide FAB when chatbot is open
   if (isChatbotOpen) {
@@ -104,12 +123,12 @@ export function FloatingFAB() {
       </div>
 
       {/* Inquiry Modal */}
-      <InquiryModal isOpen={isInquiryOpen} onClose={() => setIsInquiryOpen(false)} />
+      <InquiryModal isOpen={isInquiryOpen} onClose={() => setIsInquiryOpen(false)} agentId={agentId} />
     </>
   )
 }
 
-function InquiryModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+function InquiryModal({ isOpen, onClose, agentId }: { isOpen: boolean; onClose: () => void; agentId: string | null }) {
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -136,6 +155,7 @@ function InquiryModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
       email: form.email || undefined,
       inquiry_type: inquiryTypeMap[form.inquiryType] ?? 'other',
       content: form.content + (form.region ? `\n\n관심지역: ${form.region}` : ''),
+      agent_id: agentId ?? undefined,
     })
     setIsSubmitting(false)
     toast.success(`문의가 접수되었습니다. 접수번호: ${inquiry.inquiry_number}`)

@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
+import { useTenantStore } from '@/stores/tenantStore'
 import { signOut } from '@/api/auth'
 import { gnbMenuItems } from '@/utils/mockData'
 import { AreaCalculatorModal } from '@/components/common/AreaCalculatorModal'
 
 export function UserGNB() {
   const { session, user } = useAuthStore()
+  const tenant = useTenantStore((s) => s.tenant)
   const [isCalcOpen, setIsCalcOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
@@ -23,8 +25,8 @@ export function UserGNB() {
           <div className="flex h-16 items-center justify-between">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
-              <img src="/logo.png" alt="Smart Home" className="h-9 w-9 rounded-lg object-contain" />
-              <span className="text-lg font-bold text-primary-700">Smart Home</span>
+              <img src={tenant?.logo_url || '/logo.png'} alt={tenant?.office_name || 'Smart Home'} className="h-9 w-9 rounded-lg object-contain" />
+              <span className="text-lg font-bold text-primary-700">{tenant?.office_name || 'Smart Home'}</span>
             </Link>
 
             {/* Desktop Menu */}

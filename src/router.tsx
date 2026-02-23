@@ -5,6 +5,7 @@ import { UserLayout } from '@/layouts/UserLayout'
 import { AdminLayout } from '@/layouts/AdminLayout'
 import { ProtectedRoute } from '@/components/common/ProtectedRoute'
 import { PlanGate } from '@/components/common/PlanGate'
+import { TenantGate } from '@/components/common/TenantGate'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 // ─── Lazy-loaded pages ────────────────────────────────
@@ -92,10 +93,10 @@ export const router = createBrowserRouter([
   },
   { path: '/auth/callback', element: <S><CallbackPage /></S> },
 
-  // User portal (public)
+  // User portal (public) — wrapped in TenantGate for multi-tenant routing
   {
     path: '/',
-    element: <UserLayout />,
+    element: <TenantGate><UserLayout /></TenantGate>,
     children: [
       { index: true, element: <S><HomePage /></S> },
       { path: 'search', element: <S><SearchPage /></S> },

@@ -66,8 +66,10 @@ export async function createInquiry(data: {
   preferred_visit_date?: string
   content: string
   user_id?: string
+  agent_id?: string
 }): Promise<Inquiry> {
-  const agentId = await getAgentProfileId()
+  // Use explicit agent_id if provided (multi-tenant), otherwise resolve from auth
+  const agentId = data.agent_id || await getAgentProfileId()
 
   // Generate inquiry number via DB sequence
   const { data: inquiryNumber, error: rpcError } = await supabase.rpc('generate_inquiry_number')

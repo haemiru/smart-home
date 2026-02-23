@@ -27,13 +27,28 @@ npm run preview  # Preview production build
 
 ## Architecture
 
+### Multi-Tenant Subdomain Architecture
+
+Each agent gets a subdomain: `{slug}.smarthome.co.kr`. Pro+ plans can also use custom domains.
+
+- **Tenant Resolution** (`src/utils/tenantResolver.ts`): parses `window.location.hostname` to identify tenant source (slug, custom_domain, landing, dev_default)
+- **Tenant Store** (`src/stores/tenantStore.ts`): Zustand store holding resolved `TenantProfile`, `agentId`, and status (`loading` | `resolved` | `not_found` | `landing`)
+- **TenantGate** (`src/components/common/TenantGate.tsx`): wraps User Portal routes — shows `LandingPage` for platform root, `TenantNotFoundPage` for invalid slugs, or children for resolved tenants
+- **Initialization**: `App.tsx` runs `initTenant()` in parallel with `initAuth() → initFeatures()`
+- **Data Scoping**: all User Portal API calls accept optional `agentId` param from tenant store
+- **Dynamic Branding**: `UserGNB` and `UserFooter` display tenant's logo, office name, address, etc.
+- **Admin Slug Management**: `OfficeSettingsPage` includes subdomain input with real-time availability check
+- **Dev Environment**: `localhost:5173` uses `VITE_DEV_TENANT_SLUG` env var or falls back to mock tenant
+- **DB**: `agent_profiles.slug` (unique, 3-63 chars), `custom_domains` table, `reserved_slugs` table, RPC functions `resolve_tenant_by_slug()` and `resolve_tenant_by_domain()`
+
 ### Dual Portal System
 
 Two independent portals with separate layouts:
 
-1. **User Portal** (`/`) — public browsing portal
+1. **User Portal** (`/`) — public browsing portal (wrapped in `TenantGate`)
    - `UserLayout`: `UserGNB` (desktop menu + mobile hamburger) → content → `UserFooter` → `UserMobileNav` (mobile bottom tabs) → `FloatingFAB`
    - Homepage: Hero search → Category tabs → 2-column (sidebar filters + property grid) → Quick search → AI recommendations → Carousel → Hot issues → Links
+   - All data queries scoped to tenant's `agentId` via `useTenantStore`
 
 2. **Admin Portal** (`/admin/*`) — agent/staff only (ProtectedRoute + RBAC)
    - `AdminLayout`: `AdminHeader` (search + notifications + profile dropdown) → `AdminSidebar` (desktop) / `AdminMobileNav` (mobile bottom tabs) → content
@@ -174,7 +189,7 @@ Each feature lives in `src/features/{name}/` with its own `components/`, `hooks/
 ### Database
 
 - SQL migrations in `supabase/migrations/`
-- Tables: `users`, `agent_profiles`, `staff_members`, `agent_feature_settings`, `properties`, `property_categories`, `property_favorites`, `inquiries`, `inquiry_replies`, `customers`, `customer_activities`, `contracts`, `contract_process`, `ai_generation_logs`, `move_in_guides`, `inspections`, `rental_properties`, `rental_payments`, `repair_requests`, `rental_share_links`, `shared_properties`, `co_brokerage_requests`
+- Tables: `users`, `agent_profiles`, `staff_members`, `agent_feature_settings`, `properties`, `property_categories`, `property_favorites`, `inquiries`, `inquiry_replies`, `customers`, `customer_activities`, `contracts`, `contract_process`, `ai_generation_logs`, `move_in_guides`, `inspections`, `rental_properties`, `rental_payments`, `repair_requests`, `rental_share_links`, `shared_properties`, `co_brokerage_requests`, `custom_domains`, `reserved_slugs`
 - All tables have Row Level Security (RLS) policies
 - TypeScript types in `src/types/database.ts` — must use `type` aliases (not `interface`) for Row types to satisfy Supabase's `GenericSchema` constraint
 
@@ -214,6 +229,7 @@ Korean (한국어). All user-facing text uses Korean strings.
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_GEMINI_API_KEY=your-gemini-api-key
+VITE_DEV_TENANT_SLUG=demo
 ```
 
 Copy `.env.example` to `.env` and fill in values.

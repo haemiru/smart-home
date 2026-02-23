@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { useHomeFilterStore } from '@/stores/homeFilterStore'
 import { useCategories } from '@/hooks/useCategories'
 import { fetchAgentSpecialties } from '@/api/settings'
+import { useTenantStore } from '@/stores/tenantStore'
 
 const HERO_IMAGES: Record<string, string> = {
   '아파트': 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=1600&q=80',
@@ -22,15 +23,16 @@ const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1560518883-ce09059
 export function HeroSection() {
   const { searchQuery, setSearchQuery, setCategory } = useHomeFilterStore()
   const { categories } = useCategories()
+  const agentId = useTenantStore((s) => s.agentId)
   const [localQuery, setLocalQuery] = useState(searchQuery)
   const [specialties, setSpecialties] = useState<string[]>([])
   const [imageLoaded, setImageLoaded] = useState(false)
 
   useEffect(() => {
-    fetchAgentSpecialties()
+    fetchAgentSpecialties(agentId ?? undefined)
       .then(setSpecialties)
       .catch(() => {})
-  }, [])
+  }, [agentId])
 
   const heroImage = (specialties.length > 0 && HERO_IMAGES[specialties[0]]) || DEFAULT_HERO_IMAGE
 

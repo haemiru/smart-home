@@ -35,13 +35,18 @@ export async function updateOfficeSettings(data: Partial<AgentProfile>): Promise
   return updated
 }
 
-/** Public: fetch the first agent's specialties for the user portal hero section */
-export async function fetchAgentSpecialties(): Promise<string[]> {
-  const { data, error } = await supabase
+/** Public: fetch agent specialties for the user portal hero section.
+ *  When agentId is provided, fetches that specific agent's specialties. */
+export async function fetchAgentSpecialties(agentId?: string): Promise<string[]> {
+  let query = supabase
     .from('agent_profiles')
     .select('specialties')
-    .limit(1)
-    .single()
+
+  if (agentId) {
+    query = query.eq('id', agentId)
+  }
+
+  const { data, error } = await query.limit(1).single()
 
   if (error || !data) return []
   return (data.specialties as string[]) ?? []
@@ -412,26 +417,54 @@ export async function updateRegionSettings(regions: RegionSetting[]): Promise<vo
 }
 
 /** Public: fetch region settings for the user portal.
+ *  When agentId is provided, fetches that specific agent's regions.
  *  Tries authenticated path first (RLS), falls back to public read. */
-export async function fetchPublicRegionSettings(): Promise<RegionSetting[]> {
+export async function fetchPublicRegionSettings(agentId?: string): Promise<RegionSetting[]> {
   // Try authenticated fetch (works if user is logged in as agent/staff)
-  try {
-    const regions = await fetchRegionSettings()
-    if (regions.length > 0) return regions
-  } catch { /* not logged in or not agent — fall through */ }
+  if (!agentId) {
+    try {
+      const regions = await fetchRegionSettings()
+      if (regions.length > 0) return regions
+    } catch { /* not logged in or not agent — fall through */ }
+  }
 
-  // Fallback: public read (requires public RLS policy on agent_settings)
-  const { data, error } = await supabase
+  // Public read (requires public RLS policy on agent_settings)
+  let query = supabase
     .from('agent_settings')
     .select('setting_value')
     .eq('setting_key', 'regions')
-    .limit(1)
-    .single()
+
+  if (agentId) {
+    query = query.eq('agent_id', agentId)
+  }
+
+  const { data, error } = await query.limit(1).single()
 
   if (error || !data) return []
   const value = data.setting_value
   if (Array.isArray(value)) return value as RegionSetting[]
   return []
+}
+
+/** Public: fetch floating button settings for the user portal.
+ *  When agentId is provided, fetches that specific agent's floating config. */
+export async function fetchPublicFloatingSettings(agentId?: string): Promise<FloatingSettings> {
+  // If agentId provided, use public read path
+  if (agentId) {
+    const { data, error } = await supabase
+      .from('agent_settings')
+      .select('setting_value')
+      .eq('agent_id', agentId)
+      .eq('setting_key', 'floating')
+      .limit(1)
+      .single()
+
+    if (error || !data) return defaultFloatingSettings
+    return data.setting_value as FloatingSettings
+  }
+
+  // Fallback: authenticated fetch
+  return fetchFloatingSettings()
 }
 
 // ──────────────────────────────────────────
@@ -761,4 +794,52 @@ export async function fetchSecuritySettings(): Promise<SecuritySettings> {
       { id: 'sess-2', device: 'Safari / iPhone', ip: '111.222.33.44', last_active: '2026-02-16T10:00:00Z', is_current: false },
     ],
   }
+}
+
+// ──────────────────────────────────────────
+// Slug / Subdomain Management
+// ──────────────────────────────────────────
+
+const SLUG_REGEX = /^[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])?$/
+
+export async function checkSlugAvailability(slug: string): Promise<{ available: boolean; reason?: string }> {
+  // Format check
+  if (!SLUG_REGEX.test(slug)) {
+    return { available: false, reason: '소문자 영문, 숫자, 하이픈만 사용 가능 (3~63자)' }
+  }
+
+  // Reserved check
+  const { data: reserved } = await supabase
+    .from('reserved_slugs')
+    .select('slug')
+    .eq('slug', slug)
+    .single()
+
+  if (reserved) {
+    return { available: false, reason: '예약된 주소입니다.' }
+  }
+
+  // Duplicate check
+  const { data: existing } = await supabase
+    .from('agent_profiles')
+    .select('id')
+    .eq('slug', slug)
+    .single()
+
+  const agentId = await getAgentProfileId()
+  if (existing && existing.id !== agentId) {
+    return { available: false, reason: '이미 사용 중인 주소입니다.' }
+  }
+
+  return { available: true }
+}
+
+export async function updateSlug(slug: string | null): Promise<void> {
+  const agentId = await getAgentProfileId()
+  const { error } = await supabase
+    .from('agent_profiles')
+    .update({ slug })
+    .eq('id', agentId)
+
+  if (error) throw error
 }

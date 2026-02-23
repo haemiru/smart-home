@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom'
+import { useTenantStore } from '@/stores/tenantStore'
 
 export function UserFooter() {
+  const tenant = useTenantStore((s) => s.tenant)
+
   return (
     <footer className="border-t border-gray-200 bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 py-8">
@@ -20,13 +23,22 @@ export function UserFooter() {
           </Link>
         </div>
 
-        {/* Company Info */}
+        {/* Company Info — dynamic from tenant */}
         <div className="pt-6 text-xs leading-relaxed text-gray-400">
-          <p className="font-medium text-gray-500">Smart Home — 공인중개사 올인원 업무 플랫폼</p>
+          <p className="font-medium text-gray-500">
+            {tenant?.office_name || 'Smart Home'} — 공인중개사 올인원 업무 플랫폼
+          </p>
+          {tenant && (
+            <div className="mt-2 space-y-0.5">
+              {tenant.representative && <p>대표: {tenant.representative}</p>}
+              {tenant.address && <p>주소: {tenant.address}</p>}
+              {tenant.phone && <p>연락처: {tenant.phone}</p>}
+            </div>
+          )}
           <p className="mt-2">
             Smart Home은 통신판매중개자로서 중개사무소가 등록한 매물정보 및 거래에 대한 책임은 각 중개사무소에 있습니다.
           </p>
-          <p className="mt-4">&copy; {new Date().getFullYear()} Smart Home. All rights reserved.</p>
+          <p className="mt-4">&copy; {new Date().getFullYear()} {tenant?.office_name || 'Smart Home'}. All rights reserved.</p>
         </div>
       </div>
     </footer>

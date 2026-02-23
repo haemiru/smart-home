@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useHomeFilterStore } from '@/stores/homeFilterStore'
+import { useTenantStore } from '@/stores/tenantStore'
 import { fetchProperties } from '@/api/properties'
 import { fetchPublicRegionSettings } from '@/api/settings'
 import type { RegionSetting } from '@/api/settings'
@@ -14,6 +15,7 @@ const dealTypeMap: Record<string, TransactionType> = { sale: 'sale', jeonse: 'je
 export function PropertyGrid() {
   const navigate = useNavigate()
   const { selectedCategory, selectedDealType } = useHomeFilterStore()
+  const agentId = useTenantStore((s) => s.agentId)
   const [properties, setProperties] = useState<Property[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -21,8 +23,8 @@ export function PropertyGrid() {
 
   // Load region settings once
   useEffect(() => {
-    fetchPublicRegionSettings().then(setRegions).catch(() => setRegions([]))
-  }, [])
+    fetchPublicRegionSettings(agentId ?? undefined).then(setRegions).catch(() => setRegions([]))
+  }, [agentId])
 
   useEffect(() => {
     if (!selectedCategory) return
@@ -32,7 +34,7 @@ export function PropertyGrid() {
     fetchProperties({
       categoryId: selectedCategory || undefined,
       transactionType: selectedDealType ? dealTypeMap[selectedDealType] : undefined,
-    }, 'newest', 1, 12)
+    }, 'newest', 1, 12, agentId ?? undefined)
       .then(({ data, total }) => {
         if (!cancelled) {
           setProperties(data)

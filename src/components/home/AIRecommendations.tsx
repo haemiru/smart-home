@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
+import { useTenantStore } from '@/stores/tenantStore'
 import { fetchProperties } from '@/api/properties'
 import type { Property } from '@/types/database'
 import { PropertyCard } from './PropertyCard'
@@ -8,18 +9,19 @@ import { PropertyCard } from './PropertyCard'
 export function AIRecommendations() {
   const { session } = useAuthStore()
   const scrollRef = useRef<HTMLDivElement>(null)
+  const agentId = useTenantStore((s) => s.agentId)
   const [recommended, setRecommended] = useState<Property[]>([])
 
   useEffect(() => {
     if (!session) return
     let cancelled = false
-    fetchProperties({}, 'popular', 1, 6)
+    fetchProperties({}, 'popular', 1, 6, agentId ?? undefined)
       .then(({ data }) => {
         if (!cancelled) setRecommended(data)
       })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [session])
+  }, [session, agentId])
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollRef.current) return

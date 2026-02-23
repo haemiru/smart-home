@@ -5,6 +5,7 @@ import { fetchProperties, type SortOption, type PropertyFilters } from '@/api/pr
 import { fetchSearchSettings, type QuickSearchCard } from '@/api/settings'
 import { resolveConditions, type ResolvedConditions } from '@/utils/conditionResolver'
 import { useCategories } from '@/hooks/useCategories'
+import { useTenantStore } from '@/stores/tenantStore'
 import { formatPropertyPrice, formatArea, transactionTypeLabel } from '@/utils/format'
 
 const sortOptions: { value: SortOption; label: string }[] = [
@@ -20,6 +21,7 @@ const directionOptions = ['남향', '남동향', '남서향', '동향', '서향'
 export function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { categories } = useCategories()
+  const agentId = useTenantStore((s) => s.agentId)
   const [properties, setProperties] = useState<Property[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -92,7 +94,7 @@ export function SearchPage() {
       }
     }
 
-    const res = await fetchProperties(filters, sort, page, pageSize)
+    const res = await fetchProperties(filters, sort, page, pageSize, agentId ?? undefined)
 
     // Apply client-side filters (e.g. top floor)
     let data = res.data
@@ -103,7 +105,7 @@ export function SearchPage() {
     setProperties(data)
     setTotal(resolvedQuick?.clientFilters.length ? data.length : res.total)
     setIsLoading(false)
-  }, [search, categoryId, txType, sort, page, minPrice, maxPrice, minArea, maxArea, rooms, direction, resolvedQuick, activeRegion])
+  }, [search, categoryId, txType, sort, page, minPrice, maxPrice, minArea, maxArea, rooms, direction, resolvedQuick, activeRegion, agentId])
 
   useEffect(() => { void load() }, [load])
 

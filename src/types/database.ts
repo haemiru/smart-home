@@ -55,7 +55,32 @@ export type AgentProfile = {
   subscription_plan: PlanType
   subscription_started_at: string
   invite_code: string | null
+  slug: string | null
   created_at: string
+}
+
+export type CustomDomain = {
+  id: string
+  agent_id: string
+  domain: string
+  is_verified: boolean
+  verification_token: string
+  verified_at: string | null
+  created_at: string
+}
+
+export type TenantProfile = {
+  id: string
+  office_name: string
+  representative: string
+  address: string
+  phone: string
+  fax: string | null
+  logo_url: string | null
+  description: string | null
+  specialties: string[] | null
+  business_hours: Record<string, unknown> | null
+  subscription_plan: string
 }
 
 export type StaffMember = {
@@ -422,6 +447,7 @@ export type Database = {
           subscription_plan?: PlanType
           subscription_started_at?: string
           invite_code?: string | null
+          slug?: string | null
           created_at?: string
         }
         Update: {
@@ -443,6 +469,7 @@ export type Database = {
           subscription_plan?: PlanType
           subscription_started_at?: string
           invite_code?: string | null
+          slug?: string | null
           created_at?: string
         }
         Relationships: []
@@ -1077,6 +1104,34 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_domains: {
+        Row: CustomDomain
+        Insert: {
+          id?: string
+          agent_id: string
+          domain: string
+          is_verified?: boolean
+          verification_token?: string
+          verified_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          agent_id?: string
+          domain?: string
+          is_verified?: boolean
+          verification_token?: string
+          verified_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      reserved_slugs: {
+        Row: { slug: string }
+        Insert: { slug: string }
+        Update: { slug?: string }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1093,6 +1148,14 @@ export type Database = {
       validate_invite_code: {
         Args: { _code: string }
         Returns: { office_name: string; agent_profile_id: string }[]
+      }
+      resolve_tenant_by_slug: {
+        Args: { _slug: string }
+        Returns: TenantProfile[]
+      }
+      resolve_tenant_by_domain: {
+        Args: { _domain: string }
+        Returns: TenantProfile[]
       }
     }
     Enums: {

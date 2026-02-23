@@ -10,4 +10,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    host: true,          // Bind to 0.0.0.0 for subdomain testing
+    allowedHosts: true,  // Allow all host headers (e.g. demo.localhost subdomains)
+  },
 })

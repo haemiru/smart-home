@@ -1,21 +1,23 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchProperties } from '@/api/properties'
+import { useTenantStore } from '@/stores/tenantStore'
 import { formatPropertyPrice, formatArea, transactionTypeLabel } from '@/utils/format'
 import type { Property } from '@/types/database'
 
 export function UrgentCarousel() {
   const [items, setItems] = useState<Property[]>([])
   const [current, setCurrent] = useState(0)
+  const agentId = useTenantStore((s) => s.agentId)
 
   useEffect(() => {
     let cancelled = false
-    fetchProperties({ isUrgent: true }, 'newest', 1, 6)
+    fetchProperties({ isUrgent: true }, 'newest', 1, 6, agentId ?? undefined)
       .then(({ data }) => {
         if (!cancelled) setItems(data)
       })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [])
+  }, [agentId])
 
   const next = useCallback(() => {
     setCurrent((c) => items.length > 0 ? (c + 1) % items.length : 0)

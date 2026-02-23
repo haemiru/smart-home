@@ -44,11 +44,17 @@ export async function fetchProperties(
   sort: SortOption = 'newest',
   page = 1,
   pageSize = 12,
+  agentId?: string,
 ): Promise<{ data: Property[]; total: number }> {
   try {
     let query = supabase
       .from('properties')
       .select('*', { count: 'exact' })
+
+    // Scope to tenant's agent if provided
+    if (agentId) {
+      query = query.eq('agent_id', agentId)
+    }
 
     // Default: active only for public portal
     if (filters.status) {
@@ -183,13 +189,20 @@ export async function updatePropertyStatus(ids: string[], status: PropertyStatus
   if (error) throw error
 }
 
-export async function fetchCategories(): Promise<PropertyCategory[]> {
+export async function fetchCategories(agentId?: string): Promise<PropertyCategory[]> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('property_categories')
       .select('*')
       .eq('is_active', true)
       .order('sort_order', { ascending: true })
+
+    if (agentId) {
+      // Tenant-scoped: system categories OR agent's custom categories
+      query = query.or(`agent_id.is.null,agent_id.eq.${agentId}`)
+    }
+
+    const { data, error } = await query
 
     if (error) throw error
     if (data && data.length > 0) return data

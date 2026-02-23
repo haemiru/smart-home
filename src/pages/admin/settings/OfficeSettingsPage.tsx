@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { fetchOfficeSettings, updateOfficeSettings } from '@/api/settings'
+import { useState, useEffect, useCallback } from 'react'
+import { fetchOfficeSettings, updateOfficeSettings, checkSlugAvailability, updateSlug } from '@/api/settings'
 import type { BusinessHours } from '@/api/settings'
 import type { AgentProfile } from '@/types/database'
 import toast from 'react-hot-toast'
@@ -36,6 +36,13 @@ export function OfficeSettingsPage() {
   // Specialties (ordered)
   const [specialties, setSpecialties] = useState<string[]>([])
 
+  // Slug (subdomain)
+  const [slug, setSlug] = useState('')
+  const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable'>('idle')
+  const [slugError, setSlugError] = useState('')
+  const [savingSlug, setSavingSlug] = useState(false)
+  const [savedSlug, setSavedSlug] = useState('')
+
   useEffect(() => {
     loadSettings()
   }, [])
@@ -55,6 +62,8 @@ export function OfficeSettingsPage() {
       setLogoUrl(data.logo_url)
       setDescription(data.description ?? '')
       setSpecialties(data.specialties ?? [])
+      setSlug(data.slug ?? '')
+      setSavedSlug(data.slug ?? '')
     } catch {
       toast.error('설정을 불러오는데 실패했습니다.')
     } finally {
@@ -117,6 +126,64 @@ export function OfficeSettingsPage() {
     })
   }
 
+  // Slug validation with debounce
+  const checkSlug = useCallback(async (value: string) => {
+    if (!value) {
+      setSlugStatus('idle')
+      setSlugError('')
+      return
+    }
+    setSlugStatus('checking')
+    setSlugError('')
+    const result = await checkSlugAvailability(value)
+    if (result.available) {
+      setSlugStatus('available')
+      setSlugError('')
+    } else {
+      setSlugStatus('unavailable')
+      setSlugError(result.reason ?? '사용할 수 없는 주소입니다.')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (slug === savedSlug) {
+      setSlugStatus('idle')
+      setSlugError('')
+      return
+    }
+    const timer = setTimeout(() => checkSlug(slug), 500)
+    return () => clearTimeout(timer)
+  }, [slug, savedSlug, checkSlug])
+
+  async function handleSaveSlug() {
+    if (!slug) {
+      // Clear slug
+      try {
+        setSavingSlug(true)
+        await updateSlug(null)
+        setSavedSlug('')
+        toast.success('서브도메인이 해제되었습니다.')
+      } catch {
+        toast.error('저장에 실패했습니다.')
+      } finally {
+        setSavingSlug(false)
+      }
+      return
+    }
+    if (slugStatus !== 'available' && slug !== savedSlug) return
+    try {
+      setSavingSlug(true)
+      await updateSlug(slug)
+      setSavedSlug(slug)
+      setSlugStatus('idle')
+      toast.success('서브도메인이 저장되었습니다.')
+    } catch {
+      toast.error('서브도메인 저장에 실패했습니다.')
+    } finally {
+      setSavingSlug(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -140,6 +207,53 @@ export function OfficeSettingsPage() {
         >
           {saving ? '저장 중...' : '저장'}
         </button>
+      </div>
+
+      {/* Subdomain Card */}
+      <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
+        <h3 className="mb-1 text-sm font-semibold text-gray-900">나만의 홈페이지 주소</h3>
+        <p className="mb-4 text-sm text-gray-500">
+          고객이 접속할 서브도메인을 설정하세요. 설정 후 <strong>{slug || 'my-office'}.smarthome.co.kr</strong>로 접속할 수 있습니다.
+        </p>
+        <div className="flex items-start gap-3">
+          <div className="flex-1">
+            <div className="flex items-center overflow-hidden rounded-lg border border-gray-300 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500">
+              <input
+                type="text"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                className="w-full px-3 py-2 text-sm focus:outline-none"
+                placeholder="my-office"
+                maxLength={63}
+              />
+              <span className="shrink-0 bg-gray-50 px-3 py-2 text-sm text-gray-500">.smarthome.co.kr</span>
+            </div>
+            {/* Status indicator */}
+            <div className="mt-1.5 h-5">
+              {slugStatus === 'checking' && (
+                <span className="text-xs text-gray-400">확인 중...</span>
+              )}
+              {slugStatus === 'available' && (
+                <span className="text-xs text-green-600">사용 가능한 주소입니다.</span>
+              )}
+              {slugStatus === 'unavailable' && (
+                <span className="text-xs text-red-500">{slugError}</span>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={handleSaveSlug}
+            disabled={savingSlug || (slug !== savedSlug && slug !== '' && slugStatus !== 'available')}
+            className="shrink-0 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50"
+          >
+            {savingSlug ? '저장 중...' : slug ? '주소 저장' : '주소 해제'}
+          </button>
+        </div>
+        {savedSlug && (
+          <div className="mt-3 rounded-lg bg-primary-50 px-4 py-2.5 text-sm text-primary-700">
+            현재 주소: <strong>{savedSlug}.smarthome.co.kr</strong>
+          </div>
+        )}
       </div>
 
       {/* Basic Info Card */}
