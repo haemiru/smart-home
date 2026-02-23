@@ -471,7 +471,7 @@ export type SearchSettings = {
 const RESIDENTIAL = ['아파트', '오피스텔', '분양권', '빌라', '주택', '원룸']
 const COMMERCIAL = ['상가', '사무실']
 
-const defaultSearchSettings: SearchSettings = {
+export const defaultSearchSettings: SearchSettings = {
   filter_groups: [
     { key: 'transaction_type', label: '거래방식', is_enabled: true, sort_order: 1 },
     { key: 'price', label: '금액별', is_enabled: true, sort_order: 2 },

@@ -2,7 +2,6 @@ import { HeroSection } from '@/components/home/HeroSection'
 import { CategoryTabs } from '@/components/home/CategoryTabs'
 import { PropertySidebar, PropertyFilterChips } from '@/components/home/PropertyFilters'
 import { PropertyGrid } from '@/components/home/PropertyGrid'
-import { QuickSearchGrid } from '@/components/home/QuickSearchGrid'
 import { AIRecommendations } from '@/components/home/AIRecommendations'
 import { UrgentCarousel } from '@/components/home/UrgentCarousel'
 import { HotIssuesSection } from '@/components/home/HotIssuesSection'
@@ -31,10 +30,7 @@ export function HomePage() {
             {/* a) 지역별 인기 매물 */}
             <PropertyGrid />
 
-            {/* b) 원클릭 조건별 검색 */}
-            <QuickSearchGrid />
-
-            {/* c) AI 추천 매물 */}
+            {/* b) AI 추천 매물 */}
             <AIRecommendations />
 
             {/* d) 급매/추천 캐러셀 */}

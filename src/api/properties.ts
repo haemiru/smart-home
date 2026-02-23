@@ -1,6 +1,7 @@
 import { supabase } from '@/api/supabase'
 import { getAgentProfileId } from '@/api/helpers'
 import type { Property, PropertyCategory, PropertyStatus, TransactionType } from '@/types/database'
+import { getMockCategories, getMockProperties, getMockPropertyById } from '@/utils/mockProperties'
 
 export interface PropertyFilters {
   search?: string
@@ -44,48 +45,54 @@ export async function fetchProperties(
   page = 1,
   pageSize = 12,
 ): Promise<{ data: Property[]; total: number }> {
-  let query = supabase
-    .from('properties')
-    .select('*', { count: 'exact' })
+  try {
+    let query = supabase
+      .from('properties')
+      .select('*', { count: 'exact' })
 
-  // Default: active only for public portal
-  if (filters.status) {
-    query = query.eq('status', filters.status)
-  } else {
-    query = query.eq('status', 'active')
+    // Default: active only for public portal
+    if (filters.status) {
+      query = query.eq('status', filters.status)
+    } else {
+      query = query.eq('status', 'active')
+    }
+
+    if (filters.search) {
+      query = query.or(`title.ilike.%${filters.search}%,address.ilike.%${filters.search}%`)
+    }
+    if (filters.addressSearch) {
+      query = query.ilike('address', `%${filters.addressSearch}%`)
+    }
+    if (filters.categoryId) query = query.eq('category_id', filters.categoryId)
+    if (filters.transactionType) query = query.eq('transaction_type', filters.transactionType)
+    if (filters.minPrice != null) query = query.gte('sale_price', filters.minPrice)
+    if (filters.maxPrice != null) query = query.lte('sale_price', filters.maxPrice)
+    if (filters.minArea != null) query = query.gte('exclusive_area_m2', filters.minArea)
+    if (filters.maxArea != null) query = query.lte('exclusive_area_m2', filters.maxArea)
+    if (filters.rooms != null) query = query.gte('rooms', filters.rooms)
+    if (filters.direction) query = query.eq('direction', filters.direction)
+    if (filters.hasElevator) query = query.eq('has_elevator', true)
+    if (filters.petsAllowed) query = query.eq('pets_allowed', true)
+    if (filters.isUrgent) query = query.eq('is_urgent', true)
+    if (filters.tags && filters.tags.length > 0) query = query.contains('tags', filters.tags)
+    if (filters.minBuiltYear != null) query = query.gte('built_year', filters.minBuiltYear)
+    if (filters.minParkingPerUnit != null) query = query.gte('parking_per_unit', filters.minParkingPerUnit)
+    if (filters.maxMaintenanceFee != null) query = query.lte('maintenance_fee', filters.maxMaintenanceFee)
+
+    query = applySorting(query, sort)
+
+    const start = (page - 1) * pageSize
+    query = query.range(start, start + pageSize - 1)
+
+    const { data, count, error } = await query
+
+    if (error) throw error
+    if (data && data.length > 0) return { data, total: count ?? 0 }
+    // Supabase returned empty — fall through to mock
+  } catch {
+    // Supabase unavailable — fall through to mock
   }
-
-  if (filters.search) {
-    query = query.or(`title.ilike.%${filters.search}%,address.ilike.%${filters.search}%`)
-  }
-  if (filters.addressSearch) {
-    query = query.ilike('address', `%${filters.addressSearch}%`)
-  }
-  if (filters.categoryId) query = query.eq('category_id', filters.categoryId)
-  if (filters.transactionType) query = query.eq('transaction_type', filters.transactionType)
-  if (filters.minPrice != null) query = query.gte('sale_price', filters.minPrice)
-  if (filters.maxPrice != null) query = query.lte('sale_price', filters.maxPrice)
-  if (filters.minArea != null) query = query.gte('exclusive_area_m2', filters.minArea)
-  if (filters.maxArea != null) query = query.lte('exclusive_area_m2', filters.maxArea)
-  if (filters.rooms != null) query = query.gte('rooms', filters.rooms)
-  if (filters.direction) query = query.eq('direction', filters.direction)
-  if (filters.hasElevator) query = query.eq('has_elevator', true)
-  if (filters.petsAllowed) query = query.eq('pets_allowed', true)
-  if (filters.isUrgent) query = query.eq('is_urgent', true)
-  if (filters.tags && filters.tags.length > 0) query = query.contains('tags', filters.tags)
-  if (filters.minBuiltYear != null) query = query.gte('built_year', filters.minBuiltYear)
-  if (filters.minParkingPerUnit != null) query = query.gte('parking_per_unit', filters.minParkingPerUnit)
-  if (filters.maxMaintenanceFee != null) query = query.lte('maintenance_fee', filters.maxMaintenanceFee)
-
-  query = applySorting(query, sort)
-
-  const start = (page - 1) * pageSize
-  query = query.range(start, start + pageSize - 1)
-
-  const { data, count, error } = await query
-
-  if (error) throw error
-  return { data: data ?? [], total: count ?? 0 }
+  return getMockProperties(filters, sort, page, pageSize)
 }
 
 export async function fetchAdminProperties(
@@ -112,17 +119,21 @@ export async function fetchAdminProperties(
 }
 
 export async function fetchPropertyById(id: string): Promise<Property | null> {
-  const { data, error } = await supabase
-    .from('properties')
-    .select('*')
-    .eq('id', id)
-    .single()
+  try {
+    const { data, error } = await supabase
+      .from('properties')
+      .select('*')
+      .eq('id', id)
+      .single()
 
-  if (error) {
-    if (error.code === 'PGRST116') return null
-    throw error
+    if (error) {
+      if (error.code === 'PGRST116') return getMockPropertyById(id)
+      throw error
+    }
+    return data
+  } catch {
+    return getMockPropertyById(id)
   }
-  return data
 }
 
 export async function createProperty(
@@ -173,12 +184,17 @@ export async function updatePropertyStatus(ids: string[], status: PropertyStatus
 }
 
 export async function fetchCategories(): Promise<PropertyCategory[]> {
-  const { data, error } = await supabase
-    .from('property_categories')
-    .select('*')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
+  try {
+    const { data, error } = await supabase
+      .from('property_categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
 
-  if (error) throw error
-  return data ?? []
+    if (error) throw error
+    if (data && data.length > 0) return data
+  } catch {
+    // Supabase unavailable — fall through to mock
+  }
+  return getMockCategories()
 }

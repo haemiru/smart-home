@@ -54,9 +54,8 @@ export function PropertyGrid() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4">
         <h2 className="text-lg font-bold text-gray-900">지역별 인기 매물</h2>
-        <span className="text-sm text-gray-500">{total}건</span>
       </div>
 
       {regions.length > 0 && (
@@ -75,6 +74,12 @@ export function PropertyGrid() {
 
       {/* 원클릭 조건별 검색 — 지도 바로 아래 */}
       <QuickSearchGrid />
+
+      {/* 매물 리스트 */}
+      <div className="mb-4 mt-8 flex items-center justify-between">
+        <h2 className="text-lg font-bold text-gray-900">추천 매물</h2>
+        <span className="text-sm text-gray-500">{total}건</span>
+      </div>
 
       {loading ? (
         <div className="rounded-xl bg-gray-50 py-16 text-center">
