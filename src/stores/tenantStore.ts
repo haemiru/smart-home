@@ -18,14 +18,14 @@ interface TenantState {
 /** Mock tenant for dev/demo when Supabase is unavailable or no slug set. */
 const DEV_MOCK_TENANT: TenantProfile = {
   id: 'dev-agent-001',
-  office_name: 'Smart Home Demo',
-  representative: '김대표',
-  address: '서울특별시 강남구 테헤란로 123',
+  office_name: '스마트부동산',
+  representative: '홍길동',
+  address: '서울특별시 강남구 역삼동 테헤란로 123',
   phone: '02-1234-5678',
-  fax: null,
+  fax: '02-1234-5679',
   logo_url: null,
-  description: '개발용 데모 중개사무소입니다.',
-  specialties: ['아파트', '오피스텔', '상가'],
+  description: '강남 지역 전문 공인중개사 사무소입니다. 아파트, 오피스텔, 상가 등 다양한 매물을 취급합니다.',
+  specialties: ['아파트', '오피스텔', '상가', '사무실'],
   business_hours: null,
   subscription_plan: 'pro',
 }
