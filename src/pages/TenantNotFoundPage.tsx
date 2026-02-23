@@ -10,7 +10,7 @@ export default function TenantNotFoundPage() {
         주소를 다시 확인하시거나, 아래 링크를 통해 Smart Home 메인 페이지로 이동하세요.
       </p>
       <a
-        href="https://smarthome.co.kr"
+        href="/"
         className="mt-8 rounded-lg bg-primary-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-700"
       >
         Smart Home 메인으로

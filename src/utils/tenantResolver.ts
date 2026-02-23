@@ -14,6 +14,9 @@ export type TenantSource =
 /** Domains that belong to the platform itself (not a tenant). */
 const PLATFORM_DOMAINS = ['smarthome.co.kr', 'localhost']
 
+/** Vercel preview/production domains — treat as dev_default (mock tenant). */
+const VERCEL_DOMAIN_SUFFIXES = ['.vercel.app']
+
 /**
  * Extract tenant info from the current hostname.
  *
@@ -49,6 +52,13 @@ export function resolveTenantFromHostname(): TenantSource {
       if (sub && !sub.includes('.')) {
         return { source: 'slug', identifier: sub }
       }
+    }
+  }
+
+  // Check Vercel deployment domains → treat as dev_default (use mock tenant)
+  for (const suffix of VERCEL_DOMAIN_SUFFIXES) {
+    if (hostname.endsWith(suffix)) {
+      return { source: 'dev_default' }
     }
   }
 
