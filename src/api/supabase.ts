@@ -6,7 +6,9 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-a
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: sessionStorage,
-    storageKey: 'sb-auth-token',
+    storage: localStorage,
+    storageKey: 'smart-home-auth',
+    detectSessionInUrl: true,
+    lock: (_name, _acquireTimeout, fn) => fn(),
   },
 })

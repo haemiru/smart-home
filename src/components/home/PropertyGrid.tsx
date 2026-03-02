@@ -18,7 +18,7 @@ export function PropertyGrid() {
   const agentId = useTenantStore((s) => s.agentId)
   const [properties, setProperties] = useState<Property[]>([])
   const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [regions, setRegions] = useState<RegionSetting[]>([])
 
   // Load region settings once
@@ -29,7 +29,6 @@ export function PropertyGrid() {
   useEffect(() => {
     if (!selectedCategory) return
     let cancelled = false
-    setLoading(true)
 
     fetchProperties({
       categoryId: selectedCategory || undefined,
@@ -52,7 +51,7 @@ export function PropertyGrid() {
       })
 
     return () => { cancelled = true }
-  }, [selectedCategory, selectedDealType])
+  }, [selectedCategory, selectedDealType, agentId])
 
   return (
     <div>

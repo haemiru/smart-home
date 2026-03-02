@@ -13,8 +13,8 @@ export function CoBrokeragePoolPage() {
   const [message, setMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
 
-  const loadData = () => {
-    setIsLoading(true)
+  const loadData = (showLoading = false) => {
+    if (showLoading) setIsLoading(true)
     fetchSharedProperties(search || undefined).then((data) => {
       setProperties(data)
       setIsLoading(false)
@@ -23,10 +23,11 @@ export function CoBrokeragePoolPage() {
 
   useEffect(() => {
     loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleSearch = () => {
-    loadData()
+    loadData(true)
   }
 
   const handleRequest = async () => {

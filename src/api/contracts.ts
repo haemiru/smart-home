@@ -227,7 +227,7 @@ export async function updateProcessStep(stepId: string, data: { due_date?: strin
 }
 
 // User: fetch contracts they're party to
-export async function fetchMyContracts(_userId?: string): Promise<Contract[]> {
+export async function fetchMyContracts(_userId?: string): Promise<Contract[]> { // eslint-disable-line @typescript-eslint/no-unused-vars
   // For now, return all contracts visible to the user via RLS
   const { data, error } = await supabase
     .from('contracts')

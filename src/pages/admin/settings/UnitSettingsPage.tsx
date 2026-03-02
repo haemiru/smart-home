@@ -3,6 +3,23 @@ import { fetchUnitSettings, updateUnitSettings } from '@/api/settings'
 import type { UnitSettings } from '@/api/settings'
 import toast from 'react-hot-toast'
 
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button onClick={() => onChange(!checked)} className={`relative h-6 w-11 rounded-full transition-colors ${checked ? 'bg-primary-600' : 'bg-gray-300'}`}>
+      <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : ''}`} />
+    </button>
+  )
+}
+
+function Radio({ value, current, onChange, label }: { value: string; current: string; onChange: (v: string) => void; label: string }) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2">
+      <input type="radio" checked={current === value} onChange={() => onChange(value)} className="h-4 w-4 text-primary-600" />
+      <span className="text-sm">{label}</span>
+    </label>
+  )
+}
+
 export function UnitSettingsPage() {
   const [settings, setSettings] = useState<UnitSettings | null>(null)
 
@@ -16,19 +33,6 @@ export function UnitSettingsPage() {
     await updateUnitSettings(settings)
     toast.success('저장되었습니다.')
   }
-
-  const Toggle = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => (
-    <button onClick={() => onChange(!checked)} className={`relative h-6 w-11 rounded-full transition-colors ${checked ? 'bg-primary-600' : 'bg-gray-300'}`}>
-      <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : ''}`} />
-    </button>
-  )
-
-  const Radio = ({ value, current, onChange, label }: { value: string; current: string; onChange: (v: string) => void; label: string }) => (
-    <label className="flex cursor-pointer items-center gap-2">
-      <input type="radio" checked={current === value} onChange={() => onChange(value)} className="h-4 w-4 text-primary-600" />
-      <span className="text-sm">{label}</span>
-    </label>
-  )
 
   return (
     <div className="space-y-5">

@@ -133,6 +133,7 @@ export async function fetchReceivedRequests(): Promise<CoBrokerageRequest[]> {
   if (error) throw error
 
   // Strip the join data and return just the request
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   return (data ?? []).map(({ shared_properties, ...req }) => req) as CoBrokerageRequest[]
 }
 

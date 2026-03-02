@@ -16,7 +16,6 @@ export function CoBrokerageRequestsPage() {
   const [commissionRatio, setCommissionRatio] = useState(50)
 
   useEffect(() => {
-    setIsLoading(true)
     Promise.all([fetchReceivedRequests(), fetchSentRequests()]).then(([recv, snt]) => {
       setReceived(recv)
       setSent(snt)

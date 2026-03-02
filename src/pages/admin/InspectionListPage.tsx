@@ -16,7 +16,6 @@ export function InspectionListPage() {
   const [showNewModal, setShowNewModal] = useState(false)
 
   useEffect(() => {
-    setIsLoading(true)
     fetchInspections(statusTab).then((data) => {
       setInspections(data)
       setIsLoading(false)
@@ -69,7 +68,7 @@ export function InspectionListPage() {
         {tabs.map((t) => (
           <button
             key={t.key}
-            onClick={() => setStatusTab(t.key)}
+            onClick={() => { setIsLoading(true); setStatusTab(t.key) }}
             className={`rounded-lg px-4 py-2 text-sm font-medium ${
               statusTab === t.key ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}

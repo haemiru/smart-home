@@ -142,12 +142,20 @@ export async function getAgentProfile(userId: string) {
 }
 
 export async function validateInviteCode(code: string): Promise<{ officeName: string; agentProfileId: string } | null> {
-  const { data, error } = await supabase.rpc('validate_invite_code', {
-    _code: code.toUpperCase(),
-  })
+  const upperCode = code.toUpperCase()
 
-  if (error || !data || data.length === 0) return null
+  // agent_profiles.invite_code 컬럼 직접 조회
+  const { data: profile, error } = await supabase
+    .from('agent_profiles')
+    .select('id, office_name')
+    .eq('invite_code', upperCode)
+    .maybeSingle()
 
-  const row = data[0] as { office_name: string; agent_profile_id: string }
-  return { officeName: row.office_name, agentProfileId: row.agent_profile_id }
+  if (error) {
+    console.error('invite code validation error:', error)
+    return null
+  }
+
+  if (!profile) return null
+  return { officeName: profile.office_name, agentProfileId: profile.id }
 }

@@ -100,17 +100,29 @@ function generateCode(): string {
 }
 
 export async function fetchInviteCode(): Promise<string> {
-  const stored = await fetchAgentSetting<{ code: string } | null>('invite_code', null)
+  const agentId = await getAgentProfileId()
+  const { data, error } = await supabase
+    .from('agent_profiles')
+    .select('invite_code')
+    .eq('id', agentId)
+    .single()
 
-  if (stored?.code) return stored.code
+  if (error) throw error
+  if (data?.invite_code) return data.invite_code
 
   // 코드가 없으면 자동 생성
   return regenerateInviteCode()
 }
 
 export async function regenerateInviteCode(): Promise<string> {
+  const agentId = await getAgentProfileId()
   const code = generateCode()
-  await upsertAgentSetting('invite_code', { code })
+  const { error } = await supabase
+    .from('agent_profiles')
+    .update({ invite_code: code })
+    .eq('id', agentId)
+
+  if (error) throw error
   return code
 }
 

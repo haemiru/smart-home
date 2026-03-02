@@ -67,6 +67,7 @@ const SecuritySettingsPage = lazy(() => import('@/pages/admin/settings/SecurityS
 
 // ─── Suspense wrapper ─────────────────────────────────
 
+// eslint-disable-next-line react-refresh/only-export-components
 function PageLoader() {
   return (
     <div className="flex h-40 items-center justify-center">
@@ -75,6 +76,7 @@ function PageLoader() {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 function S({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<PageLoader />}>{children}</Suspense>
 }
