@@ -26,15 +26,15 @@ export function DashboardPage() {
 
   useEffect(() => {
     Promise.all([
-      fetchDashboardSummary(),
-      fetchMonthlyPerformance(),
-      fetchUnansweredInquiries(),
-      fetchTodaySchedule(),
-      fetchPropertyStats(),
-      fetchActivityFeed(),
-      fetchTodoList(),
+      fetchDashboardSummary().catch(() => null),
+      fetchMonthlyPerformance().catch(() => null),
+      fetchUnansweredInquiries().catch(() => []),
+      fetchTodaySchedule().catch(() => []),
+      fetchPropertyStats().catch(() => []),
+      fetchActivityFeed().catch(() => []),
+      fetchTodoList().catch(() => []),
     ]).then(([s, p, i, sc, ps, a, t]) => {
-      setSummary(s)
+      setSummary(s ?? { newInquiries: 0, inquiryDelta: 0, activeContracts: 0, totalProperties: 0, activeProperties: 0, totalCustomers: 0 })
       setPerformance(p)
       setInquiries(i)
       setSchedule(sc)

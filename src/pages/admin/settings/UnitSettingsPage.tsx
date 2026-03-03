@@ -24,7 +24,7 @@ export function UnitSettingsPage() {
   const [settings, setSettings] = useState<UnitSettings | null>(null)
 
   useEffect(() => {
-    fetchUnitSettings().then(setSettings)
+    fetchUnitSettings().then(setSettings).catch(() => setSettings({ area_unit: 'sqm', area_dual_display: true, price_unit: 'man', price_auto_convert: true, price_separator: true, distance_unit: 'm', date_format: 'YYYY.MM.DD', time_format: '24h' }))
   }, [])
 
   if (!settings) return <div className="flex h-40 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" /></div>

@@ -84,7 +84,7 @@ export function PropertyFormPage() {
   const [customTagLabels, setCustomTagLabels] = useState<string[]>([])
 
   useEffect(() => {
-    fetchCategories().then(setCategories)
+    fetchCategories().then(setCategories).catch(() => setCategories([]))
     // Load custom quick search cards to get custom tag labels
     fetchSearchSettings()
       .then((s) => {

@@ -22,7 +22,7 @@ export function BillingSettingsPage() {
   const agentProfile = useAuthStore((s) => s.agentProfile)
 
   useEffect(() => {
-    fetchBillingInfo().then(setBilling)
+    fetchBillingInfo().then(setBilling).catch(() => setBilling({ current_plan: 'free', plan_label: 'Free', price: 0, next_billing_date: '', payment_history: [] }))
   }, [])
 
   async function handleChangePlan(newPlan: PlanType) {

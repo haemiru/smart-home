@@ -776,43 +776,43 @@ export async function changePlan(plan: PlanType): Promise<void> {
 }
 
 // ──────────────────────────────────────────
-// Security Settings (mock — Supabase Auth domain)
+// Security Settings
 // ──────────────────────────────────────────
 
 export type LoginRecord = {
   date: string
   ip: string
   device: string
-  location: string
-}
-
-export type ActiveSession = {
-  id: string
-  device: string
-  ip: string
-  last_active: string
-  is_current: boolean
 }
 
 export type SecuritySettings = {
   two_factor_enabled: boolean
   login_records: LoginRecord[]
-  active_sessions: ActiveSession[]
 }
 
 export async function fetchSecuritySettings(): Promise<SecuritySettings> {
+  const { fetchLoginRecords } = await import('@/api/auth')
+
+  // Check real MFA enrollment status
+  let twoFactorEnabled = false
+  try {
+    const { data } = await supabase.auth.mfa.listFactors()
+    twoFactorEnabled = (data?.totp ?? []).some((f) => f.status === 'verified')
+  } catch {
+    // Not logged in or MFA not supported — default to false
+  }
+
+  // Fetch real login records
+  let loginRecords: LoginRecord[] = []
+  try {
+    loginRecords = await fetchLoginRecords()
+  } catch {
+    // Table might not exist yet — gracefully degrade
+  }
+
   return {
-    two_factor_enabled: false,
-    login_records: [
-      { date: '2026-02-18T09:15:00Z', ip: '123.45.67.89', device: 'Chrome / Windows', location: '서울' },
-      { date: '2026-02-17T14:30:00Z', ip: '123.45.67.89', device: 'Chrome / Windows', location: '서울' },
-      { date: '2026-02-16T10:00:00Z', ip: '111.222.33.44', device: 'Safari / iPhone', location: '서울' },
-      { date: '2026-02-15T08:45:00Z', ip: '123.45.67.89', device: 'Chrome / Windows', location: '서울' },
-    ],
-    active_sessions: [
-      { id: 'sess-1', device: 'Chrome / Windows', ip: '123.45.67.89', last_active: '2026-02-18T09:15:00Z', is_current: true },
-      { id: 'sess-2', device: 'Safari / iPhone', ip: '111.222.33.44', last_active: '2026-02-16T10:00:00Z', is_current: false },
-    ],
+    two_factor_enabled: twoFactorEnabled,
+    login_records: loginRecords,
   }
 }
 

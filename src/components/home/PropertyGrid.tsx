@@ -28,7 +28,11 @@ export function PropertyGrid() {
   }, [agentId])
 
   useEffect(() => {
-    if (!selectedCategory) return
+    if (!selectedCategory) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
     let cancelled = false
 
     fetchProperties({

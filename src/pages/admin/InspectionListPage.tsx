@@ -172,7 +172,7 @@ function NewInspectionModal({ onClose, onCreate }: { onClose: () => void; onCrea
   const [search, setSearch] = useState('')
 
   useEffect(() => {
-    fetchAdminProperties({ statusTab: 'all' }).then(setProperties)
+    fetchAdminProperties({ statusTab: 'all' }).then(setProperties).catch(() => setProperties([]))
   }, [])
 
   const filtered = search

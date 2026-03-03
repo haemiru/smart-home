@@ -1,20 +1,41 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState, useMemo } from 'react'
 import { useHomeFilterStore } from '@/stores/homeFilterStore'
 import { useCategories } from '@/hooks/useCategories'
+import { fetchAgentSpecialties } from '@/api/settings'
+import { useTenantStore } from '@/stores/tenantStore'
 
 export function CategoryTabs() {
   const { selectedCategory, setCategory } = useHomeFilterStore()
   const { categories, isLoading } = useCategories()
+  const agentId = useTenantStore((s) => s.agentId)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [specialties, setSpecialties] = useState<string[]>([])
+  const [specLoaded, setSpecLoaded] = useState(false)
+
+  useEffect(() => {
+    setSpecLoaded(false)
+    fetchAgentSpecialties(agentId ?? undefined)
+      .then((s) => { setSpecialties(s); setSpecLoaded(true) })
+      .catch(() => setSpecLoaded(true))
+  }, [agentId])
+
+  // Show only specialties (in order). Fallback to all categories if none set.
+  const sorted = useMemo(() => {
+    if (specialties.length === 0) return categories
+    return specialties
+      .map((s) => categories.find((c) => c.name === s))
+      .filter(Boolean) as typeof categories
+  }, [categories, specialties])
 
   // Auto-select the first category once loaded
   useEffect(() => {
-    if (!selectedCategory && categories.length > 0) {
-      setCategory(categories[0].id)
+    if (specLoaded && sorted.length > 0) {
+      // Always re-select first specialty when navigating to user portal
+      setCategory(sorted[0].id)
     }
-  }, [categories, selectedCategory, setCategory])
+  }, [sorted, specLoaded, setCategory])
 
-  if (isLoading || categories.length === 0) return null
+  if (isLoading || !specLoaded || sorted.length === 0) return null
 
   return (
     <section id="category-tabs" className="sticky top-16 z-20 border-b border-gray-200 bg-white">
@@ -23,7 +44,7 @@ export function CategoryTabs() {
           ref={scrollRef}
           className="scrollbar-hide flex overflow-x-auto"
         >
-          {categories.map((cat) => (
+          {sorted.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setCategory(cat.id)}

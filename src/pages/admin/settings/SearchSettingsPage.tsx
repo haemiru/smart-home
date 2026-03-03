@@ -38,7 +38,7 @@ export function SearchSettingsPage() {
   const [regionSaving, setRegionSaving] = useState(false)
 
   useEffect(() => {
-    fetchSearchSettings().then(setSettings)
+    fetchSearchSettings().then(setSettings).catch(() => setSettings({ filter_groups: [], quick_cards: [], default_sort: 'newest', items_per_page: 12, default_view: 'grid', map_center: { lat: 37.5665, lng: 126.978 }, map_zoom: 11 }))
     fetchRegionSettings()
       .then((r) => { setRegions(r); setRegionsLoaded(true) })
       .catch(() => { setRegions([]); setRegionsLoaded(true) })
