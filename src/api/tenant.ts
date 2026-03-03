@@ -30,6 +30,23 @@ export async function fetchTenantByDomain(domain: string): Promise<TenantProfile
   return tenant
 }
 
+export async function fetchTenantById(id: string): Promise<TenantProfile | null> {
+  const cached = _cache.get(`id:${id}`)
+  if (cached) return cached
+
+  const { data, error } = await supabase
+    .from('agent_profiles')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (error || !data) return null
+
+  const tenant = data as TenantProfile
+  _cache.set(`id:${id}`, tenant)
+  return tenant
+}
+
 export function clearTenantCache(): void {
   _cache = new Map()
 }

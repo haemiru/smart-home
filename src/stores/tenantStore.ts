@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { TenantProfile } from '@/types/database'
 import { resolveTenantFromHostname } from '@/utils/tenantResolver'
-import { fetchTenantBySlug, fetchTenantByDomain, clearTenantCache } from '@/api/tenant'
+import { fetchTenantBySlug, fetchTenantByDomain, fetchTenantById, clearTenantCache } from '@/api/tenant'
 
 export type TenantStatus = 'loading' | 'resolved' | 'not_found' | 'landing'
 
@@ -67,7 +67,15 @@ export const useTenantStore = create<TenantState>((set) => ({
       }
 
       case 'dev_default': {
-        // Development: try env slug first, then fall back to mock
+        // Development/Vercel: try env ID first, then slug, then mock
+        const devId = import.meta.env.VITE_DEV_TENANT_ID as string | undefined
+        if (devId) {
+          const tenant = await fetchTenantById(devId)
+          if (tenant) {
+            set({ tenant, agentId: tenant.id, status: 'resolved', isLanding: false })
+            return
+          }
+        }
         const devSlug = import.meta.env.VITE_DEV_TENANT_SLUG as string | undefined
         if (devSlug) {
           const tenant = await fetchTenantBySlug(devSlug)
