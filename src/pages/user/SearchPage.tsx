@@ -73,38 +73,44 @@ export function SearchPage() {
 
   const load = useCallback(async () => {
     setIsLoading(true)
-    const filters: PropertyFilters = {
-      search: search || undefined,
-      categoryId: categoryId || undefined,
-      transactionType: (txType as TransactionType) || undefined,
-      minPrice: minPrice ? parseInt(minPrice) : undefined,
-      maxPrice: maxPrice ? parseInt(maxPrice) : undefined,
-      minArea: minArea ? parseFloat(minArea) : undefined,
-      maxArea: maxArea ? parseFloat(maxArea) : undefined,
-      rooms: rooms ? parseInt(rooms) : undefined,
-      direction: direction || undefined,
-      addressSearch: activeRegion || undefined,
-    }
-
-    // Merge quick search filters
-    if (resolvedQuick) {
-      Object.assign(filters, resolvedQuick.filters)
-      if (resolvedQuick.tags.length > 0) {
-        filters.tags = [...(filters.tags || []), ...resolvedQuick.tags]
+    try {
+      const filters: PropertyFilters = {
+        search: search || undefined,
+        categoryId: categoryId || undefined,
+        transactionType: (txType as TransactionType) || undefined,
+        minPrice: minPrice ? parseInt(minPrice) : undefined,
+        maxPrice: maxPrice ? parseInt(maxPrice) : undefined,
+        minArea: minArea ? parseFloat(minArea) : undefined,
+        maxArea: maxArea ? parseFloat(maxArea) : undefined,
+        rooms: rooms ? parseInt(rooms) : undefined,
+        direction: direction || undefined,
+        addressSearch: activeRegion || undefined,
       }
+
+      // Merge quick search filters
+      if (resolvedQuick) {
+        Object.assign(filters, resolvedQuick.filters)
+        if (resolvedQuick.tags.length > 0) {
+          filters.tags = [...(filters.tags || []), ...resolvedQuick.tags]
+        }
+      }
+
+      const res = await fetchProperties(filters, sort, page, pageSize, agentId ?? undefined)
+
+      // Apply client-side filters (e.g. top floor)
+      let data = res.data
+      if (resolvedQuick?.clientFilters.length) {
+        data = data.filter((p) => resolvedQuick.clientFilters.every((fn) => fn(p)))
+      }
+
+      setProperties(data)
+      setTotal(resolvedQuick?.clientFilters.length ? data.length : res.total)
+    } catch {
+      setProperties([])
+      setTotal(0)
+    } finally {
+      setIsLoading(false)
     }
-
-    const res = await fetchProperties(filters, sort, page, pageSize, agentId ?? undefined)
-
-    // Apply client-side filters (e.g. top floor)
-    let data = res.data
-    if (resolvedQuick?.clientFilters.length) {
-      data = data.filter((p) => resolvedQuick.clientFilters.every((fn) => fn(p)))
-    }
-
-    setProperties(data)
-    setTotal(resolvedQuick?.clientFilters.length ? data.length : res.total)
-    setIsLoading(false)
   }, [search, categoryId, txType, sort, page, minPrice, maxPrice, minArea, maxArea, rooms, direction, resolvedQuick, activeRegion, agentId])
 
   useEffect(() => { void load() }, [load])
