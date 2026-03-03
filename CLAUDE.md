@@ -121,7 +121,7 @@ Each feature lives in `src/features/{name}/` with its own `components/`, `hooks/
 
 ### AI Features (Gemini 3 Pro)
 
-- **Common**: `src/api/gemini.ts` — `generateContent(prompt, systemPrompt?)` with retry logic, error handling
+- **Common**: `src/api/gemini.ts` — `generateContent(prompt, systemPrompt?)` via Supabase Edge Function (`supabase/functions/generate-content/`). API key stays server-side (`GEMINI_API_KEY` Supabase secret). Retry logic lives in the Edge Function.
 - **AI Description Generator** (`/admin/ai-tools/description`) — property selection or manual input, platform (blog/naver/instagram) + tone (professional/friendly/emotional), generates 3 versions
 - **AI Legal Review** — button on `/admin/contracts/:id/tracker`, reviews contract against 7 laws (공인중개사법, 민법, 주택임대차보호법, etc.), categorizes as 적합/주의/위반
 - **AI Draft Reply** — button on `/admin/inquiries/:id`, generates inquiry reply draft with property context
@@ -228,11 +228,16 @@ Korean (한국어). All user-facing text uses Korean strings.
 ```
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
-VITE_GEMINI_API_KEY=your-gemini-api-key
 VITE_DEV_TENANT_SLUG=demo
 ```
 
 Copy `.env.example` to `.env` and fill in values.
+
+Gemini API key is a **Supabase secret** (not in client bundle):
+```bash
+supabase secrets set GEMINI_API_KEY=your-gemini-api-key
+supabase functions deploy generate-content
+```
 
 ## Responsive Design
 

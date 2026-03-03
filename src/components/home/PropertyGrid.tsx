@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useHomeFilterStore } from '@/stores/homeFilterStore'
 import { useTenantStore } from '@/stores/tenantStore'
@@ -7,8 +7,9 @@ import { fetchPublicRegionSettings } from '@/api/settings'
 import type { RegionSetting } from '@/api/settings'
 import type { Property, TransactionType } from '@/types/database'
 import { PropertyCard } from './PropertyCard'
-import { RegionMapCard } from './RegionMapCard'
 import { QuickSearchGrid } from './QuickSearchGrid'
+
+const RegionMapCard = lazy(() => import('./RegionMapCard').then(m => ({ default: m.RegionMapCard })))
 
 const dealTypeMap: Record<string, TransactionType> = { sale: 'sale', jeonse: 'jeonse', monthly: 'monthly' }
 
@@ -60,17 +61,19 @@ export function PropertyGrid() {
       </div>
 
       {regions.length > 0 && (
-        <div className="mb-6 flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-          {regions.map((region) => (
-            <RegionMapCard
-              key={region.name}
-              name={region.name}
-              nameEn={region.nameEn}
-              selected={false}
-              onClick={() => navigate(`/search?region=${encodeURIComponent(region.name)}`)}
-            />
-          ))}
-        </div>
+        <Suspense fallback={<div className="mb-6 h-[220px] animate-pulse rounded-2xl bg-gray-100" />}>
+          <div className="mb-6 flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            {regions.map((region) => (
+              <RegionMapCard
+                key={region.name}
+                name={region.name}
+                nameEn={region.nameEn}
+                selected={false}
+                onClick={() => navigate(`/search?region=${encodeURIComponent(region.name)}`)}
+              />
+            ))}
+          </div>
+        </Suspense>
       )}
 
       {/* 원클릭 조건별 검색 — 지도 바로 아래 */}

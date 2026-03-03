@@ -34,11 +34,14 @@ export function SearchSettingsPage() {
   const [settings, setSettings] = useState<SearchSettings | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [regions, setRegions] = useState<RegionSetting[]>([])
+  const [regionsLoaded, setRegionsLoaded] = useState(false)
   const [regionSaving, setRegionSaving] = useState(false)
 
   useEffect(() => {
     fetchSearchSettings().then(setSettings)
-    fetchRegionSettings().then(setRegions).catch(() => setRegions([]))
+    fetchRegionSettings()
+      .then((r) => { setRegions(r); setRegionsLoaded(true) })
+      .catch(() => { setRegions([]); setRegionsLoaded(true) })
   }, [])
 
   if (!settings) return <div className="flex h-40 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" /></div>
@@ -69,23 +72,29 @@ export function SearchSettingsPage() {
   }
 
   const handleRegionChange = (index: number, field: 'name' | 'nameEn', value: string) => {
-    setRegions(regions.map((r, i) => i === index ? { ...r, [field]: value } : r))
+    setRegions(prev => prev.map((r, i) => i === index ? { ...r, [field]: value } : r))
   }
 
   const handleAddRegion = () => {
-    if (regions.length >= 4) {
-      toast.error('최대 4개까지 추가할 수 있습니다.')
-      return
-    }
-    setRegions([...regions, { name: '' }])
+    setRegions(prev => {
+      if (prev.length >= 4) {
+        toast.error('최대 4개까지 추가할 수 있습니다.')
+        return prev
+      }
+      return [...prev, { name: '' }]
+    })
   }
 
   const handleDeleteRegion = (index: number) => {
-    setRegions(regions.filter((_, i) => i !== index))
+    setRegions(prev => prev.filter((_, i) => i !== index))
   }
 
   const handleSaveRegions = async () => {
     const valid = regions.filter((r) => r.name.trim())
+    if (valid.length === 0) {
+      toast.error('저장할 지역을 입력해주세요.')
+      return
+    }
     setRegionSaving(true)
     try {
       await updateRegionSettings(valid)
@@ -116,38 +125,36 @@ export function SearchSettingsPage() {
           </button>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          {regions.map((region, idx) => (
-            <div key={idx} className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 pl-3 pr-1">
-              <input
-                type="text"
-                value={region.name}
-                onChange={(e) => handleRegionChange(idx, 'name', e.target.value)}
-                placeholder="지역명"
-                className="w-24 border-none bg-transparent py-2 text-sm focus:outline-none"
-              />
-              <span className="text-gray-300">|</span>
-              <input
-                type="text"
-                value={region.nameEn ?? ''}
-                onChange={(e) => handleRegionChange(idx, 'nameEn', e.target.value)}
-                placeholder="영문 (선택)"
-                className="w-20 border-none bg-transparent py-2 text-xs text-gray-400 focus:outline-none"
-              />
-              <button
-                onClick={() => handleDeleteRegion(idx)}
-                className="rounded p-1 text-gray-400 hover:text-red-500"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-          ))}
-          {regions.length < 4 && (
-            <button
-              onClick={handleAddRegion}
-              className="rounded-lg border border-dashed border-gray-300 px-4 py-2 text-xs font-medium text-gray-500 hover:border-primary-400 hover:text-primary-600"
-            >
-              + 추가
-            </button>
+          {!regionsLoaded ? (
+            <div className="py-2 text-xs text-gray-400">불러오는 중...</div>
+          ) : (
+            <>
+              {regions.map((region, idx) => (
+                <div key={idx} className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 pl-3 pr-1">
+                  <input
+                    type="text"
+                    value={region.name}
+                    onChange={(e) => handleRegionChange(idx, 'name', e.target.value)}
+                    placeholder="예: 서울, 경기, 세종"
+                    className="w-32 border-none bg-transparent py-2 text-sm focus:outline-none"
+                  />
+                  <button
+                    onClick={() => handleDeleteRegion(idx)}
+                    className="rounded p-1 text-gray-400 hover:text-red-500"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              ))}
+              {regions.length < 4 && (
+                <button
+                  onClick={handleAddRegion}
+                  className="rounded-lg border border-dashed border-gray-300 px-4 py-2 text-xs font-medium text-gray-500 hover:border-primary-400 hover:text-primary-600"
+                >
+                  + 추가
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

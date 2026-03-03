@@ -46,7 +46,7 @@ export async function fetchAgentSpecialties(agentId?: string): Promise<string[]>
     query = query.eq('id', agentId)
   }
 
-  const { data, error } = await query.limit(1).single()
+  const { data, error } = await query.limit(1).maybeSingle()
 
   if (error || !data) return []
   return (data.specialties as string[]) ?? []
@@ -401,14 +401,24 @@ async function fetchAgentSetting<T>(settingKey: string, defaultValue: T): Promis
 
 async function upsertAgentSetting(settingKey: string, value: Record<string, unknown>): Promise<void> {
   const agentId = await getAgentProfileId()
-  const { error } = await supabase
-    .from('agent_settings')
-    .upsert(
-      { agent_id: agentId, setting_key: settingKey, setting_value: value },
-      { onConflict: 'agent_id,setting_key' },
-    )
 
-  if (error) throw error
+  // Try UPDATE first (avoids silent RLS failure with upsert)
+  const { data, error: updateError } = await supabase
+    .from('agent_settings')
+    .update({ setting_value: value })
+    .eq('agent_id', agentId)
+    .eq('setting_key', settingKey)
+    .select('id')
+
+  if (updateError) throw updateError
+  if (data && data.length > 0) return
+
+  // Row doesn't exist — INSERT
+  const { error: insertError } = await supabase
+    .from('agent_settings')
+    .insert({ agent_id: agentId, setting_key: settingKey, setting_value: value })
+
+  if (insertError) throw insertError
 }
 
 // ──────────────────────────────────────────
@@ -432,13 +442,11 @@ export async function updateRegionSettings(regions: RegionSetting[]): Promise<vo
  *  When agentId is provided, fetches that specific agent's regions.
  *  Tries authenticated path first (RLS), falls back to public read. */
 export async function fetchPublicRegionSettings(agentId?: string): Promise<RegionSetting[]> {
-  // Try authenticated fetch (works if user is logged in as agent/staff)
-  if (!agentId) {
-    try {
-      const regions = await fetchRegionSettings()
-      if (regions.length > 0) return regions
-    } catch { /* not logged in or not agent — fall through */ }
-  }
+  // Try authenticated fetch first (works if user is logged in as agent/staff)
+  try {
+    const regions = await fetchRegionSettings()
+    if (regions.length > 0) return regions
+  } catch { /* not logged in or not agent — fall through */ }
 
   // Public read (requires public RLS policy on agent_settings)
   let query = supabase
@@ -450,7 +458,7 @@ export async function fetchPublicRegionSettings(agentId?: string): Promise<Regio
     query = query.eq('agent_id', agentId)
   }
 
-  const { data, error } = await query.limit(1).single()
+  const { data, error } = await query.limit(1).maybeSingle()
 
   if (error || !data) return []
   const value = data.setting_value
@@ -469,7 +477,7 @@ export async function fetchPublicFloatingSettings(agentId?: string): Promise<Flo
       .eq('agent_id', agentId)
       .eq('setting_key', 'floating')
       .limit(1)
-      .single()
+      .maybeSingle()
 
     if (error || !data) return defaultFloatingSettings
     return data.setting_value as FloatingSettings

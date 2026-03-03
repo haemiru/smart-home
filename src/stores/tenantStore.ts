@@ -17,7 +17,7 @@ interface TenantState {
 
 /** Mock tenant for dev/demo when Supabase is unavailable or no slug set. */
 const DEV_MOCK_TENANT: TenantProfile = {
-  id: 'dev-agent-001',
+  id: '00000000-0000-0000-0000-000000000001',
   office_name: '스마트부동산',
   representative: '홍길동',
   address: '서울특별시 강남구 역삼동 테헤란로 123',

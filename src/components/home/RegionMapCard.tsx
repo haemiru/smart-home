@@ -133,6 +133,21 @@ function findMap(name: string): { data: RegionMapData; highlights: string[] } | 
     }
   }
 
+  // 6. 동 base name match (e.g. "도마동" → "도마1동", "도마2동")
+  const dongBase = name.match(/^(.+)동$/)?.[1]
+  if (dongBase) {
+    for (const [region, parent] of Object.entries(regionParents)) {
+      const rBase = region.match(/^(.+?)(\d+)동$/)?.[1]
+      if (rBase === dongBase) {
+        const d = regionMaps[parent]
+        if (d) {
+          const hl = Object.keys(d.regions).filter(r => r.startsWith(dongBase) && r.endsWith('동'))
+          if (hl.length > 0) return { data: d, highlights: hl }
+        }
+      }
+    }
+  }
+
   return null
 }
 
