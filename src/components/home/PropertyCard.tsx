@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { Property } from '@/types/database'
-import { formatPropertyPrice, formatArea, transactionTypeLabel } from '@/utils/format'
+import { formatPropertyPrice, transactionTypeLabel } from '@/utils/format'
+import { useFormatArea } from '@/components/common/AreaUnitToggle'
 
 interface PropertyCardProps {
   property: Property
@@ -13,6 +14,7 @@ const dealTypeBadgeColor: Record<string, string> = {
 }
 
 export function PropertyCard({ property }: PropertyCardProps) {
+  const formatArea = useFormatArea()
   const dealLabel = transactionTypeLabel[property.transaction_type] ?? property.transaction_type
   const priceText = formatPropertyPrice(property.transaction_type, property.sale_price, property.deposit, property.monthly_rent)
   const areaText = formatArea(property.exclusive_area_m2)

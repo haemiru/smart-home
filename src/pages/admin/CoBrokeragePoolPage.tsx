@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchSharedProperties, createCoBrokerageRequest } from '@/api/co-brokerage'
 import type { SharedProperty } from '@/types/database'
-import { formatPrice, formatArea, transactionTypeLabel, formatRelativeTime } from '@/utils/format'
+import { formatPrice, transactionTypeLabel, formatRelativeTime } from '@/utils/format'
+import { useFormatArea } from '@/components/common/AreaUnitToggle'
 import toast from 'react-hot-toast'
 
 export function CoBrokeragePoolPage() {
+  const formatArea = useFormatArea()
   const [properties, setProperties] = useState<SharedProperty[]>([])
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(true)

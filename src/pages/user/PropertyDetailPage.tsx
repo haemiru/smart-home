@@ -2,10 +2,14 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import type { Property } from '@/types/database'
 import { fetchPropertyById } from '@/api/properties'
+import { useTenantStore } from '@/stores/tenantStore'
 import { useCategories } from '@/hooks/useCategories'
 import { formatPropertyPrice, formatPrice, transactionTypeLabel } from '@/utils/format'
 import { getInfoFieldsForCategory } from '@/utils/propertyInfoFields'
 import { Button, Input } from '@/components/common'
+import { AreaUnitToggle } from '@/components/common/AreaUnitToggle'
+import { useAreaUnitStore } from '@/stores/areaUnitStore'
+import { KakaoMap } from '@/components/common/KakaoMap'
 import { Modal } from '@/components/common/Modal'
 import { createInquiry } from '@/api/inquiries'
 import type { InquiryType } from '@/types/database'
@@ -14,6 +18,9 @@ import toast from 'react-hot-toast'
 export function PropertyDetailPage() {
   const { id } = useParams()
   const { findCategory } = useCategories()
+  // Subscribe to area unit changes so info fields re-render
+  useAreaUnitStore((s) => s.unit)
+  const tenant = useTenantStore((s) => s.tenant)
   const [property, setProperty] = useState<Property | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [currentPhoto, setCurrentPhoto] = useState(0)
@@ -103,7 +110,10 @@ export function PropertyDetailPage() {
 
           {/* Info Table */}
           <div className="rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
-            <h2 className="border-b border-gray-100 px-5 py-3 text-sm font-semibold">기본 정보</h2>
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
+              <h2 className="text-sm font-semibold">기본 정보</h2>
+              <AreaUnitToggle />
+            </div>
             <div className="grid grid-cols-2 gap-px bg-gray-100 sm:grid-cols-3">
               {getInfoFieldsForCategory(cat?.name).map((field) => (
                 <div key={field.key} className="bg-white px-5 py-3">
@@ -130,12 +140,16 @@ export function PropertyDetailPage() {
             </div>
           )}
 
-          {/* Map placeholder */}
+          {/* Map */}
           <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
             <h2 className="mb-3 text-sm font-semibold">위치 정보</h2>
-            <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50">
-              <p className="text-sm text-gray-400">카카오맵 API 연동 예정</p>
-            </div>
+            {p.latitude && p.longitude ? (
+              <KakaoMap latitude={p.latitude} longitude={p.longitude} readOnly />
+            ) : (
+              <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50">
+                <p className="text-sm text-gray-400">{p.address}</p>
+              </div>
+            )}
           </div>
 
           {/* Market price placeholder */}
@@ -153,13 +167,15 @@ export function PropertyDetailPage() {
             {/* Agent Card */}
             <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-lg font-bold text-primary-700">S</div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-lg font-bold text-primary-700">
+                  {tenant?.office_name?.[0] ?? 'S'}
+                </div>
                 <div>
-                  <p className="font-semibold">스마트부동산</p>
-                  <p className="text-xs text-gray-500">서울 강남구 역삼동</p>
+                  <p className="font-semibold">{tenant?.office_name ?? '중개사무소'}</p>
+                  <p className="text-xs text-gray-500">{tenant?.address ?? ''}</p>
                 </div>
               </div>
-              <p className="mt-3 text-xs text-gray-400">대표: 홍길동 · 등록번호: 12345-2024-00001</p>
+              <p className="mt-3 text-xs text-gray-400">대표: {tenant?.representative ?? '-'} · 연락처: {tenant?.phone ?? '-'}</p>
             </div>
 
             {/* Action Buttons */}

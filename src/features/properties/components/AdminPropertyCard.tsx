@@ -1,5 +1,6 @@
 import type { Property } from '@/types/database'
-import { formatPropertyPrice, formatArea, propertyStatusLabel, propertyStatusColor, transactionTypeLabel, formatDate } from '@/utils/format'
+import { formatPropertyPrice, propertyStatusLabel, propertyStatusColor, transactionTypeLabel, formatDate } from '@/utils/format'
+import { useFormatArea } from '@/components/common/AreaUnitToggle'
 import { useCategories } from '@/hooks/useCategories'
 
 interface AdminPropertyCardProps {
@@ -9,6 +10,7 @@ interface AdminPropertyCardProps {
 }
 
 export function AdminPropertyCard({ property: p, isSelected, onSelect }: AdminPropertyCardProps) {
+  const formatArea = useFormatArea()
   const { findCategory } = useCategories()
   const cat = findCategory(p.category_id)
 

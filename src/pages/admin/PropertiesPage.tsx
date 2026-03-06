@@ -10,8 +10,8 @@ import toast from 'react-hot-toast'
 
 const statusTabs: { key: PropertyStatus | 'all'; label: string }[] = [
   { key: 'all', label: '전체' },
-  { key: 'draft', label: '등록중' },
-  { key: 'active', label: '광고중' },
+  { key: 'draft', label: '매물등록중' },
+  { key: 'active', label: '포털 공개중' },
   { key: 'contracted', label: '계약진행' },
   { key: 'completed', label: '거래완료' },
   { key: 'hold', label: '보류' },
@@ -60,6 +60,12 @@ export function PropertiesPage() {
     } else {
       setSelectedIds(new Set(properties.map((p) => p.id)))
     }
+  }
+
+  const handleStatusChange = async (id: string, status: PropertyStatus) => {
+    await updatePropertyStatus([id], status)
+    toast.success(`상태를 "${propertyStatusLabel[status]}"(으)로 변경했습니다.`)
+    load()
   }
 
   const handleBulkStatus = async (status: PropertyStatus) => {
@@ -143,7 +149,7 @@ export function PropertiesPage() {
               defaultValue=""
             >
               <option value="" disabled>상태 변경</option>
-              <option value="active">광고중</option>
+              <option value="active">포털 공개중</option>
               <option value="hold">보류</option>
               <option value="contracted">계약진행</option>
               <option value="completed">거래완료</option>
@@ -157,7 +163,7 @@ export function PropertiesPage() {
       {isLoading ? (
         <div className="py-20 text-center"><div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" /></div>
       ) : viewMode === 'table' ? (
-        <AdminPropertyTable properties={properties} selectedIds={selectedIds} onSelect={handleSelect} onSelectAll={handleSelectAll} />
+        <AdminPropertyTable properties={properties} selectedIds={selectedIds} onSelect={handleSelect} onSelectAll={handleSelectAll} onStatusChange={handleStatusChange} />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {properties.map((p) => (

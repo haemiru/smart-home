@@ -1,11 +1,17 @@
-import { useState, useEffect, useMemo, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback, type FormEvent, type DragEvent } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import type { TransactionType, PropertyStatus, PropertyCategory } from '@/types/database'
 import { fetchPropertyById, createProperty, updateProperty, fetchCategories } from '@/api/properties'
-import { fetchSearchSettings } from '@/api/settings'
+import { getAgentProfileId } from '@/api/helpers'
+import { fetchSearchSettings, fetchAgentSpecialties } from '@/api/settings'
+import { uploadPropertyPhoto, deletePropertyPhoto, validateFile } from '@/api/storage'
 import { getTagBasedConditions, type TagConditionInfo } from '@/utils/conditionResolver'
 import { Button, Input } from '@/components/common'
-import { formatNumber, parseCommaNumber, sqmToPyeong } from '@/utils/format'
+import { generateContent } from '@/api/gemini'
+import { KakaoMap, openAddressSearch, geocodeAddress } from '@/components/common/KakaoMap'
+import { formatNumber, parseCommaNumber, sqmToPyeong, pyeongToSqm } from '@/utils/format'
+import { AreaUnitToggle } from '@/components/common/AreaUnitToggle'
+import { useAreaUnitStore } from '@/stores/areaUnitStore'
 import toast from 'react-hot-toast'
 
 const tabs = [
@@ -32,8 +38,6 @@ type FormData = {
   status: PropertyStatus
   address: string
   address_detail: string
-  dong: string
-  ho: string
   sale_price: string
   deposit: string
   monthly_rent: string
@@ -49,6 +53,8 @@ type FormData = {
   parking_per_unit: string
   has_elevator: boolean
   pets_allowed: boolean
+  latitude: string
+  longitude: string
   options: string[]
   description: string
   is_urgent: boolean
@@ -63,10 +69,11 @@ type FormData = {
 
 const emptyForm: FormData = {
   category_id: '', title: '', transaction_type: 'sale', status: 'draft',
-  address: '', address_detail: '', dong: '', ho: '',
+  address: '', address_detail: '',
   sale_price: '', deposit: '', monthly_rent: '', maintenance_fee: '',
   supply_area_m2: '', exclusive_area_m2: '', rooms: '', bathrooms: '',
   total_floors: '', floor: '', direction: '', move_in_date: '',
+  latitude: '', longitude: '',
   parking_per_unit: '', has_elevator: false, pets_allowed: false,
   options: [], description: '', is_urgent: false, is_co_brokerage: false,
   co_brokerage_fee_ratio: '', internal_memo: '', built_year: '', tags: '', predefinedTags: [], photos: [],
@@ -80,11 +87,17 @@ export function PropertyFormPage() {
   const [form, setForm] = useState<FormData>(emptyForm)
   const [categories, setCategories] = useState<PropertyCategory[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [aiGenerating, setAiGenerating] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [specialties, setSpecialties] = useState<string[]>([])
   const [tagConditions] = useState<TagConditionInfo[]>(getTagBasedConditions())
   const [customTagLabels, setCustomTagLabels] = useState<string[]>([])
 
   useEffect(() => {
     fetchCategories().then(setCategories).catch(() => setCategories([]))
+    fetchAgentSpecialties().then(setSpecialties).catch(() => {})
     // Load custom quick search cards to get custom tag labels
     fetchSearchSettings()
       .then((s) => {
@@ -109,8 +122,6 @@ export function PropertyFormPage() {
           status: p.status,
           address: p.address,
           address_detail: p.address_detail || '',
-          dong: p.dong || '',
-          ho: p.ho || '',
           sale_price: p.sale_price ? String(p.sale_price) : '',
           deposit: p.deposit ? String(p.deposit) : '',
           monthly_rent: p.monthly_rent ? String(p.monthly_rent) : '',
@@ -121,6 +132,8 @@ export function PropertyFormPage() {
           bathrooms: p.bathrooms != null ? String(p.bathrooms) : '',
           total_floors: p.total_floors != null ? String(p.total_floors) : '',
           floor: p.floor != null ? String(p.floor) : '',
+          latitude: p.latitude != null ? String(p.latitude) : '',
+          longitude: p.longitude != null ? String(p.longitude) : '',
           direction: p.direction || '',
           move_in_date: p.move_in_date || '',
           parking_per_unit: p.parking_per_unit != null ? String(p.parking_per_unit) : '',
@@ -148,17 +161,19 @@ export function PropertyFormPage() {
     if (!form.title || !form.address) { toast.error('제목과 주소는 필수입니다.'); return }
     setIsLoading(true)
     try {
+      const agentId = await getAgentProfileId()
       const payload = {
-        agent_id: 'agent-1',
+        agent_id: agentId,
         category_id: form.category_id || null,
         title: form.title,
         transaction_type: form.transaction_type,
         status: form.status,
         address: form.address,
         address_detail: form.address_detail || null,
-        dong: form.dong || null,
-        ho: form.ho || null,
-        latitude: null, longitude: null,
+        dong: null,
+        ho: null,
+        latitude: form.latitude ? parseFloat(form.latitude) : null,
+        longitude: form.longitude ? parseFloat(form.longitude) : null,
         sale_price: parseCommaNumber(form.sale_price),
         deposit: parseCommaNumber(form.deposit),
         monthly_rent: parseCommaNumber(form.monthly_rent),
@@ -229,8 +244,215 @@ export function PropertyFormPage() {
     return customTagLabels
   }, [customTagLabels])
 
-  const supplyPyeong = form.supply_area_m2 ? sqmToPyeong(parseFloat(form.supply_area_m2)) : null
-  const exclusivePyeong = form.exclusive_area_m2 ? sqmToPyeong(parseFloat(form.exclusive_area_m2)) : null
+  const handleFiles = useCallback(async (files: File[]) => {
+    const remaining = 20 - form.photos.length
+    if (remaining <= 0) { toast.error('사진은 최대 20장까지 등록할 수 있습니다.'); return }
+    const toUpload = files.slice(0, remaining)
+
+    for (const file of toUpload) {
+      const err = validateFile(file)
+      if (err) { toast.error(`${file.name}: ${err}`); continue }
+    }
+
+    setUploading(true)
+    try {
+      const agentId = await getAgentProfileId()
+      const validFiles = toUpload.filter((f) => !validateFile(f))
+      const urls = await Promise.all(validFiles.map((f) => uploadPropertyPhoto(f, agentId)))
+      set('photos', [...form.photos, ...urls])
+      toast.success(`${urls.length}장 업로드 완료`)
+    } catch {
+      toast.error('사진 업로드에 실패했습니다.')
+    } finally {
+      setUploading(false)
+    }
+  }, [form.photos])
+
+  const handleDragOver = useCallback((e: DragEvent) => { e.preventDefault(); setDragOver(true) }, [])
+  const handleDragLeave = useCallback(() => setDragOver(false), [])
+  const handleDrop = useCallback((e: DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'))
+    if (files.length > 0) handleFiles(files)
+  }, [handleFiles])
+
+  const handleDeletePhoto = useCallback(async (index: number) => {
+    const url = form.photos[index]
+    try {
+      await deletePropertyPhoto(url)
+    } catch { /* storage delete may fail for old mock URLs — continue anyway */ }
+    set('photos', form.photos.filter((_, i) => i !== index))
+  }, [form.photos])
+
+  const handleSetPrimary = useCallback((index: number) => {
+    const next = [...form.photos]
+    const [item] = next.splice(index, 1)
+    next.unshift(item)
+    set('photos', next)
+  }, [form.photos])
+
+  const handleMovePhoto = useCallback((index: number, dir: -1 | 1) => {
+    const next = [...form.photos]
+    const target = index + dir
+    if (target < 0 || target >= next.length) return
+    ;[next[index], next[target]] = [next[target], next[index]]
+    set('photos', next)
+  }, [form.photos])
+
+  const handleOpenPostcode = useCallback(async () => {
+    try {
+      const result = await openAddressSearch()
+      const addr = result.roadAddress || result.jibunAddress
+      set('address', addr)
+      // Geocode to get coordinates
+      const coords = await geocodeAddress(addr)
+      if (coords) {
+        set('latitude', String(coords.lat))
+        set('longitude', String(coords.lng))
+      }
+    } catch {
+      toast.error('주소 검색을 열 수 없습니다.')
+    }
+  }, [])
+
+  const handleAIDescription = useCallback(async () => {
+    if (!form.title && !form.address) {
+      toast.error('제목 또는 주소를 먼저 입력해주세요.')
+      return
+    }
+    setAiGenerating(true)
+    try {
+      const catName = categories.find((c) => c.id === form.category_id)?.name || ''
+      const txLabel = { sale: '매매', jeonse: '전세', monthly: '월세' }[form.transaction_type] || ''
+      const priceInfo = form.transaction_type === 'sale'
+        ? (form.sale_price ? `매매가 ${Number(form.sale_price).toLocaleString()}만원` : '')
+        : form.transaction_type === 'jeonse'
+          ? (form.deposit ? `전세 ${Number(form.deposit).toLocaleString()}만원` : '')
+          : [form.deposit ? `보증금 ${Number(form.deposit).toLocaleString()}만원` : '', form.monthly_rent ? `월세 ${Number(form.monthly_rent).toLocaleString()}만원` : ''].filter(Boolean).join(' / ')
+      const areaInfo = [
+        form.supply_area_m2 ? `공급 ${form.supply_area_m2}㎡` : '',
+        form.exclusive_area_m2 ? `전용 ${form.exclusive_area_m2}㎡` : '',
+      ].filter(Boolean).join(', ')
+      const structInfo = [
+        form.rooms ? `방 ${form.rooms}개` : '',
+        form.bathrooms ? `욕실 ${form.bathrooms}개` : '',
+        form.floor ? `${form.floor}층` : '',
+        form.total_floors ? `(총 ${form.total_floors}층)` : '',
+        form.direction || '',
+      ].filter(Boolean).join(', ')
+      const detailInfo = [
+        form.has_elevator ? '엘리베이터 있음' : '',
+        form.pets_allowed ? '반려동물 가능' : '',
+        form.parking_per_unit ? `주차 ${form.parking_per_unit}대` : '',
+        form.options.length > 0 ? `옵션: ${form.options.join(', ')}` : '',
+      ].filter(Boolean).join(', ')
+
+      // 유형별 위치 기반 분석 지시
+      const categoryGuideMap: Record<string, string> = {
+        '아파트': '주소 위치를 기반으로 주변 학군(초·중·고), 가장 가까운 지하철역과 도보 소요시간, 주변 생활 인프라(마트·병원·공원), 투자 적합도(시세 전망·입지 가치)를 분석하여 포함하세요.',
+        '오피스텔': '주소 위치를 기반으로 가장 가까운 지하철역과 도보 소요시간, 주변 업무지구·상권, 교통 접근성(버스·지하철 노선), 임대 수익률 관점의 투자 적합도를 분석하여 포함하세요.',
+        '빌라': '주소 위치를 기반으로 주변 학군(초·중·고), 가장 가까운 지하철역·버스 정류장과 소요시간, 주변 생활 편의시설을 분석하여 포함하세요.',
+        '상가': '주소 위치를 기반으로 해당 상권의 특성(유동인구·업종 분포), 가장 가까운 지하철역과 도보 소요시간, 주변 주요 시설(대형 건물·아파트 단지 등), 상권 투자 적합도를 분석하여 포함하세요.',
+        '사무실': '주소 위치를 기반으로 주변 업무지구·상권, 가장 가까운 지하철역과 도보 소요시간, 버스 노선, 주변 편의시설(식당가·은행·관공서), 임대 수요 전망을 분석하여 포함하세요.',
+        '전원주택': '주소 위치를 기반으로 가장 가까운 IC(나들목)와 차량 소요시간, 대중교통 접근성, 가장 가까운 종합병원·마트·학교까지의 거리, 자연환경(산·하천·공원), 전원생활의 장점을 분석하여 포함하세요.',
+        '공장': '주소 위치를 기반으로 가장 가까운 IC(나들목)와 차량 소요시간, 주요 물류 거점과의 거리, 진입 가능 차량(톤수), 마당(야적장) 활용 가능 여부, 층고 정보, 전력 용량, 투자 적합도를 분석하여 포함하세요.',
+        '창고': '주소 위치를 기반으로 가장 가까운 IC(나들목)와 차량 소요시간, 주요 물류 거점과의 거리, 진입 가능 차량(톤수), 마당(야적장) 활용 가능 여부, 층고 정보, 투자 적합도를 분석하여 포함하세요.',
+        '토지': '주소 위치를 기반으로 해당 토지의 용도지역(주거·상업·공업·녹지 등)에 따른 건축 가능 용도와 건폐율·용적률, 주변 개발 계획, 도로 접면 상태, 향후 가치 상승 전망 등 투자 적합도를 분석하여 포함하세요.',
+        '건물': '주소 위치를 기반으로 주변 상권 분석(유동인구·업종), 가장 가까운 지하철역과 도보 소요시간, 임대 수익률, 건물 가치 전망 등 투자 적합도를 분석하여 포함하세요.',
+        '지식산업센터': '주소 위치를 기반으로 가장 가까운 지하철역과 도보 소요시간, 주변 산업단지·업무지구, IC 접근성, 주변 편의시설(식당·카페·은행), 입주 기업 업종 전망, 투자 적합도를 분석하여 포함하세요.',
+      }
+      const categoryGuide = categoryGuideMap[catName] || '주소 위치를 기반으로 주변 교통(지하철·버스), 생활 인프라, 투자 적합도를 분석하여 포함하세요.'
+
+      const prompt = `다음 부동산 매물의 매력적인 설명을 작성해주세요. 500~800자 내외로, 매물의 장점과 특징을 잘 드러내주세요.
+
+매물 정보:
+- 유형: ${catName || '미정'}
+- 거래: ${txLabel}
+- 제목: ${form.title || '미정'}
+- 주소: ${form.address || '미정'}
+${priceInfo ? `- 가격: ${priceInfo}` : ''}
+${areaInfo ? `- 면적: ${areaInfo}` : ''}
+${structInfo ? `- 구조: ${structInfo}` : ''}
+${detailInfo ? `- 상세: ${detailInfo}` : ''}
+${form.move_in_date ? `- 입주가능일: ${form.move_in_date}` : ''}
+${form.built_year ? `- 준공: ${form.built_year}` : ''}
+
+[위치 기반 분석 필수]
+${categoryGuide}
+위 분석 내용을 매물 설명 안에 자연스럽게 녹여서 작성하세요. 거리·소요시간 등 구체적인 수치를 포함하세요.`
+
+      const systemPrompt = `당신은 대한민국 공인중개사 매물 설명 전문 작성가입니다.
+다음 원칙을 반드시 지켜 작성하세요:
+1. 주소를 기반으로 실제 주변 정보(교통, 학군, 상권, 편의시설 등)를 분석하여 구체적으로 기술합니다.
+2. 거리와 소요시간은 구체적인 수치로 작성합니다 (예: "강남역 도보 5분", "경부고속도로 서초IC 차량 10분").
+3. 매물 유형에 맞는 핵심 정보를 우선 배치합니다.
+4. 전문적이면서도 고객에게 친근한 어조를 사용합니다.
+5. 과장이나 허위 정보 없이 사실 기반으로 작성합니다. 확실하지 않은 정보는 "인근", "도보권" 등 범위로 표현합니다.
+6. 마크다운, 특수문자, 글머리 기호 없이 순수 텍스트 문단으로 작성합니다.`
+
+      const result = await generateContent(prompt, systemPrompt)
+      set('description', result.trim())
+      toast.success('AI 설명이 생성되었습니다.')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'AI 생성에 실패했습니다.')
+    } finally {
+      setAiGenerating(false)
+    }
+  }, [form, categories])
+
+  const validateTab = (tabId: TabId): string | null => {
+    switch (tabId) {
+      case 'basic':
+        if (!form.category_id) return '매물유형을 선택해주세요.'
+        if (!form.title) return '제목을 입력해주세요.'
+        return null
+      case 'location':
+        if (!form.address) return '주소를 입력해주세요.'
+        return null
+      case 'price':
+        if (form.transaction_type === 'sale' && !form.sale_price) return '매매가를 입력해주세요.'
+        if (form.transaction_type === 'jeonse' && !form.deposit) return '전세금을 입력해주세요.'
+        if (form.transaction_type === 'monthly' && !form.deposit) return '보증금을 입력해주세요.'
+        if (form.transaction_type === 'monthly' && !form.monthly_rent) return '월세를 입력해주세요.'
+        return null
+      case 'co-brokerage':
+        if (form.is_co_brokerage && !form.co_brokerage_fee_ratio) return '공동중개 수수료 비율을 입력해주세요.'
+        return null
+      default:
+        return null
+    }
+  }
+
+  const handleNext = () => {
+    const error = validateTab(activeTab)
+    if (error) { toast.error(error); return }
+    const idx = tabs.findIndex((t) => t.id === activeTab)
+    if (idx < tabs.length - 1) setActiveTab(tabs[idx + 1].id)
+  }
+
+  const areaUnit = useAreaUnitStore((s) => s.unit)
+  const supplyConverted = form.supply_area_m2
+    ? (areaUnit === 'sqm' ? sqmToPyeong(parseFloat(form.supply_area_m2)) + '평' : parseFloat(form.supply_area_m2) + '㎡')
+    : null
+  const exclusiveConverted = form.exclusive_area_m2
+    ? (areaUnit === 'sqm' ? sqmToPyeong(parseFloat(form.exclusive_area_m2)) + '평' : parseFloat(form.exclusive_area_m2) + '㎡')
+    : null
+  const areaLabel = areaUnit === 'sqm' ? '㎡' : '평'
+
+  const getAreaDisplay = (sqmStr: string): string => {
+    if (!sqmStr) return ''
+    const sqm = parseFloat(sqmStr)
+    if (isNaN(sqm)) return ''
+    return areaUnit === 'sqm' ? String(sqm) : String(sqmToPyeong(sqm))
+  }
+
+  const setAreaFromDisplay = (key: 'supply_area_m2' | 'exclusive_area_m2', displayVal: string) => {
+    if (!displayVal) { set(key, ''); return }
+    const num = parseFloat(displayVal)
+    if (isNaN(num)) return
+    set(key, areaUnit === 'sqm' ? String(num) : String(pyeongToSqm(num)))
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
@@ -260,14 +482,20 @@ export function PropertyFormPage() {
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">매물유형 *</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">매물유형 <span className="text-red-500">*</span></label>
                 <select value={form.category_id} onChange={(e) => set('category_id', e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                   <option value="">선택하세요</option>
-                  {categories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                  {(() => {
+                    const filtered = specialties.length > 0
+                      ? categories.filter((c) => specialties.some((s) => c.name.includes(s) || s.includes(c.name)))
+                      : []
+                    const list = filtered.length > 0 ? filtered : categories
+                    return list.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)
+                  })()}
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">거래유형 *</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">거래유형 <span className="text-red-500">*</span></label>
                 <div className="flex gap-2">
                   {(['sale', 'jeonse', 'monthly'] as const).map((t) => (
                     <button key={t} type="button" onClick={() => set('transaction_type', t)}
@@ -278,13 +506,13 @@ export function PropertyFormPage() {
                 </div>
               </div>
             </div>
-            <Input id="title" label="제목 *" value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="예: 래미안 레이카운티 59㎡" required />
+            <Input id="title" label={<>제목 <span className="text-red-500">*</span></>} value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="예: 래미안 레이카운티 59㎡" required />
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">상태</label>
                 <select value={form.status} onChange={(e) => set('status', e.target.value as PropertyStatus)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                  <option value="draft">등록중</option>
-                  <option value="active">광고중</option>
+                  <option value="draft">매물등록중</option>
+                  <option value="active">포털 공개중</option>
                   <option value="hold">보류</option>
                 </select>
               </div>
@@ -298,15 +526,42 @@ export function PropertyFormPage() {
         {/* Location */}
         {activeTab === 'location' && (
           <div className="space-y-4">
-            <Input id="address" label="주소 *" value={form.address} onChange={(e) => set('address', e.target.value)} placeholder="예: 서울 서초구 반포동 123" required />
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">주소 <span className="text-red-500">*</span></label>
+              <div className="flex gap-2">
+                <input
+                  id="address"
+                  type="text"
+                  value={form.address}
+                  readOnly
+                  onClick={handleOpenPostcode}
+                  placeholder="클릭하여 주소를 검색하세요"
+                  className="flex-1 cursor-pointer rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={handleOpenPostcode}
+                  className="shrink-0 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+                >
+                  주소 검색
+                </button>
+              </div>
+            </div>
             <Input id="address_detail" label="상세주소" value={form.address_detail} onChange={(e) => set('address_detail', e.target.value)} placeholder="동, 호수 등" />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input id="dong" label="동" value={form.dong} onChange={(e) => set('dong', e.target.value)} />
-              <Input id="ho" label="호" value={form.ho} onChange={(e) => set('ho', e.target.value)} />
-            </div>
-            <div className="rounded-lg border-2 border-dashed border-gray-200 p-8 text-center text-sm text-gray-400">
-              지도 영역 (카카오맵 API 연동 예정)
-            </div>
+            <KakaoMap
+              latitude={form.latitude ? parseFloat(form.latitude) : null}
+              longitude={form.longitude ? parseFloat(form.longitude) : null}
+              onLocationChange={(data) => {
+                set('latitude', String(data.latitude))
+                set('longitude', String(data.longitude))
+                if (!form.address) set('address', data.address)
+              }}
+            />
+            {form.latitude && form.longitude && (
+              <p className="text-xs text-gray-400">
+                좌표: {parseFloat(form.latitude).toFixed(6)}, {parseFloat(form.longitude).toFixed(6)}
+              </p>
+            )}
           </div>
         )}
 
@@ -315,7 +570,7 @@ export function PropertyFormPage() {
           <div className="space-y-4">
             {(form.transaction_type === 'sale' || form.transaction_type === 'jeonse' || form.transaction_type === 'monthly') && form.transaction_type === 'sale' && (
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">매매가 (만원)</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">매매가 (만원) <span className="text-red-500">*</span></label>
                 <input type="text" value={formatNumber(form.sale_price)} onChange={(e) => set('sale_price', e.target.value.replace(/,/g, ''))}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 95,000" />
                 {form.sale_price && <p className="mt-1 text-xs text-gray-400">{formatNumber(form.sale_price)}만원</p>}
@@ -323,14 +578,14 @@ export function PropertyFormPage() {
             )}
             {(form.transaction_type === 'jeonse' || form.transaction_type === 'monthly') && (
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">{form.transaction_type === 'jeonse' ? '전세금' : '보증금'} (만원)</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{form.transaction_type === 'jeonse' ? '전세금' : '보증금'} (만원) <span className="text-red-500">*</span></label>
                 <input type="text" value={formatNumber(form.deposit)} onChange={(e) => set('deposit', e.target.value.replace(/,/g, ''))}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 30,000" />
               </div>
             )}
             {form.transaction_type === 'monthly' && (
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">월세 (만원)</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">월세 (만원) <span className="text-red-500">*</span></label>
                 <input type="text" value={formatNumber(form.monthly_rent)} onChange={(e) => set('monthly_rent', e.target.value.replace(/,/g, ''))}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 80" />
               </div>
@@ -346,18 +601,22 @@ export function PropertyFormPage() {
         {/* Structure */}
         {activeTab === 'structure' && (
           <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">면적 단위</span>
+              <AreaUnitToggle />
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">공급면적 (㎡)</label>
-                <input type="number" step="0.01" value={form.supply_area_m2} onChange={(e) => set('supply_area_m2', e.target.value)}
+                <label className="mb-1 block text-sm font-medium text-gray-700">공급면적 ({areaLabel})</label>
+                <input type="number" step="0.01" value={getAreaDisplay(form.supply_area_m2)} onChange={(e) => setAreaFromDisplay('supply_area_m2', e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-                {supplyPyeong && <p className="mt-1 text-xs text-gray-400">≈ {supplyPyeong}평</p>}
+                {supplyConverted && <p className="mt-1 text-xs text-gray-400">≈ {supplyConverted}</p>}
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">전용면적 (㎡)</label>
-                <input type="number" step="0.01" value={form.exclusive_area_m2} onChange={(e) => set('exclusive_area_m2', e.target.value)}
+                <label className="mb-1 block text-sm font-medium text-gray-700">전용면적 ({areaLabel})</label>
+                <input type="number" step="0.01" value={getAreaDisplay(form.exclusive_area_m2)} onChange={(e) => setAreaFromDisplay('exclusive_area_m2', e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-                {exclusivePyeong && <p className="mt-1 text-xs text-gray-400">≈ {exclusivePyeong}평</p>}
+                {exclusiveConverted && <p className="mt-1 text-xs text-gray-400">≈ {exclusiveConverted}</p>}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -374,7 +633,11 @@ export function PropertyFormPage() {
                   {directionOptions.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
-              <Input id="built_year" label="준공연도" type="number" value={form.built_year} onChange={(e) => set('built_year', e.target.value)} placeholder="예: 2020" />
+              <div>
+                <label htmlFor="built_year" className="mb-1 block text-sm font-medium text-gray-700">준공연도</label>
+                <input id="built_year" type="month" value={form.built_year} onChange={(e) => set('built_year', e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </div>
             </div>
           </div>
         )}
@@ -442,18 +705,67 @@ export function PropertyFormPage() {
         {/* Media */}
         {activeTab === 'media' && (
           <div className="space-y-4">
-            <label className="mb-1 block text-sm font-medium text-gray-700">사진</label>
-            <div className="rounded-lg border-2 border-dashed border-gray-200 p-8 text-center">
-              <p className="text-sm text-gray-500">사진을 드래그하여 업로드하세요</p>
-              <p className="mt-1 text-xs text-gray-400">JPG, PNG (최대 10MB, 최대 20장)</p>
-              <p className="mt-3 text-xs text-gray-400">Supabase Storage 연동 예정</p>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700">사진 ({form.photos.length}/20)</label>
+              {uploading && <span className="text-xs text-primary-600">업로드 중...</span>}
             </div>
+
+            {/* Dropzone */}
+            {form.photos.length < 20 && (
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
+                  dragOver ? 'border-primary-400 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <p className="text-sm text-gray-500">클릭 또는 드래그하여 사진 업로드</p>
+                <p className="mt-1 text-xs text-gray-400">JPG, PNG (최대 10MB, 최대 20장)</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files) handleFiles(Array.from(e.target.files))
+                    e.target.value = ''
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Photo Grid */}
             {form.photos.length > 0 && (
-              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
                 {form.photos.map((url, i) => (
-                  <div key={i} className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
+                  <div key={url} className="group relative aspect-square overflow-hidden rounded-lg bg-gray-100">
                     <img src={url} alt="" className="h-full w-full object-cover" />
-                    <span className="absolute left-1 top-1 rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-white">{i + 1}</span>
+                    {i === 0 && (
+                      <span className="absolute left-1 top-1 rounded bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">대표</span>
+                    )}
+                    {i !== 0 && (
+                      <span className="absolute left-1 top-1 rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-white">{i + 1}</span>
+                    )}
+                    {/* Hover Controls */}
+                    <div className="absolute inset-x-0 bottom-0 flex justify-center gap-1 bg-gradient-to-t from-black/60 to-transparent p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                      {i !== 0 && (
+                        <button type="button" onClick={() => handleSetPrimary(i)} title="대표 설정"
+                          className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 hover:bg-white">★</button>
+                      )}
+                      {i > 0 && (
+                        <button type="button" onClick={() => handleMovePhoto(i, -1)} title="왼쪽으로"
+                          className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 hover:bg-white">←</button>
+                      )}
+                      {i < form.photos.length - 1 && (
+                        <button type="button" onClick={() => handleMovePhoto(i, 1)} title="오른쪽으로"
+                          className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 hover:bg-white">→</button>
+                      )}
+                      <button type="button" onClick={() => handleDeletePhoto(i)} title="삭제"
+                        className="rounded bg-red-500/90 px-1.5 py-0.5 text-[10px] font-medium text-white hover:bg-red-600">✕</button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -466,10 +778,25 @@ export function PropertyFormPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-gray-700">매물 설명</label>
-              <button type="button" className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50">
-                🤖 AI 자동 생성
+              <button
+                type="button"
+                onClick={handleAIDescription}
+                disabled={aiGenerating}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-100 disabled:opacity-50"
+              >
+                {aiGenerating ? (
+                  <>
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary-300 border-t-primary-600" />
+                    생성 중...
+                  </>
+                ) : (
+                  '🤖 AI 자동 생성'
+                )}
               </button>
             </div>
+            {form.description && (
+              <p className="text-xs text-gray-400">AI 생성 후 직접 수정할 수 있습니다.</p>
+            )}
             <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={8}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="매물의 장점, 특징, 주변 환경 등을 자유롭게 작성하세요" />
           </div>
@@ -483,7 +810,7 @@ export function PropertyFormPage() {
               <span className="font-medium">공동중개 허용</span>
             </label>
             {form.is_co_brokerage && (
-              <Input id="co_ratio" label="공동중개 수수료 비율 (%)" type="number" step="0.1" value={form.co_brokerage_fee_ratio} onChange={(e) => set('co_brokerage_fee_ratio', e.target.value)} placeholder="예: 50" />
+              <Input id="co_ratio" label={<>공동중개 수수료 비율 (%) <span className="text-red-500">*</span></>} type="number" step="0.1" value={form.co_brokerage_fee_ratio} onChange={(e) => set('co_brokerage_fee_ratio', e.target.value)} placeholder="예: 50" />
             )}
           </div>
         )}
@@ -498,9 +825,23 @@ export function PropertyFormPage() {
         )}
 
         {/* Actions */}
-        <div className="mt-6 flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
-          <Button type="button" variant="outline" onClick={() => navigate('/admin/properties')}>취소</Button>
-          <Button type="submit" isLoading={isLoading}>{isEdit ? '수정 완료' : '매물 등록'}</Button>
+        <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-4">
+          <div>
+            {activeTab !== tabs[0].id && (
+              <Button type="button" variant="outline" onClick={() => {
+                const idx = tabs.findIndex((t) => t.id === activeTab)
+                if (idx > 0) setActiveTab(tabs[idx - 1].id)
+              }}>← 이전</Button>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <Button type="button" variant="outline" onClick={() => { if (confirm('작성 중인 내용이 모두 사라집니다. 취소하시겠습니까?')) navigate('/admin/properties') }}>취소</Button>
+            {activeTab !== tabs[tabs.length - 1].id ? (
+              <Button type="button" onClick={handleNext}>다음 →</Button>
+            ) : (
+              <Button type="submit" isLoading={isLoading}>{isEdit ? '수정 완료' : '매물 등록'}</Button>
+            )}
+          </div>
         </div>
       </form>
     </div>

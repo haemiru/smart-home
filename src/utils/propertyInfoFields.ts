@@ -1,5 +1,6 @@
 import type { Property } from '@/types/database'
-import { formatArea, formatDate, formatPrice } from '@/utils/format'
+import { formatDate, formatPrice } from '@/utils/format'
+import { formatAreaByUnit } from '@/components/common/AreaUnitToggle'
 
 export type InfoFieldDef = {
   key: string
@@ -11,11 +12,11 @@ export type InfoFieldDef = {
 
 const SUPPLY_AREA: InfoFieldDef = {
   key: 'supply_area', label: '공급면적',
-  getValue: (p) => formatArea(p.supply_area_m2),
+  getValue: (p) => formatAreaByUnit(p.supply_area_m2),
 }
 const EXCLUSIVE_AREA: InfoFieldDef = {
   key: 'exclusive_area', label: '전용면적',
-  getValue: (p) => formatArea(p.exclusive_area_m2),
+  getValue: (p) => formatAreaByUnit(p.exclusive_area_m2),
 }
 const ROOMS_BATHS: InfoFieldDef = {
   key: 'rooms_baths', label: '방/욕실',
@@ -98,7 +99,7 @@ const BUILDING_STRUCTURE: InfoFieldDef = {
 }
 const LAND_AREA: InfoFieldDef = {
   key: 'land_area', label: '대지면적',
-  getValue: (p) => p.extra_info?.land_area_m2 ? formatArea(p.extra_info.land_area_m2) : '-',
+  getValue: (p) => p.extra_info?.land_area_m2 ? formatAreaByUnit(p.extra_info.land_area_m2) : '-',
 }
 const LAND_CATEGORY: InfoFieldDef = {
   key: 'land_category', label: '지목',
@@ -122,7 +123,7 @@ const SLOPE_TERRAIN: InfoFieldDef = {
 }
 const BUILDING_AREA: InfoFieldDef = {
   key: 'building_area', label: '건물면적',
-  getValue: (p) => p.extra_info?.building_area_m2 ? formatArea(p.extra_info.building_area_m2) : '-',
+  getValue: (p) => p.extra_info?.building_area_m2 ? formatAreaByUnit(p.extra_info.building_area_m2) : '-',
 }
 const POWER_CAPACITY: InfoFieldDef = {
   key: 'power_capacity', label: '전력용량',

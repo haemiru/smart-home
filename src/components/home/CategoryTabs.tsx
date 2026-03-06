@@ -1,41 +1,34 @@
-import { useRef, useEffect, useState, useMemo } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
 import { useHomeFilterStore } from '@/stores/homeFilterStore'
 import { useCategories } from '@/hooks/useCategories'
-import { fetchAgentSpecialties } from '@/api/settings'
 import { useTenantStore } from '@/stores/tenantStore'
 
 export function CategoryTabs() {
   const { selectedCategory, setCategory } = useHomeFilterStore()
   const { categories, isLoading } = useCategories()
-  const agentId = useTenantStore((s) => s.agentId)
+  const tenant = useTenantStore((s) => s.tenant)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [specialties, setSpecialties] = useState<string[]>([])
-  const [specLoaded, setSpecLoaded] = useState(false)
 
-  useEffect(() => {
-    setSpecLoaded(false)
-    fetchAgentSpecialties(agentId ?? undefined)
-      .then((s) => { setSpecialties(s); setSpecLoaded(true) })
-      .catch(() => setSpecLoaded(true))
-  }, [agentId])
-
+  // Use specialties from tenant profile (already resolved at init).
   // Show only specialties (in order). Fallback to all categories if none set.
+  const specialties = tenant?.specialties ?? []
+
   const sorted = useMemo(() => {
     if (specialties.length === 0) return categories
-    return specialties
-      .map((s) => categories.find((c) => c.name === s))
+    const matched = specialties
+      .map((s) => categories.find((c) => c.name === s || c.name.includes(s) || s.includes(c.name)))
       .filter(Boolean) as typeof categories
+    return matched.length > 0 ? matched : categories
   }, [categories, specialties])
 
   // Auto-select the first category once loaded
   useEffect(() => {
-    if (specLoaded && sorted.length > 0) {
-      // Always re-select first specialty when navigating to user portal
+    if (!isLoading && sorted.length > 0) {
       setCategory(sorted[0].id)
     }
-  }, [sorted, specLoaded, setCategory])
+  }, [sorted, isLoading, setCategory])
 
-  if (isLoading || !specLoaded || sorted.length === 0) return null
+  if (isLoading || sorted.length === 0) return null
 
   return (
     <section id="category-tabs" className="sticky top-16 z-20 border-b border-gray-200 bg-white">

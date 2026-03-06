@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
-import type { Property } from '@/types/database'
-import { formatPropertyPrice, formatArea, propertyStatusLabel, propertyStatusColor, transactionTypeLabel, formatDate } from '@/utils/format'
+import type { Property, PropertyStatus } from '@/types/database'
+import { formatPropertyPrice, propertyStatusColor, transactionTypeLabel, formatDate } from '@/utils/format'
+import { AreaUnitToggle, useFormatArea } from '@/components/common/AreaUnitToggle'
 import { useCategories } from '@/hooks/useCategories'
 
 interface AdminPropertyTableProps {
@@ -8,9 +9,19 @@ interface AdminPropertyTableProps {
   selectedIds: Set<string>
   onSelect: (id: string) => void
   onSelectAll: () => void
+  onStatusChange?: (id: string, status: PropertyStatus) => void
 }
 
-export function AdminPropertyTable({ properties, selectedIds, onSelect, onSelectAll }: AdminPropertyTableProps) {
+const statusOptions: { value: PropertyStatus; label: string }[] = [
+  { value: 'draft', label: '매물등록중' },
+  { value: 'active', label: '포털 공개중' },
+  { value: 'contracted', label: '계약진행' },
+  { value: 'completed', label: '거래완료' },
+  { value: 'hold', label: '보류' },
+]
+
+export function AdminPropertyTable({ properties, selectedIds, onSelect, onSelectAll, onStatusChange }: AdminPropertyTableProps) {
+  const formatArea = useFormatArea()
   const { findCategory } = useCategories()
   const allSelected = properties.length > 0 && properties.every((p) => selectedIds.has(p.id))
 
@@ -25,7 +36,7 @@ export function AdminPropertyTable({ properties, selectedIds, onSelect, onSelect
             <th className="px-4 py-3">매물</th>
             <th className="px-4 py-3">유형/거래</th>
             <th className="px-4 py-3">가격</th>
-            <th className="px-4 py-3">면적</th>
+            <th className="px-4 py-3"><span className="inline-flex items-center gap-1">면적 <AreaUnitToggle /></span></th>
             <th className="px-4 py-3">상태</th>
             <th className="px-4 py-3 text-center">조회/문의/찜</th>
             <th className="px-4 py-3">등록일</th>
@@ -61,9 +72,15 @@ export function AdminPropertyTable({ properties, selectedIds, onSelect, onSelect
                   {formatArea(p.exclusive_area_m2)}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${propertyStatusColor[p.status]}`}>
-                    {propertyStatusLabel[p.status]}
-                  </span>
+                  <select
+                    value={p.status}
+                    onChange={(e) => onStatusChange?.(p.id, e.target.value as PropertyStatus)}
+                    className={`cursor-pointer rounded px-2 py-0.5 text-xs font-semibold border-0 ${propertyStatusColor[p.status]}`}
+                  >
+                    {statusOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
                   {p.is_urgent && <span className="ml-1 text-xs text-red-500">🔥</span>}
                 </td>
                 <td className="px-4 py-3 text-center text-xs text-gray-400">

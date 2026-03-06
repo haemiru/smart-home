@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useHomeFilterStore } from '@/stores/homeFilterStore'
 import { useCategories } from '@/hooks/useCategories'
 import { fetchSearchSettings, type QuickSearchCard, defaultSearchSettings } from '@/api/settings'
-import { allMockProperties } from '@/utils/mockProperties'
+import { fetchProperties } from '@/api/properties'
 import type { Property } from '@/types/database'
+import { useTenantStore } from '@/stores/tenantStore'
 
 const currentYear = new Date().getFullYear()
 
@@ -71,7 +72,9 @@ export function QuickSearchGrid() {
   const navigate = useNavigate()
   const { selectedCategory } = useHomeFilterStore()
   const { categories } = useCategories()
+  const agentId = useTenantStore((s) => s.agentId)
   const [cards, setCards] = useState<QuickSearchCard[]>([])
+  const [activeProperties, setActiveProperties] = useState<Property[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
@@ -83,7 +86,10 @@ export function QuickSearchGrid() {
     fetchSearchSettings()
       .then((s) => setCards(s.quick_cards.filter((c) => c.is_enabled).sort((a, b) => a.sort_order - b.sort_order)))
       .catch(() => setCards(defaultSearchSettings.quick_cards.filter((c) => c.is_enabled).sort((a, b) => a.sort_order - b.sort_order)))
-  }, [])
+    fetchProperties({ status: 'active' }, 'newest', 1, 200, agentId ?? undefined)
+      .then(({ data }) => setActiveProperties(data))
+      .catch(() => {})
+  }, [agentId])
 
   const categoryName = useMemo(() => {
     const cat = categories.find((c) => c.id === selectedCategory)
@@ -95,11 +101,6 @@ export function QuickSearchGrid() {
       ? cards.filter((c) => !c.categories || c.categories.includes(categoryName))
       : cards
   }, [categoryName, cards])
-
-  const activeProperties = useMemo(
-    () => allMockProperties.filter((p) => p.status === 'active'),
-    [],
-  )
 
   const countMap = useMemo(() => {
     const map: Record<string, number> = {}

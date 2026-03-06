@@ -4,7 +4,8 @@ import type { Property, ContractTemplateType, TransactionType } from '@/types/da
 import { fetchAdminProperties } from '@/api/properties'
 import { createContract, recommendTemplate } from '@/api/contracts'
 import { Button } from '@/components/common'
-import { formatPropertyPrice, formatArea, transactionTypeLabel, contractTemplateLabel, formatNumber, parseCommaNumber, formatPrice } from '@/utils/format'
+import { formatPropertyPrice, transactionTypeLabel, contractTemplateLabel, formatNumber, parseCommaNumber, formatPrice } from '@/utils/format'
+import { useFormatArea } from '@/components/common/AreaUnitToggle'
 import { useCategories } from '@/hooks/useCategories'
 import toast from 'react-hot-toast'
 
@@ -308,6 +309,7 @@ function Step3ContractInfo({ txType, sellerInfo, onSellerChange, buyerInfo, onBu
   onSpecialTermsChange: (v: string) => void
   property: Property | null
 }) {
+  const formatArea = useFormatArea()
   const isSale = txType === 'sale'
   const isMonthly = txType === 'monthly'
 
@@ -452,6 +454,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
   priceInfo: { salePrice: string; deposit: string; monthlyRent: string; downPayment: string; downPaymentDate: string; midPayment: string; midPaymentDate: string; finalPayment: string; finalPaymentDate: string }
   specialTerms: string
 }) {
+  const formatArea = useFormatArea()
   const { findCategory } = useCategories()
   const isSale = txType === 'sale'
   const isMonthly = txType === 'monthly'

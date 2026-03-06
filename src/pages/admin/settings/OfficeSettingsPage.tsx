@@ -1,7 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { fetchOfficeSettings, updateOfficeSettings, checkSlugAvailability, updateSlug } from '@/api/settings'
 import type { BusinessHours } from '@/api/settings'
 import type { AgentProfile } from '@/types/database'
+import { uploadLogo } from '@/api/storage'
+import { getAgentProfileId } from '@/api/helpers'
+import { useAuthStore } from '@/stores/authStore'
 import toast from 'react-hot-toast'
 
 const DAYS = ['월', '화', '수', '목', '금', '토', '일'] as const
@@ -29,6 +32,8 @@ export function OfficeSettingsPage() {
 
   // Logo
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   // Description
   const [description, setDescription] = useState('')
@@ -93,6 +98,25 @@ export function OfficeSettingsPage() {
       toast.error('저장에 실패했습니다.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleLogoUpload(file: File) {
+    setLogoUploading(true)
+    try {
+      const agentId = await getAgentProfileId()
+      const url = await uploadLogo(file, agentId)
+      setLogoUrl(url)
+      toast.success('로고가 업로드되었습니다.')
+      // Save + refresh header in background (don't block UI)
+      updateOfficeSettings({ logo_url: url }).then(() => {
+        const session = useAuthStore.getState().session
+        if (session?.user) useAuthStore.getState().fetchUserProfile(session.user.id)
+      })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '로고 업로드에 실패했습니다.')
+    } finally {
+      setLogoUploading(false)
     }
   }
 
@@ -397,14 +421,36 @@ export function OfficeSettingsPage() {
             )}
           </div>
           <div>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/jpeg,image/png"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleLogoUpload(file)
+                e.target.value = ''
+              }}
+            />
             <button
               type="button"
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+              onClick={() => logoInputRef.current?.click()}
+              disabled={logoUploading}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
             >
-              이미지 업로드
+              {logoUploading ? '업로드 중...' : '이미지 업로드'}
             </button>
+            {logoUrl && (
+              <button
+                type="button"
+                onClick={() => { setLogoUrl(null); toast.success('로고가 제거되었습니다. 저장을 눌러주세요.') }}
+                className="ml-2 text-xs text-red-500 hover:underline"
+              >
+                삭제
+              </button>
+            )}
             <p className="mt-2 text-xs text-gray-400">
-              PNG, JPG 파일 (최대 2MB). Supabase Storage에 저장됩니다.
+              PNG, JPG 파일 (최대 2MB)
             </p>
           </div>
         </div>

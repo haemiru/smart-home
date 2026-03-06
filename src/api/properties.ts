@@ -1,7 +1,6 @@
 import { supabase } from '@/api/supabase'
 import { getAgentProfileId } from '@/api/helpers'
 import type { Property, PropertyCategory, PropertyStatus, TransactionType } from '@/types/database'
-import { getMockCategories, getMockProperties, getMockPropertyById } from '@/utils/mockProperties'
 
 export interface PropertyFilters {
   search?: string
@@ -93,12 +92,10 @@ export async function fetchProperties(
     const { data, count, error } = await query
 
     if (error) throw error
-    if (data && data.length > 0) return { data, total: count ?? 0 }
-    // Supabase returned empty — fall through to mock
+    return { data: data ?? [], total: count ?? 0 }
   } catch {
-    // Supabase unavailable — fall through to mock
+    return { data: [], total: 0 }
   }
-  return getMockProperties(filters, sort, page, pageSize)
 }
 
 export async function fetchAdminProperties(
@@ -125,21 +122,17 @@ export async function fetchAdminProperties(
 }
 
 export async function fetchPropertyById(id: string): Promise<Property | null> {
-  try {
-    const { data, error } = await supabase
-      .from('properties')
-      .select('*')
-      .eq('id', id)
-      .single()
+  const { data, error } = await supabase
+    .from('properties')
+    .select('*')
+    .eq('id', id)
+    .single()
 
-    if (error) {
-      if (error.code === 'PGRST116') return getMockPropertyById(id)
-      throw error
-    }
-    return data
-  } catch {
-    return getMockPropertyById(id)
+  if (error) {
+    if (error.code === 'PGRST116') return null
+    throw error
   }
+  return data
 }
 
 export async function createProperty(
@@ -205,9 +198,8 @@ export async function fetchCategories(agentId?: string): Promise<PropertyCategor
     const { data, error } = await query
 
     if (error) throw error
-    if (data && data.length > 0) return data
+    return data ?? []
   } catch {
-    // Supabase unavailable — fall through to mock
+    return []
   }
-  return getMockCategories()
 }

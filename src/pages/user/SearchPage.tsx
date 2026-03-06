@@ -6,7 +6,8 @@ import { fetchSearchSettings, type QuickSearchCard } from '@/api/settings'
 import { resolveConditions, type ResolvedConditions } from '@/utils/conditionResolver'
 import { useCategories } from '@/hooks/useCategories'
 import { useTenantStore } from '@/stores/tenantStore'
-import { formatPropertyPrice, formatArea, transactionTypeLabel } from '@/utils/format'
+import { formatPropertyPrice, transactionTypeLabel } from '@/utils/format'
+import { useFormatArea } from '@/components/common/AreaUnitToggle'
 
 const sortOptions: { value: SortOption; label: string }[] = [
   { value: 'newest', label: '최신등록순' },
@@ -306,6 +307,7 @@ export function SearchPage() {
 }
 
 function SearchResultCard({ property: p }: { property: Property }) {
+  const formatArea = useFormatArea()
   const { findCategory } = useCategories()
   const cat = findCategory(p.category_id)
   const txBadge: Record<string, string> = { sale: 'bg-blue-100 text-blue-700', jeonse: 'bg-green-100 text-green-700', monthly: 'bg-orange-100 text-orange-700' }

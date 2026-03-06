@@ -1,6 +1,6 @@
 import { corsHeaders } from '../_shared/cors.ts'
 
-const GEMINI_MODEL = 'gemini-3-pro'
+const GEMINI_MODEL = 'gemini-3.1-pro-preview'
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
 const MAX_RETRIES = 2
 const RETRY_DELAY_MS = 1500

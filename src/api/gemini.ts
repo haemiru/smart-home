@@ -15,15 +15,32 @@ export class GeminiError extends Error {
 }
 
 /**
- * Call Gemini API via Supabase Edge Function
- * @param prompt - User prompt
- * @param systemPrompt - Optional system instruction
- * @returns Generated text
+ * Call Gemini API
+ * - Dev: Vite server proxy at /api/generate-content (API key stays server-side)
+ * - Prod: Supabase Edge Function
  */
 export async function generateContent(
   prompt: string,
   systemPrompt?: string,
 ): Promise<string> {
+  if (import.meta.env.DEV) {
+    // Local dev → Vite server middleware proxy
+    const res = await fetch('/api/generate-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, systemPrompt }),
+    })
+    const data = await res.json()
+    if (!res.ok || data.error) {
+      throw new GeminiError(data.error || `HTTP ${res.status}`, res.status)
+    }
+    if (!data.text) {
+      throw new GeminiError('Gemini API 응답에 텍스트가 없습니다.')
+    }
+    return data.text
+  }
+
+  // Production → Supabase Edge Function
   const { data, error } = await supabase.functions.invoke('generate-content', {
     body: { prompt, systemPrompt },
   })

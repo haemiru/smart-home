@@ -79,8 +79,8 @@ export const transactionTypeLabel: Record<string, string> = {
 
 /** 매물 상태 한글 라벨 */
 export const propertyStatusLabel: Record<string, string> = {
-  draft: '등록중',
-  active: '광고중',
+  draft: '매물등록중',
+  active: '포털 공개중',
   contracted: '계약진행',
   completed: '거래완료',
   hold: '보류',

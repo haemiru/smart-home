@@ -5,10 +5,12 @@ import { useTenantStore } from '@/stores/tenantStore'
 import { signOut } from '@/api/auth'
 import { gnbMenuItems } from '@/utils/mockData'
 import { AreaCalculatorModal } from '@/components/common/AreaCalculatorModal'
+import { useSessionTimeout } from '@/hooks/useSessionTimeout'
 
 export function UserGNB() {
   const { session, user } = useAuthStore()
   const tenant = useTenantStore((s) => s.tenant)
+  const { formatted: sessionTimer, remainingMs } = useSessionTimeout()
   const [isCalcOpen, setIsCalcOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
@@ -69,6 +71,9 @@ export function UserGNB() {
                       관리자
                     </Link>
                   )}
+                  <span className={`rounded px-1.5 py-0.5 font-mono text-xs ${remainingMs < 5 * 60 * 1000 ? 'font-semibold text-red-600' : 'text-gray-400'}`}>
+                    {sessionTimer}
+                  </span>
                   <button
                     onClick={handleSignOut}
                     className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50"
@@ -152,12 +157,17 @@ export function UserGNB() {
                         관리자 포털
                       </Link>
                     )}
-                    <button
-                      onClick={handleSignOut}
-                      className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-gray-500"
-                    >
-                      로그아웃
-                    </button>
+                    <div className="flex items-center justify-between rounded-lg px-3 py-2.5">
+                      <button
+                        onClick={handleSignOut}
+                        className="text-sm font-medium text-gray-500"
+                      >
+                        로그아웃
+                      </button>
+                      <span className={`font-mono text-xs ${remainingMs < 5 * 60 * 1000 ? 'font-semibold text-red-600' : 'text-gray-400'}`}>
+                        {sessionTimer}
+                      </span>
+                    </div>
                   </>
                 ) : (
                   <div className="flex gap-2 px-3 py-2">

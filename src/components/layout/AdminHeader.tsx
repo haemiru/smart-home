@@ -5,15 +5,17 @@ import { useNotificationStore } from '@/stores/notificationStore'
 import { isNavItemPermitted } from '@/stores/featureStore'
 import { signOut } from '@/api/auth'
 import { formatRelativeTime } from '@/utils/format'
+import { useSessionTimeout } from '@/hooks/useSessionTimeout'
 
 interface AdminHeaderProps {
   onToggleSidebar: () => void
 }
 
 export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
-  const { user, staffPermissions } = useAuthStore()
+  const { user, agentProfile, staffPermissions } = useAuthStore()
   const { notifications, unreadCount, markAsRead, markAllAsRead, refreshUnansweredCount, unansweredInquiryCount } = useNotificationStore()
   const navigate = useNavigate()
+  const { formatted: sessionTimer, remainingMs } = useSessionTimeout()
   const [searchQuery, setSearchQuery] = useState('')
   const [isNotifOpen, setIsNotifOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
@@ -59,8 +61,8 @@ export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
           </svg>
         </button>
         <Link to="/admin/dashboard" className="flex items-center gap-2">
-          <img src="/logo.png" alt="Smart Home" className="h-9 w-9 rounded-lg object-contain" />
-          <span className="hidden text-lg font-bold text-primary-700 sm:inline">Smart Home</span>
+          <img src={agentProfile?.logo_url || '/logo.png'} alt={agentProfile?.office_name || 'Smart Home'} className="h-9 w-9 rounded-lg object-contain" />
+          <span className="hidden text-lg font-bold text-primary-700 sm:inline">{agentProfile?.office_name || 'Smart Home'}</span>
         </Link>
       </div>
 
@@ -165,6 +167,9 @@ export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
           >
             사용자 포털
           </Link>
+          <span className={`rounded px-1.5 py-0.5 font-mono text-xs ${remainingMs < 5 * 60 * 1000 ? 'font-semibold text-red-600' : 'text-gray-400'}`}>
+            {sessionTimer}
+          </span>
           <button
             onClick={handleSignOut}
             className="rounded-lg px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
@@ -173,16 +178,21 @@ export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
           </button>
         </div>
 
-        {/* Mobile: minimal profile button */}
-        <button
-          onClick={handleSignOut}
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 sm:hidden"
-          title="로그아웃"
-        >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-        </button>
+        {/* Mobile: timer + logout */}
+        <div className="flex items-center gap-1 sm:hidden">
+          <span className={`font-mono text-[10px] ${remainingMs < 5 * 60 * 1000 ? 'font-semibold text-red-600' : 'text-gray-400'}`}>
+            {sessionTimer}
+          </span>
+          <button
+            onClick={handleSignOut}
+            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+            title="로그아웃"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
+        </div>
       </div>
     </header>
   )

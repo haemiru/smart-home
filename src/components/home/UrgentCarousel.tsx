@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchProperties } from '@/api/properties'
 import { useTenantStore } from '@/stores/tenantStore'
-import { formatPropertyPrice, formatArea, transactionTypeLabel } from '@/utils/format'
+import { formatPropertyPrice, transactionTypeLabel } from '@/utils/format'
+import { useFormatArea } from '@/components/common/AreaUnitToggle'
 import type { Property } from '@/types/database'
 
 export function UrgentCarousel() {
+  const formatArea = useFormatArea()
   const [items, setItems] = useState<Property[]>([])
   const [current, setCurrent] = useState(0)
   const agentId = useTenantStore((s) => s.agentId)
