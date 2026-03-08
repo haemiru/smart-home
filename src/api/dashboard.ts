@@ -57,27 +57,26 @@ export type ScheduleItem = {
 // ─── Summary (Supabase COUNT queries) ────────────────
 
 export async function fetchDashboardSummary(): Promise<DashboardSummary> {
-  const [
-    { count: newInquiries },
-    { count: activeContracts },
-    { count: totalProperties },
-    { count: activeProperties },
-    { count: totalCustomers },
-  ] = await Promise.all([
-    supabase.from('inquiries').select('*', { count: 'exact', head: true }).in('status', ['new', 'checked', 'in_progress']),
-    supabase.from('contracts').select('*', { count: 'exact', head: true }).in('status', ['drafting', 'pending_sign', 'signed']),
-    supabase.from('properties').select('*', { count: 'exact', head: true }),
-    supabase.from('properties').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-    supabase.from('customers').select('*', { count: 'exact', head: true }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const safe = async (query: PromiseLike<{ count: number | null }> | any) => {
+    try { const r = await query; return r?.count ?? 0 } catch { return 0 }
+  }
+
+  const [newInquiries, activeContracts, totalProperties, activeProperties, totalCustomers] = await Promise.all([
+    safe(supabase.from('inquiries').select('*', { count: 'exact', head: true }).in('status', ['new', 'checked', 'in_progress'])),
+    safe(supabase.from('contracts').select('*', { count: 'exact', head: true }).in('status', ['drafting', 'pending_sign', 'signed'])),
+    safe(supabase.from('properties').select('*', { count: 'exact', head: true })),
+    safe(supabase.from('properties').select('*', { count: 'exact', head: true }).eq('status', 'active')),
+    safe(supabase.from('customers').select('*', { count: 'exact', head: true })),
   ])
 
   return {
-    newInquiries: newInquiries ?? 0,
-    inquiryDelta: 0, // Would need historical data to compute delta
-    activeContracts: activeContracts ?? 0,
-    totalProperties: totalProperties ?? 0,
-    activeProperties: activeProperties ?? 0,
-    totalCustomers: totalCustomers ?? 0,
+    newInquiries,
+    inquiryDelta: 0,
+    activeContracts,
+    totalProperties,
+    activeProperties,
+    totalCustomers,
   }
 }
 

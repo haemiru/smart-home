@@ -25,22 +25,26 @@ export function DashboardPage() {
   const [todos, setTodos] = useState<TodoItem[]>([])
 
   useEffect(() => {
+    const emptySummary: DashboardSummary = { newInquiries: 0, inquiryDelta: 0, activeContracts: 0, totalProperties: 0, activeProperties: 0, totalCustomers: 0 }
+
     Promise.all([
-      fetchDashboardSummary().catch(() => null),
+      fetchDashboardSummary().catch(() => emptySummary),
       fetchMonthlyPerformance().catch(() => null),
-      fetchUnansweredInquiries().catch(() => []),
-      fetchTodaySchedule().catch(() => []),
-      fetchPropertyStats().catch(() => []),
-      fetchActivityFeed().catch(() => []),
-      fetchTodoList().catch(() => []),
+      fetchUnansweredInquiries().catch(() => [] as Inquiry[]),
+      fetchTodaySchedule().catch(() => [] as ScheduleItem[]),
+      fetchPropertyStats().catch(() => [] as PropertyStat[]),
+      fetchActivityFeed().catch(() => [] as ActivityItem[]),
+      fetchTodoList().catch(() => [] as TodoItem[]),
     ]).then(([s, p, i, sc, ps, a, t]) => {
-      setSummary(s ?? { newInquiries: 0, inquiryDelta: 0, activeContracts: 0, totalProperties: 0, activeProperties: 0, totalCustomers: 0 })
+      setSummary(s ?? emptySummary)
       setPerformance(p)
       setInquiries(i)
       setSchedule(sc)
       setPropertyStats(ps)
       setActivities(a)
       setTodos(t)
+    }).catch(() => {
+      setSummary(emptySummary)
     })
   }, [])
 

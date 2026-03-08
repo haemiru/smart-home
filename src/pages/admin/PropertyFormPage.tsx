@@ -9,7 +9,7 @@ import { getTagBasedConditions, type TagConditionInfo } from '@/utils/conditionR
 import { Button, Input } from '@/components/common'
 import { generateContent } from '@/api/gemini'
 import { KakaoMap, openAddressSearch, geocodeAddress } from '@/components/common/KakaoMap'
-import { formatNumber, parseCommaNumber, sqmToPyeong, pyeongToSqm } from '@/utils/format'
+import { formatNumber, formatPrice, parseCommaNumber, sqmToPyeong, pyeongToSqm } from '@/utils/format'
 import { AreaUnitToggle } from '@/components/common/AreaUnitToggle'
 import { useAreaUnitStore } from '@/stores/areaUnitStore'
 import toast from 'react-hot-toast'
@@ -573,7 +573,7 @@ ${categoryGuide}
                 <label className="mb-1 block text-sm font-medium text-gray-700">매매가 (만원) <span className="text-red-500">*</span></label>
                 <input type="text" value={formatNumber(form.sale_price)} onChange={(e) => set('sale_price', e.target.value.replace(/,/g, ''))}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 95,000" />
-                {form.sale_price && <p className="mt-1 text-xs text-gray-400">{formatNumber(form.sale_price)}만원</p>}
+                {form.sale_price && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(form.sale_price))}원</p>}
               </div>
             )}
             {(form.transaction_type === 'jeonse' || form.transaction_type === 'monthly') && (
@@ -581,6 +581,7 @@ ${categoryGuide}
                 <label className="mb-1 block text-sm font-medium text-gray-700">{form.transaction_type === 'jeonse' ? '전세금' : '보증금'} (만원) <span className="text-red-500">*</span></label>
                 <input type="text" value={formatNumber(form.deposit)} onChange={(e) => set('deposit', e.target.value.replace(/,/g, ''))}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 30,000" />
+                {form.deposit && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(form.deposit))}원</p>}
               </div>
             )}
             {form.transaction_type === 'monthly' && (
@@ -588,12 +589,14 @@ ${categoryGuide}
                 <label className="mb-1 block text-sm font-medium text-gray-700">월세 (만원) <span className="text-red-500">*</span></label>
                 <input type="text" value={formatNumber(form.monthly_rent)} onChange={(e) => set('monthly_rent', e.target.value.replace(/,/g, ''))}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 80" />
+                {form.monthly_rent && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(form.monthly_rent))}원</p>}
               </div>
             )}
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">관리비 (만원)</label>
               <input type="text" value={formatNumber(form.maintenance_fee)} onChange={(e) => set('maintenance_fee', e.target.value.replace(/,/g, ''))}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 15" />
+              {form.maintenance_fee && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(form.maintenance_fee))}원</p>}
             </div>
           </div>
         )}

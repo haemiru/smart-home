@@ -1,7 +1,10 @@
-import { defineConfig, type PluginOption } from 'vite'
+import { defineConfig, loadEnv, type PluginOption } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
+
+// Load all env vars (including non-VITE_ ones) for server-side plugins
+const env = loadEnv('', process.cwd(), '')
 
 /** Vite dev server plugin: proxies /api/generate-content → Gemini API (key stays server-side) */
 function geminiProxy(): PluginOption {
@@ -14,7 +17,7 @@ function geminiProxy(): PluginOption {
           res.end()
           return
         }
-        const apiKey = process.env.GEMINI_API_KEY
+        const apiKey = env.GEMINI_API_KEY
         if (!apiKey) { res.writeHead(500); res.end(JSON.stringify({ error: 'GEMINI_API_KEY not set' })); return }
 
         let rawBody = ''
@@ -46,8 +49,61 @@ function geminiProxy(): PluginOption {
   }
 }
 
+/** Vite dev server plugin: proxies /api/geocode → Kakao Local API */
+function kakaoGeoProxy(): PluginOption {
+  return {
+    name: 'kakao-geo-proxy',
+    configureServer(server) {
+      server.middlewares.use('/api/geocode', async (req, res) => {
+        const restKey = env.KAKAO_REST_KEY
+        if (!restKey) { res.writeHead(500); res.end(JSON.stringify({ error: 'KAKAO_REST_KEY not set' })); return }
+
+        const url = new URL(req.url || '/', 'http://localhost')
+        const query = url.searchParams.get('query')
+        if (!query) { res.writeHead(400); res.end(JSON.stringify({ error: 'query required' })); return }
+
+        try {
+          const resp = await fetch(
+            `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(query)}`,
+            { headers: { Authorization: `KakaoAK ${restKey}` } },
+          )
+          const data = await resp.json()
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(data))
+        } catch (e) {
+          res.writeHead(502)
+          res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'proxy error' }))
+        }
+      })
+
+      server.middlewares.use('/api/reverse-geocode', async (req, res) => {
+        const restKey = env.KAKAO_REST_KEY
+        if (!restKey) { res.writeHead(500); res.end(JSON.stringify({ error: 'KAKAO_REST_KEY not set' })); return }
+
+        const url = new URL(req.url || '/', 'http://localhost')
+        const x = url.searchParams.get('x')
+        const y = url.searchParams.get('y')
+        if (!x || !y) { res.writeHead(400); res.end(JSON.stringify({ error: 'x, y required' })); return }
+
+        try {
+          const resp = await fetch(
+            `https://dapi.kakao.com/v2/local/geo/coord2address.json?x=${x}&y=${y}`,
+            { headers: { Authorization: `KakaoAK ${restKey}` } },
+          )
+          const data = await resp.json()
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(data))
+        } catch (e) {
+          res.writeHead(502)
+          res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'proxy error' }))
+        }
+      })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), geminiProxy()],
+  plugins: [react(), tailwindcss(), geminiProxy(), kakaoGeoProxy()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

@@ -19,6 +19,8 @@ interface KakaoMapProps {
 }
 
 const POSTCODE_SDK_URL = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'
+const GEOCODE_API = import.meta.env.DEV ? '/api/geocode' : '/api/geocode'
+const REVERSE_GEOCODE_API = import.meta.env.DEV ? '/api/reverse-geocode' : '/api/reverse-geocode'
 
 // --- Daum Postcode SDK ---
 let postcodeLoadPromise: Promise<void> | null = null
@@ -46,6 +48,7 @@ function loadPostcodeSDK(): Promise<void> {
   return postcodeLoadPromise
 }
 
+
 /** Open Daum Postcode popup and return selected address */
 export function openAddressSearch(): Promise<daum.PostcodeResult> {
   return loadPostcodeSDK().then(
@@ -58,18 +61,16 @@ export function openAddressSearch(): Promise<daum.PostcodeResult> {
   )
 }
 
-/** Geocode address using Nominatim (free, no API key) */
+/** Geocode address using Kakao Local REST API (via server proxy) */
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
   try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=kr`,
-      { headers: { 'Accept-Language': 'ko' } },
-    )
+    const res = await fetch(`${GEOCODE_API}?query=${encodeURIComponent(address)}`)
     const data = await res.json()
-    if (data.length > 0) {
-      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+    if (data.documents?.length > 0) {
+      const doc = data.documents[0]
+      return { lat: parseFloat(doc.y), lng: parseFloat(doc.x) }
     }
-  } catch { /* ignore */ }
+  } catch (e) { console.error('[geocodeAddress] error:', e) }
   return null
 }
 
@@ -111,24 +112,15 @@ export function KakaoMap({ latitude, longitude, onLocationChange, readOnly = fal
           markerRef.current = L.marker([clickLat, clickLng]).addTo(map)
         }
 
-        // Reverse geocode
+        // Reverse geocode using Kakao Local REST API (via server proxy)
         try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${clickLat}&lon=${clickLng}&format=json`,
-            { headers: { 'Accept-Language': 'ko' } },
-          )
+          const res = await fetch(`${REVERSE_GEOCODE_API}?x=${clickLng}&y=${clickLat}`)
           const data = await res.json()
-          onLocationChange?.({
-            latitude: clickLat,
-            longitude: clickLng,
-            address: data.display_name || '',
-          })
+          const doc = data.documents?.[0]
+          const addr = doc?.road_address?.address_name || doc?.address?.address_name || ''
+          onLocationChange?.({ latitude: clickLat, longitude: clickLng, address: addr })
         } catch {
-          onLocationChange?.({
-            latitude: clickLat,
-            longitude: clickLng,
-            address: '',
-          })
+          onLocationChange?.({ latitude: clickLat, longitude: clickLng, address: '' })
         }
       })
     }
