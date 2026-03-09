@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback, type FormEvent, type DragEvent } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import type { TransactionType, PropertyStatus, PropertyCategory } from '@/types/database'
+import type { TransactionType, PropertyStatus, PropertyCategory, PropertyExtraInfo } from '@/types/database'
 import { fetchPropertyById, createProperty, updateProperty, fetchCategories } from '@/api/properties'
 import { getAgentProfileId } from '@/api/helpers'
 import { fetchSearchSettings, fetchAgentSpecialties } from '@/api/settings'
@@ -12,6 +12,18 @@ import { KakaoMap, openAddressSearch, geocodeAddress } from '@/components/common
 import { formatNumber, formatPrice, parseCommaNumber, sqmToPyeong, pyeongToSqm } from '@/utils/format'
 import { AreaUnitToggle } from '@/components/common/AreaUnitToggle'
 import { useAreaUnitStore } from '@/stores/areaUnitStore'
+import {
+  getCategoryGroup,
+  STRUCTURE_VISIBILITY,
+  DETAIL_VISIBILITY,
+  PRICE_OVERRIDES,
+  OPTIONS_PER_GROUP,
+  EXTRA_FIELDS,
+  emptyExtraInfo,
+  type CategoryGroup,
+  type ExtraInfoForm,
+  type ExtraFieldDef,
+} from '@/utils/categoryFormConfig'
 import toast from 'react-hot-toast'
 
 const tabs = [
@@ -29,7 +41,6 @@ const tabs = [
 type TabId = (typeof tabs)[number]['id']
 
 const directionOptions = ['동향', '서향', '남향', '북향', '남동향', '남서향', '북동향', '북서향']
-const optionChoices = ['에어컨', '냉장고', '세탁기', '가스레인지', '인덕션', '전자레인지', '옷장', '신발장', '침대', '책상', 'TV', '인터넷', 'CCTV', '현관보안', '비디오폰']
 
 type FormData = {
   category_id: string
@@ -65,6 +76,7 @@ type FormData = {
   tags: string
   predefinedTags: string[]
   photos: string[]
+  extra_info: ExtraInfoForm
 }
 
 const emptyForm: FormData = {
@@ -77,6 +89,7 @@ const emptyForm: FormData = {
   parking_per_unit: '', has_elevator: false, pets_allowed: false,
   options: [], description: '', is_urgent: false, is_co_brokerage: false,
   co_brokerage_fee_ratio: '', internal_memo: '', built_year: '', tags: '', predefinedTags: [], photos: [],
+  extra_info: { ...emptyExtraInfo },
 }
 
 export function PropertyFormPage() {
@@ -98,7 +111,6 @@ export function PropertyFormPage() {
   useEffect(() => {
     fetchCategories().then(setCategories).catch(() => setCategories([]))
     fetchAgentSpecialties().then(setSpecialties).catch(() => {})
-    // Load custom quick search cards to get custom tag labels
     fetchSearchSettings()
       .then((s) => {
         const customs = s.quick_cards
@@ -110,11 +122,11 @@ export function PropertyFormPage() {
     if (id) {
       fetchPropertyById(id).then((p) => {
         if (!p) { navigate('/admin/properties'); return }
-        // Separate predefined tags from free-text tags
         const existingTags = p.tags || []
         const builtInTags = getTagBasedConditions().map((t) => t.tag)
         const predefined = existingTags.filter((t) => builtInTags.includes(t))
         const freeText = existingTags.filter((t) => !builtInTags.includes(t))
+        const ei = p.extra_info || {}
         setForm({
           category_id: p.category_id || '',
           title: p.title,
@@ -149,12 +161,74 @@ export function PropertyFormPage() {
           tags: freeText.join(', '),
           predefinedTags: predefined,
           photos: p.photos || [],
+          extra_info: {
+            ...emptyExtraInfo,
+            heating_type: ei.heating_type || '',
+            household_count: ei.household_count != null ? String(ei.household_count) : '',
+            expected_move_in: ei.expected_move_in || '',
+            builder: ei.builder || '',
+            premium: ei.premium != null ? String(ei.premium) : '',
+            business_restriction: ei.business_restriction || '',
+            key_money: ei.key_money != null ? String(ei.key_money) : '',
+            foot_traffic: ei.foot_traffic || '',
+            frontage_width: ei.frontage_width != null ? String(ei.frontage_width) : '',
+            ceiling_height: ei.ceiling_height != null ? String(ei.ceiling_height) : '',
+            building_structure: ei.building_structure || '',
+            land_area_m2: ei.land_area_m2 != null ? String(ei.land_area_m2) : '',
+            land_category: ei.land_category || '',
+            zoning: ei.zoning || '',
+            road_frontage: ei.road_frontage || '',
+            bcr_far: ei.bcr_far || '',
+            slope_terrain: ei.slope_terrain || '',
+            building_area_m2: ei.building_area_m2 != null ? String(ei.building_area_m2) : '',
+            power_capacity: ei.power_capacity || '',
+            truck_access: ei.truck_access || false,
+            loading_dock: ei.loading_dock || false,
+            cold_storage: ei.cold_storage || false,
+            project_phase: ei.project_phase || '',
+            member_price: ei.member_price != null ? String(ei.member_price) : '',
+            expected_households: ei.expected_households != null ? String(ei.expected_households) : '',
+            room_count: ei.room_count != null ? String(ei.room_count) : '',
+            monthly_avg_revenue: ei.monthly_avg_revenue != null ? String(ei.monthly_avg_revenue) : '',
+            business_license: ei.business_license || '',
+          },
         })
       })
     }
   }, [id, navigate])
 
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) => setForm((prev) => ({ ...prev, [key]: value }))
+  const setExtra = (key: string, value: string | boolean) =>
+    setForm((prev) => ({ ...prev, extra_info: { ...prev.extra_info, [key]: value } }))
+
+  // ─── Category group ───
+  const selectedCategoryName = useMemo(() => {
+    const cat = categories.find((c) => c.id === form.category_id)
+    return cat?.name ?? ''
+  }, [categories, form.category_id])
+
+  const catGroup: CategoryGroup | null = useMemo(() => getCategoryGroup(selectedCategoryName), [selectedCategoryName])
+
+  const structVis = catGroup ? STRUCTURE_VISIBILITY[catGroup] : null
+  const detailVis = catGroup ? DETAIL_VISIBILITY[catGroup] : null
+  const priceOvr = catGroup ? PRICE_OVERRIDES[catGroup] : null
+  const optionChoices = catGroup ? OPTIONS_PER_GROUP[catGroup] : ['에어컨', '냉장고', '세탁기', '가스레인지', '인덕션', '전자레인지', '옷장', '신발장', '침대', '책상', 'TV', '인터넷', 'CCTV', '현관보안', '비디오폰']
+
+  const extraFieldsForTab = useCallback((tab: 'structure' | 'detail' | 'price'): ExtraFieldDef[] => {
+    if (!catGroup) return []
+    return (EXTRA_FIELDS[catGroup] || []).filter((f) => f.tab === tab)
+  }, [catGroup])
+
+  // ─── Tag conditions ───
+  const visibleTagConditions = useMemo(() => {
+    return selectedCategoryName
+      ? tagConditions.filter((t) => !t.categories || t.categories.includes(selectedCategoryName))
+      : tagConditions
+  }, [tagConditions, selectedCategoryName])
+
+  const visibleCustomTags = useMemo(() => customTagLabels, [customTagLabels])
+
+  // ─── Handlers ───
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -162,6 +236,24 @@ export function PropertyFormPage() {
     setIsLoading(true)
     try {
       const agentId = await getAgentProfileId()
+
+      // Build extra_info from form state (only include fields relevant to current category)
+      const extraInfo: PropertyExtraInfo = {}
+      if (catGroup) {
+        const relevantFields = EXTRA_FIELDS[catGroup] || []
+        for (const fd of relevantFields) {
+          const val = form.extra_info[fd.key as keyof ExtraInfoForm]
+          if (fd.type === 'checkbox') {
+            if (val) (extraInfo as Record<string, unknown>)[fd.key] = true
+          } else if (fd.type === 'area' || fd.type === 'number') {
+            const num = typeof val === 'string' ? parseFloat(val) : NaN
+            if (!isNaN(num)) (extraInfo as Record<string, unknown>)[fd.key] = num
+          } else {
+            if (val && typeof val === 'string' && val.trim()) (extraInfo as Record<string, unknown>)[fd.key] = val.trim()
+          }
+        }
+      }
+
       const payload = {
         agent_id: agentId,
         category_id: form.category_id || null,
@@ -202,6 +294,7 @@ export function PropertyFormPage() {
           return merged.length > 0 ? merged : null
         })(),
         photos: form.photos.length > 0 ? form.photos : null,
+        extra_info: Object.keys(extraInfo).length > 0 ? extraInfo : null,
       }
       if (isEdit) {
         await updateProperty(id!, payload)
@@ -226,34 +319,14 @@ export function PropertyFormPage() {
     set('predefinedTags', form.predefinedTags.includes(tag) ? form.predefinedTags.filter((t) => t !== tag) : [...form.predefinedTags, tag])
   }
 
-  // Filter tag conditions by selected category
-  const selectedCategoryName = useMemo(() => {
-    const cat = categories.find((c) => c.id === form.category_id)
-    return cat?.name ?? ''
-  }, [categories, form.category_id])
-
-  const visibleTagConditions = useMemo(() => {
-    const builtInFiltered = selectedCategoryName
-      ? tagConditions.filter((t) => !t.categories || t.categories.includes(selectedCategoryName))
-      : tagConditions
-    return builtInFiltered
-  }, [tagConditions, selectedCategoryName])
-
-  const visibleCustomTags = useMemo(() => {
-    // Custom tags are always shown (they don't have category restrictions)
-    return customTagLabels
-  }, [customTagLabels])
-
   const handleFiles = useCallback(async (files: File[]) => {
     const remaining = 20 - form.photos.length
     if (remaining <= 0) { toast.error('사진은 최대 20장까지 등록할 수 있습니다.'); return }
     const toUpload = files.slice(0, remaining)
-
     for (const file of toUpload) {
       const err = validateFile(file)
       if (err) { toast.error(`${file.name}: ${err}`); continue }
     }
-
     setUploading(true)
     try {
       const agentId = await getAgentProfileId()
@@ -271,30 +344,24 @@ export function PropertyFormPage() {
   const handleDragOver = useCallback((e: DragEvent) => { e.preventDefault(); setDragOver(true) }, [])
   const handleDragLeave = useCallback(() => setDragOver(false), [])
   const handleDrop = useCallback((e: DragEvent) => {
-    e.preventDefault()
-    setDragOver(false)
+    e.preventDefault(); setDragOver(false)
     const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'))
     if (files.length > 0) handleFiles(files)
   }, [handleFiles])
 
   const handleDeletePhoto = useCallback(async (index: number) => {
     const url = form.photos[index]
-    try {
-      await deletePropertyPhoto(url)
-    } catch { /* storage delete may fail for old mock URLs — continue anyway */ }
+    try { await deletePropertyPhoto(url) } catch { /* ignore */ }
     set('photos', form.photos.filter((_, i) => i !== index))
   }, [form.photos])
 
   const handleSetPrimary = useCallback((index: number) => {
-    const next = [...form.photos]
-    const [item] = next.splice(index, 1)
-    next.unshift(item)
+    const next = [...form.photos]; const [item] = next.splice(index, 1); next.unshift(item)
     set('photos', next)
   }, [form.photos])
 
   const handleMovePhoto = useCallback((index: number, dir: -1 | 1) => {
-    const next = [...form.photos]
-    const target = index + dir
+    const next = [...form.photos]; const target = index + dir
     if (target < 0 || target >= next.length) return
     ;[next[index], next[target]] = [next[target], next[index]]
     set('photos', next)
@@ -305,22 +372,13 @@ export function PropertyFormPage() {
       const result = await openAddressSearch()
       const addr = result.roadAddress || result.jibunAddress
       set('address', addr)
-      // Geocode to get coordinates
       const coords = await geocodeAddress(addr)
-      if (coords) {
-        set('latitude', String(coords.lat))
-        set('longitude', String(coords.lng))
-      }
-    } catch {
-      toast.error('주소 검색을 열 수 없습니다.')
-    }
+      if (coords) { set('latitude', String(coords.lat)); set('longitude', String(coords.lng)) }
+    } catch { toast.error('주소 검색을 열 수 없습니다.') }
   }, [])
 
   const handleAIDescription = useCallback(async () => {
-    if (!form.title && !form.address) {
-      toast.error('제목 또는 주소를 먼저 입력해주세요.')
-      return
-    }
+    if (!form.title && !form.address) { toast.error('제목 또는 주소를 먼저 입력해주세요.'); return }
     setAiGenerating(true)
     try {
       const catName = categories.find((c) => c.id === form.category_id)?.name || ''
@@ -333,6 +391,8 @@ export function PropertyFormPage() {
       const areaInfo = [
         form.supply_area_m2 ? `공급 ${form.supply_area_m2}㎡` : '',
         form.exclusive_area_m2 ? `전용 ${form.exclusive_area_m2}㎡` : '',
+        form.extra_info.land_area_m2 ? `대지 ${form.extra_info.land_area_m2}㎡` : '',
+        form.extra_info.building_area_m2 ? `건물 ${form.extra_info.building_area_m2}㎡` : '',
       ].filter(Boolean).join(', ')
       const structInfo = [
         form.rooms ? `방 ${form.rooms}개` : '',
@@ -340,15 +400,21 @@ export function PropertyFormPage() {
         form.floor ? `${form.floor}층` : '',
         form.total_floors ? `(총 ${form.total_floors}층)` : '',
         form.direction || '',
+        form.extra_info.ceiling_height ? `층고 ${form.extra_info.ceiling_height}m` : '',
+        form.extra_info.room_count ? `객실 ${form.extra_info.room_count}개` : '',
       ].filter(Boolean).join(', ')
       const detailInfo = [
         form.has_elevator ? '엘리베이터 있음' : '',
         form.pets_allowed ? '반려동물 가능' : '',
         form.parking_per_unit ? `주차 ${form.parking_per_unit}대` : '',
         form.options.length > 0 ? `옵션: ${form.options.join(', ')}` : '',
+        form.extra_info.power_capacity ? `전력 ${form.extra_info.power_capacity}` : '',
+        form.extra_info.truck_access ? '화물차진입가능' : '',
+        form.extra_info.zoning ? `용도지역: ${form.extra_info.zoning}` : '',
+        form.extra_info.project_phase ? `사업단계: ${form.extra_info.project_phase}` : '',
+        form.extra_info.business_license ? `인허가: ${form.extra_info.business_license}` : '',
       ].filter(Boolean).join(', ')
 
-      // 유형별 위치 기반 분석 지시
       const categoryGuideMap: Record<string, string> = {
         '아파트': '주소 위치를 기반으로 주변 학군(초·중·고), 가장 가까운 지하철역과 도보 소요시간, 주변 생활 인프라(마트·병원·공원), 투자 적합도(시세 전망·입지 가치)를 분석하여 포함하세요.',
         '오피스텔': '주소 위치를 기반으로 가장 가까운 지하철역과 도보 소요시간, 주변 업무지구·상권, 교통 접근성(버스·지하철 노선), 임대 수익률 관점의 투자 적합도를 분석하여 포함하세요.',
@@ -356,11 +422,10 @@ export function PropertyFormPage() {
         '상가': '주소 위치를 기반으로 해당 상권의 특성(유동인구·업종 분포), 가장 가까운 지하철역과 도보 소요시간, 주변 주요 시설(대형 건물·아파트 단지 등), 상권 투자 적합도를 분석하여 포함하세요.',
         '사무실': '주소 위치를 기반으로 주변 업무지구·상권, 가장 가까운 지하철역과 도보 소요시간, 버스 노선, 주변 편의시설(식당가·은행·관공서), 임대 수요 전망을 분석하여 포함하세요.',
         '전원주택': '주소 위치를 기반으로 가장 가까운 IC(나들목)와 차량 소요시간, 대중교통 접근성, 가장 가까운 종합병원·마트·학교까지의 거리, 자연환경(산·하천·공원), 전원생활의 장점을 분석하여 포함하세요.',
-        '공장': '주소 위치를 기반으로 가장 가까운 IC(나들목)와 차량 소요시간, 주요 물류 거점과의 거리, 진입 가능 차량(톤수), 마당(야적장) 활용 가능 여부, 층고 정보, 전력 용량, 투자 적합도를 분석하여 포함하세요.',
-        '창고': '주소 위치를 기반으로 가장 가까운 IC(나들목)와 차량 소요시간, 주요 물류 거점과의 거리, 진입 가능 차량(톤수), 마당(야적장) 활용 가능 여부, 층고 정보, 투자 적합도를 분석하여 포함하세요.',
-        '토지': '주소 위치를 기반으로 해당 토지의 용도지역(주거·상업·공업·녹지 등)에 따른 건축 가능 용도와 건폐율·용적률, 주변 개발 계획, 도로 접면 상태, 향후 가치 상승 전망 등 투자 적합도를 분석하여 포함하세요.',
-        '건물': '주소 위치를 기반으로 주변 상권 분석(유동인구·업종), 가장 가까운 지하철역과 도보 소요시간, 임대 수익률, 건물 가치 전망 등 투자 적합도를 분석하여 포함하세요.',
-        '지식산업센터': '주소 위치를 기반으로 가장 가까운 지하철역과 도보 소요시간, 주변 산업단지·업무지구, IC 접근성, 주변 편의시설(식당·카페·은행), 입주 기업 업종 전망, 투자 적합도를 분석하여 포함하세요.',
+        '공장/창고': '주소 위치를 기반으로 가장 가까운 IC(나들목)와 차량 소요시간, 주요 물류 거점과의 거리, 진입 가능 차량(톤수), 층고 정보, 전력 용량, 투자 적합도를 분석하여 포함하세요.',
+        '토지': '주소 위치를 기반으로 해당 토지의 용도지역에 따른 건축 가능 용도와 건폐율·용적률, 주변 개발 계획, 도로 접면 상태, 향후 가치 상승 전망 등 투자 적합도를 분석하여 포함하세요.',
+        '재개발': '주소 위치를 기반으로 재개발 사업의 진행 단계, 조합원 분양가 대비 시세, 예상 입주 시기, 주변 교통·생활 인프라, 투자 가치를 분석하여 포함하세요.',
+        '숙박/펜션': '주소 위치를 기반으로 주변 관광지·자연환경, 접근성(IC·대중교통), 성수기 수요, 운영 수익성, 주변 경쟁 시설을 분석하여 포함하세요.',
       }
       const categoryGuide = categoryGuideMap[catName] || '주소 위치를 기반으로 주변 교통(지하철·버스), 생활 인프라, 투자 적합도를 분석하여 포함하세요.'
 
@@ -431,13 +496,8 @@ ${categoryGuide}
     if (idx < tabs.length - 1) setActiveTab(tabs[idx + 1].id)
   }
 
+  // ─── Area unit helpers ───
   const areaUnit = useAreaUnitStore((s) => s.unit)
-  const supplyConverted = form.supply_area_m2
-    ? (areaUnit === 'sqm' ? sqmToPyeong(parseFloat(form.supply_area_m2)) + '평' : parseFloat(form.supply_area_m2) + '㎡')
-    : null
-  const exclusiveConverted = form.exclusive_area_m2
-    ? (areaUnit === 'sqm' ? sqmToPyeong(parseFloat(form.exclusive_area_m2)) + '평' : parseFloat(form.exclusive_area_m2) + '㎡')
-    : null
   const areaLabel = areaUnit === 'sqm' ? '㎡' : '평'
 
   const getAreaDisplay = (sqmStr: string): string => {
@@ -452,6 +512,102 @@ ${categoryGuide}
     const num = parseFloat(displayVal)
     if (isNaN(num)) return
     set(key, areaUnit === 'sqm' ? String(num) : String(pyeongToSqm(num)))
+  }
+
+  // Area helpers for extra_info fields
+  const getExtraAreaDisplay = (key: string): string => {
+    const sqmStr = form.extra_info[key as keyof ExtraInfoForm] as string
+    if (!sqmStr) return ''
+    const sqm = parseFloat(sqmStr)
+    if (isNaN(sqm)) return ''
+    return areaUnit === 'sqm' ? String(sqm) : String(sqmToPyeong(sqm))
+  }
+
+  const setExtraAreaFromDisplay = (key: string, displayVal: string) => {
+    if (!displayVal) { setExtra(key, ''); return }
+    const num = parseFloat(displayVal)
+    if (isNaN(num)) return
+    setExtra(key, areaUnit === 'sqm' ? String(num) : String(pyeongToSqm(num)))
+  }
+
+  const getExtraAreaConverted = (key: string): string | null => {
+    const sqmStr = form.extra_info[key as keyof ExtraInfoForm] as string
+    if (!sqmStr) return null
+    const sqm = parseFloat(sqmStr)
+    if (isNaN(sqm)) return null
+    return areaUnit === 'sqm' ? sqmToPyeong(sqm) + '평' : sqm + '㎡'
+  }
+
+  const supplyConverted = form.supply_area_m2
+    ? (areaUnit === 'sqm' ? sqmToPyeong(parseFloat(form.supply_area_m2)) + '평' : parseFloat(form.supply_area_m2) + '㎡')
+    : null
+  const exclusiveConverted = form.exclusive_area_m2
+    ? (areaUnit === 'sqm' ? sqmToPyeong(parseFloat(form.exclusive_area_m2)) + '평' : parseFloat(form.exclusive_area_m2) + '㎡')
+    : null
+
+  // ─── Render extra field ───
+  const renderExtraField = (fd: ExtraFieldDef) => {
+    const key = fd.key as keyof ExtraInfoForm
+
+    if (fd.type === 'checkbox') {
+      return (
+        <label key={fd.key} className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={!!form.extra_info[key]}
+            onChange={(e) => setExtra(fd.key, e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-primary-600" />
+          {fd.label}
+        </label>
+      )
+    }
+
+    if (fd.type === 'area') {
+      const converted = getExtraAreaConverted(fd.key)
+      return (
+        <div key={fd.key}>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{fd.label} ({areaLabel})</label>
+          <input type="number" step="0.01" value={getExtraAreaDisplay(fd.key)}
+            onChange={(e) => setExtraAreaFromDisplay(fd.key, e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+          {converted && <p className="mt-1 text-xs text-gray-400">≈ {converted}</p>}
+        </div>
+      )
+    }
+
+    if (fd.type === 'select') {
+      return (
+        <div key={fd.key}>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{fd.label}</label>
+          <select value={form.extra_info[key] as string} onChange={(e) => setExtra(fd.key, e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            <option value="">선택</option>
+            {fd.options?.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </div>
+      )
+    }
+
+    if (fd.type === 'number') {
+      const val = form.extra_info[key] as string
+      return (
+        <div key={fd.key}>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{fd.label}</label>
+          <input type="number" step={fd.step || '1'} value={val} placeholder={fd.placeholder}
+            onChange={(e) => setExtra(fd.key, e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+          {fd.showPriceHint && val && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(val))}원</p>}
+        </div>
+      )
+    }
+
+    // text
+    return (
+      <div key={fd.key}>
+        <label className="mb-1 block text-sm font-medium text-gray-700">{fd.label}</label>
+        <input type="text" value={form.extra_info[key] as string} placeholder={fd.placeholder}
+          onChange={(e) => setExtra(fd.key, e.target.value)}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+      </div>
+    )
   }
 
   return (
@@ -477,7 +633,7 @@ ${categoryGuide}
       </div>
 
       <form onSubmit={handleSubmit} className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
-        {/* Basic Info */}
+        {/* ═══ Basic Info ═══ */}
         {activeTab === 'basic' && (
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -523,26 +679,17 @@ ${categoryGuide}
           </div>
         )}
 
-        {/* Location */}
+        {/* ═══ Location ═══ */}
         {activeTab === 'location' && (
           <div className="space-y-4">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">주소 <span className="text-red-500">*</span></label>
               <div className="flex gap-2">
-                <input
-                  id="address"
-                  type="text"
-                  value={form.address}
-                  readOnly
-                  onClick={handleOpenPostcode}
+                <input id="address" type="text" value={form.address} readOnly onClick={handleOpenPostcode}
                   placeholder="클릭하여 주소를 검색하세요"
-                  className="flex-1 cursor-pointer rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={handleOpenPostcode}
-                  className="shrink-0 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
-                >
+                  className="flex-1 cursor-pointer rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm" />
+                <button type="button" onClick={handleOpenPostcode}
+                  className="shrink-0 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
                   주소 검색
                 </button>
               </div>
@@ -565,12 +712,14 @@ ${categoryGuide}
           </div>
         )}
 
-        {/* Price */}
+        {/* ═══ Price ═══ */}
         {activeTab === 'price' && (
           <div className="space-y-4">
-            {(form.transaction_type === 'sale' || form.transaction_type === 'jeonse' || form.transaction_type === 'monthly') && form.transaction_type === 'sale' && (
+            {form.transaction_type === 'sale' && (
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">매매가 (만원) <span className="text-red-500">*</span></label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  {priceOvr?.sale_label || '매매가 (만원)'} <span className="text-red-500">*</span>
+                </label>
                 <input type="text" value={formatNumber(form.sale_price)} onChange={(e) => set('sale_price', e.target.value.replace(/,/g, ''))}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 95,000" />
                 {form.sale_price && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(form.sale_price))}원</p>}
@@ -592,182 +741,216 @@ ${categoryGuide}
                 {form.monthly_rent && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(form.monthly_rent))}원</p>}
               </div>
             )}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">관리비 (만원)</label>
-              <input type="text" value={formatNumber(form.maintenance_fee)} onChange={(e) => set('maintenance_fee', e.target.value.replace(/,/g, ''))}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 15" />
-              {form.maintenance_fee && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(form.maintenance_fee))}원</p>}
-            </div>
+            {(priceOvr?.maintenance_fee !== false) && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">관리비 (만원)</label>
+                <input type="text" value={formatNumber(form.maintenance_fee)} onChange={(e) => set('maintenance_fee', e.target.value.replace(/,/g, ''))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 15" />
+                {form.maintenance_fee && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(form.maintenance_fee))}원</p>}
+              </div>
+            )}
+            {/* Extra price fields (권리금, 프리미엄, 조합원분양가 etc.) */}
+            {extraFieldsForTab('price').map(renderExtraField)}
           </div>
         )}
 
-        {/* Structure */}
+        {/* ═══ Structure ═══ */}
         {activeTab === 'structure' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">면적 단위</span>
-              <AreaUnitToggle />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">공급면적 ({areaLabel})</label>
-                <input type="number" step="0.01" value={getAreaDisplay(form.supply_area_m2)} onChange={(e) => setAreaFromDisplay('supply_area_m2', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-                {supplyConverted && <p className="mt-1 text-xs text-gray-400">≈ {supplyConverted}</p>}
+            {/* Area unit toggle — show if any area field is visible */}
+            {(structVis?.supply_area !== false || structVis?.exclusive_area !== false || extraFieldsForTab('structure').some((f) => f.type === 'area')) && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">면적 단위</span>
+                <AreaUnitToggle />
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">전용면적 ({areaLabel})</label>
-                <input type="number" step="0.01" value={getAreaDisplay(form.exclusive_area_m2)} onChange={(e) => setAreaFromDisplay('exclusive_area_m2', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-                {exclusiveConverted && <p className="mt-1 text-xs text-gray-400">≈ {exclusiveConverted}</p>}
+            )}
+
+            {/* Supply / Exclusive area */}
+            {(structVis?.supply_area !== false || structVis?.exclusive_area !== false) && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {structVis?.supply_area !== false && (
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">공급면적 ({areaLabel})</label>
+                    <input type="number" step="0.01" value={getAreaDisplay(form.supply_area_m2)} onChange={(e) => setAreaFromDisplay('supply_area_m2', e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                    {supplyConverted && <p className="mt-1 text-xs text-gray-400">≈ {supplyConverted}</p>}
+                  </div>
+                )}
+                {structVis?.exclusive_area !== false && (
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">전용면적 ({areaLabel})</label>
+                    <input type="number" step="0.01" value={getAreaDisplay(form.exclusive_area_m2)} onChange={(e) => setAreaFromDisplay('exclusive_area_m2', e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                    {exclusiveConverted && <p className="mt-1 text-xs text-gray-400">≈ {exclusiveConverted}</p>}
+                  </div>
+                )}
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Input id="rooms" label="방" type="number" value={form.rooms} onChange={(e) => set('rooms', e.target.value)} />
-              <Input id="bathrooms" label="욕실" type="number" value={form.bathrooms} onChange={(e) => set('bathrooms', e.target.value)} />
-              <Input id="floor" label="해당층" type="number" value={form.floor} onChange={(e) => set('floor', e.target.value)} />
-              <Input id="total_floors" label="총층수" type="number" value={form.total_floors} onChange={(e) => set('total_floors', e.target.value)} />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">방향</label>
-                <select value={form.direction} onChange={(e) => set('direction', e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                  <option value="">선택</option>
-                  {directionOptions.map((d) => <option key={d} value={d}>{d}</option>)}
-                </select>
+            )}
+
+            {/* Rooms / Bathrooms / Floor / Total Floors */}
+            {(structVis?.rooms !== false || structVis?.bathrooms !== false || structVis?.floor !== false || structVis?.total_floors !== false) && (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {structVis?.rooms !== false && <Input id="rooms" label="방" type="number" value={form.rooms} onChange={(e) => set('rooms', e.target.value)} />}
+                {structVis?.bathrooms !== false && <Input id="bathrooms" label="욕실" type="number" value={form.bathrooms} onChange={(e) => set('bathrooms', e.target.value)} />}
+                {structVis?.floor !== false && <Input id="floor" label="해당층" type="number" value={form.floor} onChange={(e) => set('floor', e.target.value)} />}
+                {structVis?.total_floors !== false && <Input id="total_floors" label="총층수" type="number" value={form.total_floors} onChange={(e) => set('total_floors', e.target.value)} />}
               </div>
-              <div>
-                <label htmlFor="built_year" className="mb-1 block text-sm font-medium text-gray-700">준공연도</label>
-                <input id="built_year" type="month" value={form.built_year} onChange={(e) => set('built_year', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            )}
+
+            {/* Direction / Built year */}
+            {(structVis?.direction !== false || structVis?.built_year !== false) && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {structVis?.direction !== false && (
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">방향</label>
+                    <select value={form.direction} onChange={(e) => set('direction', e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                      <option value="">선택</option>
+                      {directionOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                )}
+                {structVis?.built_year !== false && (
+                  <div>
+                    <label htmlFor="built_year" className="mb-1 block text-sm font-medium text-gray-700">준공연도</label>
+                    <input id="built_year" type="month" value={form.built_year} onChange={(e) => set('built_year', e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                  </div>
+                )}
               </div>
-            </div>
+            )}
+
+            {/* Extra structure fields */}
+            {extraFieldsForTab('structure').length > 0 && (
+              <>
+                <hr className="border-gray-100" />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {extraFieldsForTab('structure').map(renderExtraField)}
+                </div>
+              </>
+            )}
+
+            {/* Hint when no category selected */}
+            {!catGroup && (
+              <p className="text-center text-sm text-gray-400">기본정보 탭에서 매물유형을 선택하면 해당 유형에 맞는 항목이 표시됩니다.</p>
+            )}
           </div>
         )}
 
-        {/* Detail */}
+        {/* ═══ Detail ═══ */}
         {activeTab === 'detail' && (
           <div className="space-y-4">
-            <Input id="move_in_date" label="입주가능일" type="date" value={form.move_in_date} onChange={(e) => set('move_in_date', e.target.value)} />
-            <Input id="parking" label="주차 (대/세대)" type="number" step="0.1" value={form.parking_per_unit} onChange={(e) => set('parking_per_unit', e.target.value)} />
-            <div className="flex gap-6">
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.has_elevator} onChange={(e) => set('has_elevator', e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary-600" /> 엘리베이터</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.pets_allowed} onChange={(e) => set('pets_allowed', e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary-600" /> 반려동물 허용</label>
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">옵션</label>
-              <div className="flex flex-wrap gap-2">
-                {optionChoices.map((opt) => (
-                  <button key={opt} type="button" onClick={() => handleToggleOption(opt)}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${form.options.includes(opt) ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-                    {opt}
-                  </button>
-                ))}
+            {detailVis?.move_in_date !== false && (
+              <Input id="move_in_date" label="입주가능일" type="date" value={form.move_in_date} onChange={(e) => set('move_in_date', e.target.value)} />
+            )}
+            {detailVis?.parking !== false && (
+              <Input id="parking" label="주차 (대/세대)" type="number" step="0.1" value={form.parking_per_unit} onChange={(e) => set('parking_per_unit', e.target.value)} />
+            )}
+            {(detailVis?.elevator !== false || detailVis?.pets !== false) && (
+              <div className="flex gap-6">
+                {detailVis?.elevator !== false && (
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.has_elevator} onChange={(e) => set('has_elevator', e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary-600" /> 엘리베이터</label>
+                )}
+                {detailVis?.pets !== false && (
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.pets_allowed} onChange={(e) => set('pets_allowed', e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary-600" /> 반려동물 허용</label>
+                )}
               </div>
-            </div>
+            )}
+
+            {/* Extra detail fields (non-checkbox) */}
+            {extraFieldsForTab('detail').filter((f) => f.type !== 'checkbox').length > 0 && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {extraFieldsForTab('detail').filter((f) => f.type !== 'checkbox').map(renderExtraField)}
+              </div>
+            )}
+
+            {/* Extra detail fields (checkbox) */}
+            {extraFieldsForTab('detail').filter((f) => f.type === 'checkbox').length > 0 && (
+              <div className="flex flex-wrap gap-6">
+                {extraFieldsForTab('detail').filter((f) => f.type === 'checkbox').map(renderExtraField)}
+              </div>
+            )}
+
+            {/* Options */}
+            {detailVis?.options !== false && optionChoices.length > 0 && (
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">옵션</label>
+                <div className="flex flex-wrap gap-2">
+                  {optionChoices.map((opt) => (
+                    <button key={opt} type="button" onClick={() => handleToggleOption(opt)}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${form.options.includes(opt) ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Tags */}
             {(visibleTagConditions.length > 0 || visibleCustomTags.length > 0) && (
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">빠른 검색 태그</label>
                 <p className="mb-2 text-xs text-gray-400">선택한 태그가 홈페이지 원클릭 검색에 연동됩니다</p>
                 <div className="flex flex-wrap gap-2">
                   {visibleTagConditions.map((tc) => (
-                    <button
-                      key={tc.conditionKey}
-                      type="button"
-                      onClick={() => handleTogglePredefinedTag(tc.tag)}
+                    <button key={tc.conditionKey} type="button" onClick={() => handleTogglePredefinedTag(tc.tag)}
                       className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                         form.predefinedTags.includes(tc.tag)
                           ? 'border-primary-500 bg-primary-50 text-primary-700'
                           : 'border-gray-200 text-gray-500 hover:bg-gray-50'
-                      }`}
-                    >
-                      {tc.tag}
-                    </button>
+                      }`}>{tc.tag}</button>
                   ))}
                   {visibleCustomTags.map((label) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => handleTogglePredefinedTag(label)}
+                    <button key={label} type="button" onClick={() => handleTogglePredefinedTag(label)}
                       className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                         form.predefinedTags.includes(label)
                           ? 'border-primary-500 bg-primary-50 text-primary-700'
                           : 'border-gray-200 text-gray-500 hover:bg-gray-50'
-                      }`}
-                    >
-                      {label}
-                    </button>
+                      }`}>{label}</button>
                   ))}
                 </div>
               </div>
             )}
             <Input id="tags" label="커스텀 태그 (쉼표 구분)" value={form.tags} onChange={(e) => set('tags', e.target.value)} placeholder="예: 신축, 올수리, 풀옵션" />
+
+            {/* Hint */}
+            {!catGroup && (
+              <p className="text-center text-sm text-gray-400">기본정보 탭에서 매물유형을 선택하면 해당 유형에 맞는 항목이 표시됩니다.</p>
+            )}
           </div>
         )}
 
-        {/* Media */}
+        {/* ═══ Media ═══ */}
         {activeTab === 'media' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-gray-700">사진 ({form.photos.length}/20)</label>
               {uploading && <span className="text-xs text-primary-600">업로드 중...</span>}
             </div>
-
-            {/* Dropzone */}
             {form.photos.length < 20 && (
               <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
+                onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
                 className={`cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
                   dragOver ? 'border-primary-400 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
+                }`}>
                 <p className="text-sm text-gray-500">클릭 또는 드래그하여 사진 업로드</p>
                 <p className="mt-1 text-xs text-gray-400">JPG, PNG (최대 10MB, 최대 20장)</p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files) handleFiles(Array.from(e.target.files))
-                    e.target.value = ''
-                  }}
-                />
+                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" multiple className="hidden"
+                  onChange={(e) => { if (e.target.files) handleFiles(Array.from(e.target.files)); e.target.value = '' }} />
               </div>
             )}
-
-            {/* Photo Grid */}
             {form.photos.length > 0 && (
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
                 {form.photos.map((url, i) => (
                   <div key={url} className="group relative aspect-square overflow-hidden rounded-lg bg-gray-100">
                     <img src={url} alt="" className="h-full w-full object-cover" />
-                    {i === 0 && (
-                      <span className="absolute left-1 top-1 rounded bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">대표</span>
-                    )}
-                    {i !== 0 && (
-                      <span className="absolute left-1 top-1 rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-white">{i + 1}</span>
-                    )}
-                    {/* Hover Controls */}
+                    {i === 0 && <span className="absolute left-1 top-1 rounded bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">대표</span>}
+                    {i !== 0 && <span className="absolute left-1 top-1 rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-white">{i + 1}</span>}
                     <div className="absolute inset-x-0 bottom-0 flex justify-center gap-1 bg-gradient-to-t from-black/60 to-transparent p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                      {i !== 0 && (
-                        <button type="button" onClick={() => handleSetPrimary(i)} title="대표 설정"
-                          className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 hover:bg-white">★</button>
-                      )}
-                      {i > 0 && (
-                        <button type="button" onClick={() => handleMovePhoto(i, -1)} title="왼쪽으로"
-                          className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 hover:bg-white">←</button>
-                      )}
-                      {i < form.photos.length - 1 && (
-                        <button type="button" onClick={() => handleMovePhoto(i, 1)} title="오른쪽으로"
-                          className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 hover:bg-white">→</button>
-                      )}
-                      <button type="button" onClick={() => handleDeletePhoto(i)} title="삭제"
-                        className="rounded bg-red-500/90 px-1.5 py-0.5 text-[10px] font-medium text-white hover:bg-red-600">✕</button>
+                      {i !== 0 && <button type="button" onClick={() => handleSetPrimary(i)} title="대표 설정" className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 hover:bg-white">★</button>}
+                      {i > 0 && <button type="button" onClick={() => handleMovePhoto(i, -1)} title="왼쪽으로" className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 hover:bg-white">←</button>}
+                      {i < form.photos.length - 1 && <button type="button" onClick={() => handleMovePhoto(i, 1)} title="오른쪽으로" className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 hover:bg-white">→</button>}
+                      <button type="button" onClick={() => handleDeletePhoto(i)} title="삭제" className="rounded bg-red-500/90 px-1.5 py-0.5 text-[10px] font-medium text-white hover:bg-red-600">✕</button>
                     </div>
                   </div>
                 ))}
@@ -776,36 +959,25 @@ ${categoryGuide}
           </div>
         )}
 
-        {/* Description */}
+        {/* ═══ Description ═══ */}
         {activeTab === 'description' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-gray-700">매물 설명</label>
-              <button
-                type="button"
-                onClick={handleAIDescription}
-                disabled={aiGenerating}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-100 disabled:opacity-50"
-              >
+              <button type="button" onClick={handleAIDescription} disabled={aiGenerating}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-100 disabled:opacity-50">
                 {aiGenerating ? (
-                  <>
-                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary-300 border-t-primary-600" />
-                    생성 중...
-                  </>
-                ) : (
-                  '🤖 AI 자동 생성'
-                )}
+                  <><span className="h-3 w-3 animate-spin rounded-full border-2 border-primary-300 border-t-primary-600" /> 생성 중...</>
+                ) : '🤖 AI 자동 생성'}
               </button>
             </div>
-            {form.description && (
-              <p className="text-xs text-gray-400">AI 생성 후 직접 수정할 수 있습니다.</p>
-            )}
+            {form.description && <p className="text-xs text-gray-400">AI 생성 후 직접 수정할 수 있습니다.</p>}
             <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={8}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="매물의 장점, 특징, 주변 환경 등을 자유롭게 작성하세요" />
           </div>
         )}
 
-        {/* Co-brokerage */}
+        {/* ═══ Co-brokerage ═══ */}
         {activeTab === 'co-brokerage' && (
           <div className="space-y-4">
             <label className="flex items-center gap-2 text-sm">
@@ -818,7 +990,7 @@ ${categoryGuide}
           </div>
         )}
 
-        {/* Internal Memo */}
+        {/* ═══ Internal Memo ═══ */}
         {activeTab === 'memo' && (
           <div className="space-y-4">
             <label className="text-sm font-medium text-gray-700">내부 메모 (고객에게 비공개)</label>
@@ -827,7 +999,7 @@ ${categoryGuide}
           </div>
         )}
 
-        {/* Actions */}
+        {/* ═══ Actions ═══ */}
         <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-4">
           <div>
             {activeTab !== tabs[0].id && (

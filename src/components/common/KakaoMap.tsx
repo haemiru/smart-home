@@ -2,13 +2,16 @@ import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-// Fix default marker icon path issue with bundlers
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-delete (L.Icon.Default.prototype as any)._getIconUrl
+// Fix Leaflet default marker icon path issue with bundlers
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
+import markerIcon from 'leaflet/dist/images/marker-icon.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
+
+delete (L.Icon.Default.prototype as Record<string, unknown>)._getIconUrl
 L.Icon.Default.mergeOptions({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
 })
 
 interface KakaoMapProps {
@@ -19,35 +22,28 @@ interface KakaoMapProps {
 }
 
 const POSTCODE_SDK_URL = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'
-const GEOCODE_API = import.meta.env.DEV ? '/api/geocode' : '/api/geocode'
-const REVERSE_GEOCODE_API = import.meta.env.DEV ? '/api/reverse-geocode' : '/api/reverse-geocode'
+const GEOCODE_API = '/api/geocode'
+const REVERSE_GEOCODE_API = '/api/reverse-geocode'
 
 // --- Daum Postcode SDK ---
 let postcodeLoadPromise: Promise<void> | null = null
 
 function loadPostcodeSDK(): Promise<void> {
   if (postcodeLoadPromise) return postcodeLoadPromise
-
   if (window.daum?.Postcode) {
     postcodeLoadPromise = Promise.resolve()
     return postcodeLoadPromise
   }
-
   postcodeLoadPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script')
     script.src = POSTCODE_SDK_URL
     script.async = true
     script.onload = () => resolve()
-    script.onerror = () => {
-      postcodeLoadPromise = null
-      reject(new Error('Failed to load Postcode SDK'))
-    }
+    script.onerror = () => { postcodeLoadPromise = null; reject(new Error('Failed to load Postcode SDK')) }
     document.head.appendChild(script)
   })
-
   return postcodeLoadPromise
 }
-
 
 /** Open Daum Postcode popup and return selected address */
 export function openAddressSearch(): Promise<daum.PostcodeResult> {
@@ -85,21 +81,20 @@ export function KakaoMap({ latitude, longitude, onLocationChange, readOnly = fal
 
   // Initialize map
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return
+    if (!containerRef.current) return
+    if (mapRef.current) return // already initialized
 
     const lat = latitude ?? DEFAULT_LAT
     const lng = longitude ?? DEFAULT_LNG
 
-    const map = L.map(containerRef.current).setView([lat, lng], latitude ? 16 : 8)
+    const map = L.map(containerRef.current).setView([lat, lng], latitude ? 16 : 6)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
     }).addTo(map)
-
     mapRef.current = map
 
     if (latitude && longitude) {
-      const marker = L.marker([latitude, longitude]).addTo(map)
-      markerRef.current = marker
+      markerRef.current = L.marker([latitude, longitude]).addTo(map)
     }
 
     if (!readOnly) {
@@ -112,7 +107,7 @@ export function KakaoMap({ latitude, longitude, onLocationChange, readOnly = fal
           markerRef.current = L.marker([clickLat, clickLng]).addTo(map)
         }
 
-        // Reverse geocode using Kakao Local REST API (via server proxy)
+        // Reverse geocode via Kakao REST API
         try {
           const res = await fetch(`${REVERSE_GEOCODE_API}?x=${clickLng}&y=${clickLat}`)
           const data = await res.json()
@@ -149,5 +144,4 @@ export function KakaoMap({ latitude, longitude, onLocationChange, readOnly = fal
   return <div ref={containerRef} className="w-full rounded-lg border border-gray-200" style={{ height: '42vw', maxHeight: '400px' }} />
 }
 
-/** Geocode an address string and return coordinates */
 export { geocodeAddress }
