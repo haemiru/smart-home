@@ -20,9 +20,13 @@ import {
   OPTIONS_PER_GROUP,
   EXTRA_FIELDS,
   emptyExtraInfo,
+  emptyBuilding,
+  BUILDING_STRUCTURE_OPTIONS,
+  BUILDING_USAGE_OPTIONS,
   type CategoryGroup,
   type ExtraInfoForm,
   type ExtraFieldDef,
+  type BuildingFormItem,
 } from '@/utils/categoryFormConfig'
 import toast from 'react-hot-toast'
 
@@ -77,6 +81,7 @@ type FormData = {
   predefinedTags: string[]
   photos: string[]
   extra_info: ExtraInfoForm
+  buildings: BuildingFormItem[]
 }
 
 const emptyForm: FormData = {
@@ -90,6 +95,7 @@ const emptyForm: FormData = {
   options: [], description: '', is_urgent: false, is_co_brokerage: false,
   co_brokerage_fee_ratio: '', internal_memo: '', built_year: '', tags: '', predefinedTags: [], photos: [],
   extra_info: { ...emptyExtraInfo },
+  buildings: [{ ...emptyBuilding }],
 }
 
 export function PropertyFormPage() {
@@ -182,7 +188,9 @@ export function PropertyFormPage() {
             slope_terrain: ei.slope_terrain || '',
             building_area_m2: ei.building_area_m2 != null ? String(ei.building_area_m2) : '',
             power_capacity: ei.power_capacity || '',
-            truck_access: ei.truck_access || false,
+            truck_25t: ei.truck_25t || false,
+            truck_wingbody: ei.truck_wingbody || false,
+            truck_trailer_40ft: ei.truck_trailer_40ft || false,
             loading_dock: ei.loading_dock || false,
             cold_storage: ei.cold_storage || false,
             project_phase: ei.project_phase || '',
@@ -192,6 +200,18 @@ export function PropertyFormPage() {
             monthly_avg_revenue: ei.monthly_avg_revenue != null ? String(ei.monthly_avg_revenue) : '',
             business_license: ei.business_license || '',
           },
+          buildings: Array.isArray(ei.buildings) && ei.buildings.length > 0
+            ? ei.buildings.map((b: Record<string, unknown>) => ({
+                name: String(b.name || ''),
+                building_area_m2: b.building_area_m2 != null ? String(b.building_area_m2) : '',
+                gross_floor_area_m2: b.gross_floor_area_m2 != null ? String(b.gross_floor_area_m2) : '',
+                ceiling_height: b.ceiling_height != null ? String(b.ceiling_height) : '',
+                building_structure: String(b.building_structure || ''),
+                floors: b.floors != null ? String(b.floors) : '',
+                built_year: String(b.built_year || ''),
+                usage: String(b.usage || ''),
+              }))
+            : [{ ...emptyBuilding }],
         })
       })
     }
@@ -200,6 +220,21 @@ export function PropertyFormPage() {
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) => setForm((prev) => ({ ...prev, [key]: value }))
   const setExtra = (key: string, value: string | boolean) =>
     setForm((prev) => ({ ...prev, extra_info: { ...prev.extra_info, [key]: value } }))
+
+  // ─── Buildings (공장/창고 복수 건물) ───
+  const setBuilding = (index: number, key: keyof BuildingFormItem, value: string) =>
+    setForm((prev) => {
+      const updated = [...prev.buildings]
+      updated[index] = { ...updated[index], [key]: value }
+      return { ...prev, buildings: updated }
+    })
+  const addBuilding = () =>
+    setForm((prev) => ({ ...prev, buildings: [...prev.buildings, { ...emptyBuilding }] }))
+  const removeBuilding = (index: number) =>
+    setForm((prev) => ({
+      ...prev,
+      buildings: prev.buildings.length > 1 ? prev.buildings.filter((_, i) => i !== index) : prev.buildings,
+    }))
 
   // ─── Category group ───
   const selectedCategoryName = useMemo(() => {
@@ -250,6 +285,27 @@ export function PropertyFormPage() {
             if (!isNaN(num)) (extraInfo as Record<string, unknown>)[fd.key] = num
           } else {
             if (val && typeof val === 'string' && val.trim()) (extraInfo as Record<string, unknown>)[fd.key] = val.trim()
+          }
+        }
+
+        // 공장/창고: buildings 배열 직렬화
+        if (catGroup === 'industrial') {
+          const validBuildings = form.buildings
+            .filter((b) => b.name.trim() || b.building_area_m2)
+            .map((b) => ({
+              name: b.name.trim() || `건물 ${form.buildings.indexOf(b) + 1}`,
+              building_area_m2: parseFloat(b.building_area_m2) || 0,
+              ...(b.gross_floor_area_m2 ? { gross_floor_area_m2: parseFloat(b.gross_floor_area_m2) } : {}),
+              ...(b.ceiling_height ? { ceiling_height: parseFloat(b.ceiling_height) } : {}),
+              ...(b.building_structure ? { building_structure: b.building_structure } : {}),
+              ...(b.floors ? { floors: parseInt(b.floors) } : {}),
+              ...(b.built_year ? { built_year: b.built_year } : {}),
+              ...(b.usage ? { usage: b.usage } : {}),
+            }))
+          if (validBuildings.length > 0) {
+            extraInfo.buildings = validBuildings
+            // 하위호환: 총 건물면적 합산
+            extraInfo.building_area_m2 = validBuildings.reduce((sum, b) => sum + b.building_area_m2, 0)
           }
         }
       }
@@ -388,11 +444,17 @@ export function PropertyFormPage() {
         : form.transaction_type === 'jeonse'
           ? (form.deposit ? `전세 ${Number(form.deposit).toLocaleString()}만원` : '')
           : [form.deposit ? `보증금 ${Number(form.deposit).toLocaleString()}만원` : '', form.monthly_rent ? `월세 ${Number(form.monthly_rent).toLocaleString()}만원` : ''].filter(Boolean).join(' / ')
+      const buildingsInfo = catGroup === 'industrial' && form.buildings.some((b) => b.building_area_m2)
+        ? form.buildings.filter((b) => b.building_area_m2).map((b) =>
+            `${b.name || '건물'}(${b.building_area_m2}㎡${b.ceiling_height ? `, 층고 ${b.ceiling_height}m` : ''}${b.building_structure ? `, ${b.building_structure}` : ''}${b.usage ? `, ${b.usage}` : ''})`
+          ).join(', ')
+        : ''
       const areaInfo = [
         form.supply_area_m2 ? `공급 ${form.supply_area_m2}㎡` : '',
         form.exclusive_area_m2 ? `전용 ${form.exclusive_area_m2}㎡` : '',
         form.extra_info.land_area_m2 ? `대지 ${form.extra_info.land_area_m2}㎡` : '',
-        form.extra_info.building_area_m2 ? `건물 ${form.extra_info.building_area_m2}㎡` : '',
+        catGroup !== 'industrial' && form.extra_info.building_area_m2 ? `건물 ${form.extra_info.building_area_m2}㎡` : '',
+        buildingsInfo ? `건물: ${buildingsInfo}` : '',
       ].filter(Boolean).join(', ')
       const structInfo = [
         form.rooms ? `방 ${form.rooms}개` : '',
@@ -409,7 +471,9 @@ export function PropertyFormPage() {
         form.parking_per_unit ? `주차 ${form.parking_per_unit}대` : '',
         form.options.length > 0 ? `옵션: ${form.options.join(', ')}` : '',
         form.extra_info.power_capacity ? `전력 ${form.extra_info.power_capacity}` : '',
-        form.extra_info.truck_access ? '화물차진입가능' : '',
+        form.extra_info.truck_25t ? '25톤진입가능' : '',
+        form.extra_info.truck_wingbody ? '윙바디진입가능' : '',
+        form.extra_info.truck_trailer_40ft ? '40ft트레일러진입가능' : '',
         form.extra_info.zoning ? `용도지역: ${form.extra_info.zoning}` : '',
         form.extra_info.project_phase ? `사업단계: ${form.extra_info.project_phase}` : '',
         form.extra_info.business_license ? `인허가: ${form.extra_info.business_license}` : '',
@@ -825,6 +889,120 @@ ${categoryGuide}
                 <hr className="border-gray-100" />
                 <div className="grid gap-4 sm:grid-cols-2">
                   {extraFieldsForTab('structure').map(renderExtraField)}
+                </div>
+              </>
+            )}
+
+            {/* 공장/창고: 복수 건물 입력 */}
+            {catGroup === 'industrial' && (
+              <>
+                <hr className="border-gray-100" />
+                <div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-gray-700">건물 정보</h4>
+                    <button type="button" onClick={addBuilding}
+                      className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100">
+                      + 건물 추가
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    {form.buildings.map((b, i) => (
+                      <div key={i} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-600">건물 {i + 1}</span>
+                          {form.buildings.length > 1 && (
+                            <button type="button" onClick={() => removeBuilding(i)}
+                              className="text-xs text-red-500 hover:text-red-700">삭제</button>
+                          )}
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-600">건물명</label>
+                            <input type="text" value={b.name} placeholder="예: A동, 공장동"
+                              onChange={(e) => setBuilding(i, 'name', e.target.value)}
+                              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-600">건물면적 ({areaLabel})</label>
+                            <input type="number" step="0.01"
+                              value={(() => {
+                                const sqm = parseFloat(b.building_area_m2)
+                                if (isNaN(sqm) || !b.building_area_m2) return ''
+                                return areaUnit === 'sqm' ? String(sqm) : String(sqmToPyeong(sqm))
+                              })()}
+                              onChange={(e) => {
+                                if (!e.target.value) { setBuilding(i, 'building_area_m2', ''); return }
+                                const num = parseFloat(e.target.value)
+                                if (isNaN(num)) return
+                                setBuilding(i, 'building_area_m2', areaUnit === 'sqm' ? String(num) : String(pyeongToSqm(num)))
+                              }}
+                              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-600">연면적 ({areaLabel})</label>
+                            <input type="number" step="0.01"
+                              value={(() => {
+                                const sqm = parseFloat(b.gross_floor_area_m2)
+                                if (isNaN(sqm) || !b.gross_floor_area_m2) return ''
+                                return areaUnit === 'sqm' ? String(sqm) : String(sqmToPyeong(sqm))
+                              })()}
+                              onChange={(e) => {
+                                if (!e.target.value) { setBuilding(i, 'gross_floor_area_m2', ''); return }
+                                const num = parseFloat(e.target.value)
+                                if (isNaN(num)) return
+                                setBuilding(i, 'gross_floor_area_m2', areaUnit === 'sqm' ? String(num) : String(pyeongToSqm(num)))
+                              }}
+                              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-600">층고 (m)</label>
+                            <input type="number" step="0.1" value={b.ceiling_height} placeholder="예: 8.0"
+                              onChange={(e) => setBuilding(i, 'ceiling_height', e.target.value)}
+                              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-600">건물구조</label>
+                            <select value={b.building_structure} onChange={(e) => setBuilding(i, 'building_structure', e.target.value)}
+                              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                              <option value="">선택</option>
+                              {BUILDING_STRUCTURE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-600">층수</label>
+                            <input type="number" value={b.floors} placeholder="예: 2"
+                              onChange={(e) => setBuilding(i, 'floors', e.target.value)}
+                              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-600">준공연도</label>
+                            <input type="month" value={b.built_year}
+                              onChange={(e) => setBuilding(i, 'built_year', e.target.value)}
+                              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-600">용도</label>
+                            <select value={b.usage} onChange={(e) => setBuilding(i, 'usage', e.target.value)}
+                              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                              <option value="">선택</option>
+                              {BUILDING_USAGE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* 총 건물면적 합산 표시 */}
+                  {form.buildings.some((b) => b.building_area_m2) && (
+                    <p className="mt-2 text-xs text-gray-500">
+                      총 건물면적: {(() => {
+                        const totalSqm = form.buildings.reduce((sum, b) => sum + (parseFloat(b.building_area_m2) || 0), 0)
+                        return areaUnit === 'sqm'
+                          ? `${totalSqm.toFixed(2)}㎡ (≈ ${sqmToPyeong(totalSqm).toFixed(2)}평)`
+                          : `${sqmToPyeong(totalSqm).toFixed(2)}평 (≈ ${totalSqm.toFixed(2)}㎡)`
+                      })()}
+                    </p>
+                  )}
                 </div>
               </>
             )}

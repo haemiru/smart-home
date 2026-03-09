@@ -52,7 +52,9 @@ export function AIDescriptionPage() {
   const [results, setResults] = useState<string[]>([])
 
   useEffect(() => {
-    fetchProperties({}, 'newest', 1, 100).then(({ data }) => setProperties(data))
+    fetchProperties({}, 'newest', 1, 100)
+      .then(({ data }) => setProperties(data))
+      .catch(() => {})
   }, [])
 
   const filteredProperties = searchQuery

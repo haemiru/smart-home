@@ -14,10 +14,10 @@ export function NotificationSettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    fetchNotificationSettings().then((data) => {
-      setSettings(data)
-      setIsLoading(false)
-    })
+    fetchNotificationSettings()
+      .then((data) => setSettings(data))
+      .catch(() => {})
+      .finally(() => setIsLoading(false))
   }, [])
 
   const handleToggle = async (type: NotificationType, channel: NotificationChannel) => {

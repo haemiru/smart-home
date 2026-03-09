@@ -17,10 +17,10 @@ export function CoBrokeragePoolPage() {
 
   const loadData = (showLoading = false) => {
     if (showLoading) setIsLoading(true)
-    fetchSharedProperties(search || undefined).then((data) => {
-      setProperties(data)
-      setIsLoading(false)
-    })
+    fetchSharedProperties(search || undefined)
+      .then((data) => setProperties(data))
+      .catch(() => {})
+      .finally(() => setIsLoading(false))
   }
 
   useEffect(() => {

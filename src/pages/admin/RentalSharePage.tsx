@@ -15,16 +15,18 @@ export function RentalSharePage() {
 
   useEffect(() => {
     if (!token) return
-    fetchShareData(token).then((data) => {
-      if (!data) {
-        setError('유효하지 않거나 만료된 링크입니다.')
-      } else {
-        setProperty(data.property)
-        setPayments(data.payments.sort((a, b) => b.payment_month.localeCompare(a.payment_month)))
-        setRepairs(data.repairs)
-      }
-      setIsLoading(false)
-    })
+    fetchShareData(token)
+      .then((data) => {
+        if (!data) {
+          setError('유효하지 않거나 만료된 링크입니다.')
+        } else {
+          setProperty(data.property)
+          setPayments(data.payments.sort((a, b) => b.payment_month.localeCompare(a.payment_month)))
+          setRepairs(data.repairs)
+        }
+      })
+      .catch(() => setError('데이터를 불러올 수 없습니다.'))
+      .finally(() => setIsLoading(false))
   }, [token])
 
   if (isLoading) {

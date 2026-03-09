@@ -26,12 +26,14 @@ export function RentalDetailPage() {
       fetchRentalPropertyById(id),
       fetchPayments(id),
       fetchRepairRequests(id),
-    ]).then(([prop, pays, reps]) => {
-      setProperty(prop)
-      setPayments(pays)
-      setRepairs(reps)
-      setIsLoading(false)
-    })
+    ])
+      .then(([prop, pays, reps]) => {
+        setProperty(prop)
+        setPayments(pays)
+        setRepairs(reps)
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false))
   }, [id])
 
   const handleTogglePayment = async (paymentId: string) => {

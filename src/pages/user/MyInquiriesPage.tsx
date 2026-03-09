@@ -12,11 +12,10 @@ export function MyInquiriesPage() {
 
   useEffect(() => {
     let cancelled = false
-    fetchMyInquiries().then((data) => {
-      if (cancelled) return
-      setInquiries(data)
-      setIsLoading(false)
-    })
+    fetchMyInquiries()
+      .then((data) => { if (!cancelled) setInquiries(data) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
   }, [])
 

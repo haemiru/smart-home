@@ -32,22 +32,21 @@ export function InquiryDetailPage() {
       if (cancelled) return
       setInquiry(inq)
       setReplies(reps)
-      setIsLoading(false)
 
-      // Auto-mark as checked if new
       if (inq && inq.status === 'new') {
         updateInquiryStatus(inq.id, 'checked').then(() => {
           if (!cancelled) setInquiry((prev) => prev ? { ...prev, status: 'checked' } : prev)
-        })
+        }).catch(() => {})
       }
 
-      // Fetch linked property
       if (inq?.property_id) {
         fetchPropertyById(inq.property_id).then((p) => {
           if (!cancelled) setProperty(p)
-        })
+        }).catch(() => {})
       }
     })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
   }, [id])
 

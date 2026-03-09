@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useHomeFilterStore } from '@/stores/homeFilterStore'
 import { useCategories } from '@/hooks/useCategories'
 import { fetchSearchSettings, type QuickSearchCard, defaultSearchSettings } from '@/api/settings'
+import { getTagConditionKeyMap } from '@/utils/conditionResolver'
 import { fetchProperties } from '@/api/properties'
 import type { Property } from '@/types/database'
 import { useTenantStore } from '@/stores/tenantStore'
@@ -19,8 +20,15 @@ function getVisibleCount(): number {
   return 5
 }
 
-/** Count mock properties matching a quick-search card's conditions */
-function countByCondition(conditions: Record<string, unknown>, props: Property[]): number {
+const tagKeyMap = getTagConditionKeyMap()
+
+/** Count properties matching a quick-search card's conditions */
+function countByCondition(conditions: Record<string, unknown>, props: Property[], cardLabel?: string, isCustom?: boolean): number {
+  // 커스텀 카드는 라벨 자체가 태그
+  if (isCustom && cardLabel) {
+    return props.filter((p) => p.tags?.includes(cardLabel)).length
+  }
+
   return props.filter((p) => {
     for (const [key, val] of Object.entries(conditions)) {
       switch (key) {
@@ -48,20 +56,19 @@ function countByCondition(conditions: Record<string, unknown>, props: Property[]
         case 'is_urgent':
           if (!p.is_urgent) return false
           break
-        case 'walk_minutes':
-        case 'school_walk_minutes':
-        case 'park_walk_minutes':
-          // proximity conditions — match by tag keywords
-          if (key === 'walk_minutes' && !p.tags?.some(t => t.includes('역세권') || t.includes('역'))) return false
-          if (key === 'school_walk_minutes' && !p.tags?.some(t => t.includes('학군') || t.includes('학교'))) return false
-          if (key === 'park_walk_minutes' && !p.tags?.some(t => t.includes('공원'))) return false
-          break
         case 'move_in_immediate':
           if (!p.move_in_date?.includes('즉시')) return false
           break
-        default:
-          // For conditions not directly mappable to property fields, use tag matching
-          if (!p.tags?.some(t => t.includes(key))) return false
+        default: {
+          // 태그 매핑: condition key → 한글 라벨로 변환 후 tags 배열에서 검색
+          const tagLabel = tagKeyMap[key]
+          if (tagLabel) {
+            if (!p.tags?.includes(tagLabel)) return false
+          } else {
+            // 매핑에 없으면 key 자체를 태그에서 검색
+            if (!p.tags?.some(t => t.includes(key))) return false
+          }
+        }
       }
     }
     return true
@@ -105,7 +112,7 @@ export function QuickSearchGrid() {
   const countMap = useMemo(() => {
     const map: Record<string, number> = {}
     for (const card of visibleCards) {
-      map[card.key] = countByCondition(card.conditions, activeProperties)
+      map[card.key] = countByCondition(card.conditions, activeProperties, card.label, card.is_custom)
     }
     return map
   }, [visibleCards, activeProperties])

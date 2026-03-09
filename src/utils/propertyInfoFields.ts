@@ -123,18 +123,50 @@ const SLOPE_TERRAIN: InfoFieldDef = {
 }
 const BUILDING_AREA: InfoFieldDef = {
   key: 'building_area', label: '건물면적',
-  getValue: (p) => p.extra_info?.building_area_m2 ? formatAreaByUnit(p.extra_info.building_area_m2) : '-',
+  getValue: (p) => {
+    // 복수 건물이 있으면 총합 표시
+    if (p.extra_info?.buildings && p.extra_info.buildings.length > 0) {
+      const total = p.extra_info.buildings.reduce((sum, b) => sum + (b.building_area_m2 || 0), 0)
+      return `${formatAreaByUnit(total)} (${p.extra_info.buildings.length}개동)`
+    }
+    return p.extra_info?.building_area_m2 ? formatAreaByUnit(p.extra_info.building_area_m2) : '-'
+  },
+}
+const BUILDINGS_DETAIL: InfoFieldDef = {
+  key: 'buildings_detail', label: '건물 상세',
+  getValue: (p) => {
+    if (!p.extra_info?.buildings || p.extra_info.buildings.length === 0) return '-'
+    return p.extra_info.buildings.map((b) => {
+      const parts = [b.name || '건물']
+      parts.push(formatAreaByUnit(b.building_area_m2))
+      if (b.gross_floor_area_m2) parts.push(`연면적 ${formatAreaByUnit(b.gross_floor_area_m2)}`)
+      if (b.ceiling_height) parts.push(`층고 ${b.ceiling_height}m`)
+      if (b.building_structure) parts.push(b.building_structure)
+      if (b.floors) parts.push(`${b.floors}층`)
+      if (b.built_year) parts.push(`준공 ${b.built_year}`)
+      if (b.usage) parts.push(b.usage)
+      return parts.join(' / ')
+    }).join(' | ')
+  },
 }
 const POWER_CAPACITY: InfoFieldDef = {
   key: 'power_capacity', label: '전력용량',
   getValue: (p) => p.extra_info?.power_capacity || '-',
 }
-const TRUCK_ACCESS: InfoFieldDef = {
-  key: 'truck_access', label: '화물차진입',
-  getValue: (p) => p.extra_info?.truck_access != null ? (p.extra_info.truck_access ? '가능' : '불가') : '-',
+const TRUCK_25T: InfoFieldDef = {
+  key: 'truck_25t', label: '25톤 진입',
+  getValue: (p) => p.extra_info?.truck_25t != null ? (p.extra_info.truck_25t ? '가능' : '불가') : '-',
+}
+const TRUCK_WINGBODY: InfoFieldDef = {
+  key: 'truck_wingbody', label: '윙바디 진입',
+  getValue: (p) => p.extra_info?.truck_wingbody != null ? (p.extra_info.truck_wingbody ? '가능' : '불가') : '-',
+}
+const TRUCK_TRAILER_40FT: InfoFieldDef = {
+  key: 'truck_trailer_40ft', label: '40ft 트레일러 진입',
+  getValue: (p) => p.extra_info?.truck_trailer_40ft != null ? (p.extra_info.truck_trailer_40ft ? '가능' : '불가') : '-',
 }
 const LOADING_DOCK: InfoFieldDef = {
-  key: 'loading_dock', label: '하역장',
+  key: 'loading_dock', label: 'Dock 시설',
   getValue: (p) => p.extra_info?.loading_dock != null ? (p.extra_info.loading_dock ? '있음' : '없음') : '-',
 }
 const COLD_STORAGE: InfoFieldDef = {
@@ -195,9 +227,9 @@ const LAND_FIELDS: InfoFieldDef[] = [
 ]
 
 const FACTORY_FIELDS: InfoFieldDef[] = [
-  LAND_AREA, BUILDING_AREA, FLOOR, MOVE_IN, PARKING, BUILT_YEAR,
-  BUILDING_STRUCTURE, CEILING_HEIGHT, ZONING, ROAD_FRONTAGE, BCR_FAR,
-  POWER_CAPACITY, TRUCK_ACCESS, LOADING_DOCK, COLD_STORAGE, LAND_CATEGORY,
+  LAND_AREA, BUILDING_AREA, BUILDINGS_DETAIL, MOVE_IN, PARKING,
+  ZONING, ROAD_FRONTAGE, BCR_FAR,
+  POWER_CAPACITY, TRUCK_25T, TRUCK_WINGBODY, TRUCK_TRAILER_40FT, LOADING_DOCK, COLD_STORAGE, LAND_CATEGORY,
 ]
 
 const REDEVELOP_FIELDS: InfoFieldDef[] = [

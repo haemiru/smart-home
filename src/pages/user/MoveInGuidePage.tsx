@@ -11,9 +11,10 @@ export function MoveInGuidePage() {
   useEffect(() => {
     if (!contractId) return
     let cancelled = false
-    fetchMoveInGuide(contractId).then((g) => {
-      if (!cancelled) { setGuide(g); setIsLoading(false) }
-    })
+    fetchMoveInGuide(contractId)
+      .then((g) => { if (!cancelled) setGuide(g) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
   }, [contractId])
 

@@ -46,9 +46,9 @@ export function ContractFormPage() {
   // Load properties
   useEffect(() => {
     let cancelled = false
-    fetchAdminProperties({ search: propSearch || undefined }).then((data) => {
-      if (!cancelled) setProperties(data)
-    })
+    fetchAdminProperties({ search: propSearch || undefined })
+      .then((data) => { if (!cancelled) setProperties(data) })
+      .catch(() => {})
     return () => { cancelled = true }
   }, [propSearch])
 

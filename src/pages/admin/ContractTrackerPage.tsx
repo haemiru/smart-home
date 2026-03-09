@@ -33,13 +33,14 @@ export function ContractTrackerPage() {
       if (cancelled) return
       setContract(ct)
       setSteps(procs)
-      setIsLoading(false)
       if (ct?.property_id) {
         fetchPropertyById(ct.property_id).then((p) => {
           if (!cancelled) setProperty(p)
-        })
+        }).catch(() => {})
       }
     })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
   }, [id])
 

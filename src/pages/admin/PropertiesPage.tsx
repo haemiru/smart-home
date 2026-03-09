@@ -37,12 +37,20 @@ export function PropertiesPage() {
 
   useEffect(() => {
     let cancelled = false
-    fetchAdminProperties({ statusTab, search: search || undefined }).then((data) => {
-      if (cancelled) return
-      setProperties(data)
-      setSelectedIds(new Set())
-      setIsLoading(false)
-    })
+    setIsLoading(true)
+    fetchAdminProperties({ statusTab, search: search || undefined })
+      .then((data) => {
+        if (cancelled) return
+        setProperties(data)
+        setSelectedIds(new Set())
+      })
+      .catch(() => {
+        if (cancelled) return
+        setProperties([])
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
     return () => { cancelled = true }
   }, [statusTab, search])
 

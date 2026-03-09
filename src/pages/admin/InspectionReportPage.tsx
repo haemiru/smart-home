@@ -14,10 +14,10 @@ export function InspectionReportPage() {
 
   useEffect(() => {
     if (!id) return
-    fetchInspectionById(id).then((data) => {
-      setInspection(data)
-      setIsLoading(false)
-    })
+    fetchInspectionById(id)
+      .then((data) => setInspection(data))
+      .catch(() => {})
+      .finally(() => setIsLoading(false))
   }, [id])
 
   const handleGenerateAI = async () => {

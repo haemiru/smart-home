@@ -16,11 +16,10 @@ export function CoBrokerageRequestsPage() {
   const [commissionRatio, setCommissionRatio] = useState(50)
 
   useEffect(() => {
-    Promise.all([fetchReceivedRequests(), fetchSentRequests()]).then(([recv, snt]) => {
-      setReceived(recv)
-      setSent(snt)
-      setIsLoading(false)
-    })
+    Promise.all([fetchReceivedRequests(), fetchSentRequests()])
+      .then(([recv, snt]) => { setReceived(recv); setSent(snt) })
+      .catch(() => {})
+      .finally(() => setIsLoading(false))
   }, [])
 
   const handleApprove = async () => {

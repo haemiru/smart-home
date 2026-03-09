@@ -10,9 +10,10 @@ export function MyContractsPage() {
 
   useEffect(() => {
     let cancelled = false
-    fetchMyContracts().then((data) => {
-      if (!cancelled) { setContracts(data); setIsLoading(false) }
-    })
+    fetchMyContracts()
+      .then((data) => { if (!cancelled) setContracts(data) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
   }, [])
 
@@ -80,9 +81,10 @@ export function MyContractDetailPage() {
     Promise.all([
       fetchContractById(id),
       fetchContractProcess(id),
-    ]).then(([ct, procs]) => {
-      if (!cancelled) { setContract(ct); setSteps(procs); setIsLoading(false) }
-    })
+    ])
+      .then(([ct, procs]) => { if (!cancelled) { setContract(ct); setSteps(procs) } })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
   }, [id])
 

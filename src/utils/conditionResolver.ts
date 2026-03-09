@@ -46,16 +46,23 @@ const tagConditionKeys: Record<string, string> = {
   walk_minutes: '역세권',
   school_walk_minutes: '학세권',
   park_walk_minutes: '공세권',
-  truck_access: '화물차진입',
-  loading_dock: '하역장',
-  cold_storage: '냉동냉장',
-  ceiling_height_min: '높은층고',
-  power_capacity_min: '대용량전력',
+  wide_yard: '넓은 마당',
+  private_yard: '단독 마당',
+  hoist: '호이스트',
+  food_factory: '식품공장 가능',
+  temporary_building: '가설 건축물',
+  has_office: '사무실',
+  has_dormitory: '기숙사',
   developable: '개발가능',
   road_frontage_min: '도로접면',
   max_slope: '평탄지',
   good_road: '접도양호',
   move_in_immediate: '즉시입주',
+}
+
+/** condition key → 한글 태그 라벨 매핑 반환 */
+export function getTagConditionKeyMap(): Record<string, string> {
+  return { ...tagConditionKeys }
 }
 
 // ──────────────────────────────────────────
@@ -122,18 +129,20 @@ const RESIDENTIAL = ['아파트', '오피스텔', '분양권', '빌라', '주택
 const COMMERCIAL = ['상가', '사무실']
 
 const tagCategoryMap: Record<string, string[] | undefined> = {
-  walk_minutes: undefined, // 모든 카테고리
+  walk_minutes: [...RESIDENTIAL, ...COMMERCIAL, '토지', '재개발', '숙박/펜션'],
   school_walk_minutes: RESIDENTIAL,
-  park_walk_minutes: undefined,
-  truck_access: ['공장/창고'],
-  loading_dock: ['공장/창고'],
-  cold_storage: ['공장/창고'],
-  ceiling_height_min: ['공장/창고'],
-  power_capacity_min: ['공장/창고'],
+  park_walk_minutes: [...RESIDENTIAL, ...COMMERCIAL, '토지', '재개발', '숙박/펜션'],
+  wide_yard: ['공장/창고'],
+  private_yard: ['공장/창고'],
+  hoist: ['공장/창고'],
+  food_factory: ['공장/창고'],
+  temporary_building: ['공장/창고'],
+  has_office: ['공장/창고'],
+  has_dormitory: ['공장/창고'],
   developable: ['토지'],
   road_frontage_min: ['토지'],
   max_slope: ['토지'],
-  good_road: ['공장/창고', '토지'],
+  good_road: ['토지'],
   move_in_immediate: [...RESIDENTIAL, ...COMMERCIAL],
 }
 

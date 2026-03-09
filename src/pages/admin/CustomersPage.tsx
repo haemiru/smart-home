@@ -27,26 +27,31 @@ export function CustomersPage() {
   const [typeFilter, setTypeFilter] = useState<CustomerType | 'all'>('all')
 
   const load = useCallback(async () => {
-    const [data, countData] = await Promise.all([
-      fetchCustomers({ search: search || undefined, source: sourceFilter, customerType: typeFilter }),
-      getCustomerCountByType(),
-    ])
-    setCustomers(data)
-    setCounts(countData)
+    try {
+      const [data, countData] = await Promise.all([
+        fetchCustomers({ search: search || undefined, source: sourceFilter, customerType: typeFilter }),
+        getCustomerCountByType(),
+      ])
+      setCustomers(data)
+      setCounts(countData)
+    } catch { /* ignore */ }
     setIsLoading(false)
   }, [search, sourceFilter, typeFilter])
 
   useEffect(() => {
     let cancelled = false
+    setIsLoading(true)
     Promise.all([
       fetchCustomers({ search: search || undefined, source: sourceFilter, customerType: typeFilter }),
       getCustomerCountByType(),
-    ]).then(([data, countData]) => {
-      if (cancelled) return
-      setCustomers(data)
-      setCounts(countData)
-      setIsLoading(false)
-    })
+    ])
+      .then(([data, countData]) => {
+        if (cancelled) return
+        setCustomers(data)
+        setCounts(countData)
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
   }, [search, sourceFilter, typeFilter])
 

@@ -12,10 +12,10 @@ export function IntegrationSettingsPage() {
   const [editUrl, setEditUrl] = useState('')
 
   useEffect(() => {
-    fetchIntegrations().then((data) => {
-      setIntegrations(data)
-      setIsLoading(false)
-    })
+    fetchIntegrations()
+      .then((data) => setIntegrations(data))
+      .catch(() => {})
+      .finally(() => setIsLoading(false))
   }, [])
 
   const grouped = categoryOrder.map((cat) => ({

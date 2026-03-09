@@ -103,6 +103,17 @@ export type AgentFeatureSetting = {
   updated_at: string
 }
 
+export type BuildingInfo = {
+  name: string               // 건물명 (예: A동, 창고1, 공장동)
+  building_area_m2: number   // 건물면적 (㎡)
+  gross_floor_area_m2?: number // 연면적 (㎡)
+  ceiling_height?: number    // 층고 (m)
+  building_structure?: string // 건물구조
+  floors?: number            // 층수
+  built_year?: string        // 준공연도 (예: 2020-06)
+  usage?: string             // 용도 (예: 생산동, 사무동, 창고동)
+}
+
 export type PropertyExtraInfo = {
   // 주거 공통
   household_count?: number
@@ -127,9 +138,12 @@ export type PropertyExtraInfo = {
   bcr_far?: string
   slope_terrain?: string
   // 공장/창고
-  building_area_m2?: number
+  building_area_m2?: number  // (하위호환) 단일 건물 면적
+  buildings?: BuildingInfo[] // 복수 건물 정보
   power_capacity?: string
-  truck_access?: boolean
+  truck_25t?: boolean
+  truck_wingbody?: boolean
+  truck_trailer_40ft?: boolean
   loading_dock?: boolean
   cold_storage?: boolean
   // 재개발

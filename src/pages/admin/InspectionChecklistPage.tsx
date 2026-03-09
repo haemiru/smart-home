@@ -18,20 +18,21 @@ export function InspectionChecklistPage() {
 
   useEffect(() => {
     if (!id) return
-    fetchInspectionById(id).then((data) => {
-      if (data) {
-        setInspection(data)
-        setChecklist(data.checklist)
-        setOverallComment(data.overall_comment ?? '')
-        // Auto-expand first incomplete category
-        const cats = checklistTemplate.map((c) => c.category)
-        const firstIncomplete = cats.find((cat) =>
-          data.checklist.some((item) => item.category === cat && item.status === null),
-        )
-        setExpandedCategory(firstIncomplete ?? cats[0])
-      }
-      setIsLoading(false)
-    })
+    fetchInspectionById(id)
+      .then((data) => {
+        if (data) {
+          setInspection(data)
+          setChecklist(data.checklist)
+          setOverallComment(data.overall_comment ?? '')
+          const cats = checklistTemplate.map((c) => c.category)
+          const firstIncomplete = cats.find((cat) =>
+            data.checklist.some((item) => item.category === cat && item.status === null),
+          )
+          setExpandedCategory(firstIncomplete ?? cats[0])
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false))
   }, [id])
 
   useEffect(() => {

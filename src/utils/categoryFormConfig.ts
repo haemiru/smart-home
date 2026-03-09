@@ -66,7 +66,7 @@ export const STRUCTURE_VISIBILITY: Record<CategoryGroup, StructureFields> = {
   presale:       { ...defaultStructure, built_year: false },
   commercial:    { supply_area: false, exclusive_area: true, rooms: false, bathrooms: false, floor: true, total_floors: true, direction: false, built_year: true },
   office:        { supply_area: false, exclusive_area: true, rooms: false, bathrooms: false, floor: true, total_floors: true, direction: false, built_year: true },
-  industrial:    { supply_area: false, exclusive_area: false, rooms: false, bathrooms: false, floor: false, total_floors: true, direction: false, built_year: true },
+  industrial:    { supply_area: false, exclusive_area: false, rooms: false, bathrooms: false, floor: false, total_floors: false, direction: false, built_year: false },
   land:          { supply_area: false, exclusive_area: false, rooms: false, bathrooms: false, floor: false, total_floors: false, direction: false, built_year: false },
   redevelopment: { supply_area: true, exclusive_area: true, rooms: true, bathrooms: true, floor: true, total_floors: true, direction: false, built_year: false },
   pension:       { supply_area: false, exclusive_area: false, rooms: true, bathrooms: true, floor: false, total_floors: false, direction: false, built_year: true },
@@ -77,7 +77,7 @@ export const DETAIL_VISIBILITY: Record<CategoryGroup, DetailFields> = {
   presale:       { move_in_date: false, parking: true, elevator: true, pets: false, options: true },
   commercial:    { move_in_date: true, parking: true, elevator: true, pets: false, options: true },
   office:        { move_in_date: true, parking: true, elevator: true, pets: false, options: true },
-  industrial:    { move_in_date: true, parking: true, elevator: false, pets: false, options: false },
+  industrial:    { move_in_date: true, parking: false, elevator: false, pets: false, options: false },
   land:          { move_in_date: false, parking: false, elevator: false, pets: false, options: false },
   redevelopment: { move_in_date: true, parking: false, elevator: false, pets: false, options: false },
   pension:       { move_in_date: false, parking: true, elevator: false, pets: true, options: true },
@@ -150,14 +150,14 @@ export const EXTRA_FIELDS: Record<CategoryGroup, ExtraFieldDef[]> = {
   ],
   industrial: [
     { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure' },
-    { key: 'building_area_m2', label: '건물면적', type: 'area', tab: 'structure' },
-    { key: 'ceiling_height', label: '층고 (m)', type: 'number', step: '0.1', placeholder: '예: 8.0', tab: 'structure' },
-    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철골조', '철근콘크리트', '조적조', '판넬조', '샌드위치패널'], tab: 'structure' },
+    // 건물면적, 층고, 건물구조는 buildings 배열로 관리 (PropertyFormPage에서 별도 UI 렌더링)
     { key: 'zoning', label: '용도지역', type: 'select', options: ['일반공업', '준공업', '전용공업', '계획관리', '자연녹지', '기타'], tab: 'structure' },
     { key: 'road_frontage', label: '접도', type: 'select', options: ['~4m', '4~8m', '8~12m', '12m~', '맹지'], tab: 'structure' },
     { key: 'power_capacity', label: '전력용량', type: 'text', placeholder: '예: 150kW', tab: 'detail' },
-    { key: 'truck_access', label: '화물차 진입 가능', type: 'checkbox', tab: 'detail' },
-    { key: 'loading_dock', label: '하역장', type: 'checkbox', tab: 'detail' },
+    { key: 'truck_25t', label: '25톤 진입 가능', type: 'checkbox', tab: 'detail' },
+    { key: 'truck_wingbody', label: '윙바디 진입 가능', type: 'checkbox', tab: 'detail' },
+    { key: 'truck_trailer_40ft', label: '40피트 트레일러 진입 가능', type: 'checkbox', tab: 'detail' },
+    { key: 'loading_dock', label: 'Dock 시설', type: 'checkbox', tab: 'detail' },
     { key: 'cold_storage', label: '냉동/냉장시설', type: 'checkbox', tab: 'detail' },
   ],
   land: [
@@ -185,6 +185,33 @@ export const EXTRA_FIELDS: Record<CategoryGroup, ExtraFieldDef[]> = {
   ],
 }
 
+// ─── Buildings (공장/창고 복수 건물) ───
+
+export const BUILDING_STRUCTURE_OPTIONS = ['철골조', '철근콘크리트', '조적조', '판넬조', '샌드위치패널']
+export const BUILDING_USAGE_OPTIONS = ['생산동', '사무동', '창고동', '부속동', '기타']
+
+export type BuildingFormItem = {
+  name: string
+  building_area_m2: string
+  gross_floor_area_m2: string
+  ceiling_height: string
+  building_structure: string
+  floors: string
+  built_year: string
+  usage: string
+}
+
+export const emptyBuilding: BuildingFormItem = {
+  name: '',
+  building_area_m2: '',
+  gross_floor_area_m2: '',
+  ceiling_height: '',
+  building_structure: '',
+  floors: '',
+  built_year: '',
+  usage: '',
+}
+
 // ─── Extra info form state type ───
 
 export type ExtraInfoForm = {
@@ -207,7 +234,9 @@ export type ExtraInfoForm = {
   slope_terrain: string
   building_area_m2: string
   power_capacity: string
-  truck_access: boolean
+  truck_25t: boolean
+  truck_wingbody: boolean
+  truck_trailer_40ft: boolean
   loading_dock: boolean
   cold_storage: boolean
   project_phase: string
@@ -238,7 +267,9 @@ export const emptyExtraInfo: ExtraInfoForm = {
   slope_terrain: '',
   building_area_m2: '',
   power_capacity: '',
-  truck_access: false,
+  truck_25t: false,
+  truck_wingbody: false,
+  truck_trailer_40ft: false,
   loading_dock: false,
   cold_storage: false,
   project_phase: '',

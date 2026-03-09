@@ -6,6 +6,7 @@ import { useTenantStore } from '@/stores/tenantStore'
 import { useCategories } from '@/hooks/useCategories'
 import { formatPropertyPrice, formatPrice, transactionTypeLabel } from '@/utils/format'
 import { getInfoFieldsForCategory } from '@/utils/propertyInfoFields'
+import { formatAreaByUnit } from '@/components/common/AreaUnitToggle'
 import { Button, Input } from '@/components/common'
 import { AreaUnitToggle } from '@/components/common/AreaUnitToggle'
 import { useAreaUnitStore } from '@/stores/areaUnitStore'
@@ -29,12 +30,10 @@ export function PropertyDetailPage() {
   useEffect(() => {
     if (!id) return
     let cancelled = false
-    fetchPropertyById(id).then((p) => {
-      if (!cancelled) {
-        setProperty(p)
-        setIsLoading(false)
-      }
-    })
+    fetchPropertyById(id)
+      .then((p) => { if (!cancelled) setProperty(p) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
   }, [id])
 
@@ -115,13 +114,35 @@ export function PropertyDetailPage() {
               <AreaUnitToggle />
             </div>
             <div className="grid grid-cols-2 gap-px bg-gray-100 sm:grid-cols-3">
-              {getInfoFieldsForCategory(cat?.name).map((field) => (
+              {getInfoFieldsForCategory(cat?.name)
+                .filter((field) => field.key !== 'buildings_detail')
+                .map((field) => (
                 <div key={field.key} className="bg-white px-5 py-3">
                   <p className="text-xs text-gray-400">{field.label}</p>
                   <p className="mt-0.5 text-sm font-medium">{field.getValue(p)}</p>
                 </div>
               ))}
             </div>
+            {/* 공장/창고 복수 건물 상세 */}
+            {p.extra_info?.buildings && p.extra_info.buildings.length > 0 && (
+              <div className="border-t border-gray-100 px-5 py-3">
+                <p className="mb-2 text-xs text-gray-400">건물 상세</p>
+                <div className="space-y-2">
+                  {p.extra_info.buildings.map((b, i) => (
+                    <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                      <span className="font-medium text-gray-700">{b.name || `건물 ${i + 1}`}</span>
+                      <span className="text-gray-500">{formatAreaByUnit(b.building_area_m2)}</span>
+                      {b.gross_floor_area_m2 && <span className="text-gray-500">연면적 {formatAreaByUnit(b.gross_floor_area_m2)}</span>}
+                      {b.ceiling_height && <span className="text-gray-500">층고 {b.ceiling_height}m</span>}
+                      {b.building_structure && <span className="text-gray-500">{b.building_structure}</span>}
+                      {b.floors && <span className="text-gray-500">{b.floors}층</span>}
+                      {b.built_year && <span className="text-gray-500">준공 {b.built_year}</span>}
+                      {b.usage && <span className="rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-600">{b.usage}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {p.options && p.options.length > 0 && (
               <div className="border-t border-gray-100 px-5 py-3">
                 <p className="text-xs text-gray-400">옵션</p>

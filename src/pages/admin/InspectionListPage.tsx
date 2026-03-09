@@ -16,10 +16,11 @@ export function InspectionListPage() {
   const [showNewModal, setShowNewModal] = useState(false)
 
   useEffect(() => {
-    fetchInspections(statusTab).then((data) => {
-      setInspections(data)
-      setIsLoading(false)
-    })
+    setIsLoading(true)
+    fetchInspections(statusTab)
+      .then((data) => setInspections(data))
+      .catch(() => setInspections([]))
+      .finally(() => setIsLoading(false))
   }, [statusTab])
 
   const tabs: { key: StatusTab; label: string }[] = [

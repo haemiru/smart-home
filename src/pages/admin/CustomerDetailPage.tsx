@@ -39,16 +39,16 @@ export function CustomerDetailPage() {
       if (cancelled) return
       setCustomer(cust)
       setActivities(acts)
-      setIsLoading(false)
 
-      // Cache property info
       const pids = [...new Set(acts.filter((a) => a.property_id).map((a) => a.property_id!))]
       for (const pid of pids) {
         fetchPropertyById(pid).then((p) => {
           if (p && !cancelled) setPropertyCache((prev) => ({ ...prev, [pid]: p }))
-        })
+        }).catch(() => {})
       }
     })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
   }, [id])
 

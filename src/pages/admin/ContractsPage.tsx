@@ -23,20 +23,23 @@ export function ContractsPage() {
 
   useEffect(() => {
     let cancelled = false
-    fetchContracts({ status: statusFilter, search: search || undefined }).then((data) => {
-      if (cancelled) return
-      setContracts(data)
-      setIsLoading(false)
+    setIsLoading(true)
+    fetchContracts({ status: statusFilter, search: search || undefined })
+      .then((data) => {
+        if (cancelled) return
+        setContracts(data)
 
-      const pids = [...new Set(data.filter((c) => c.property_id).map((c) => c.property_id!))]
-      for (const pid of pids) {
-        if (!propertyCache[pid]) {
-          fetchPropertyById(pid).then((p) => {
-            if (p && !cancelled) setPropertyCache((prev) => ({ ...prev, [pid]: p }))
-          })
+        const pids = [...new Set(data.filter((c) => c.property_id).map((c) => c.property_id!))]
+        for (const pid of pids) {
+          if (!propertyCache[pid]) {
+            fetchPropertyById(pid).then((p) => {
+              if (p && !cancelled) setPropertyCache((prev) => ({ ...prev, [pid]: p }))
+            }).catch(() => {})
+          }
         }
-      }
-    })
+      })
+      .catch(() => { if (!cancelled) setContracts([]) })
+      .finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, search])

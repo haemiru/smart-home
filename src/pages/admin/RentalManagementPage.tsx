@@ -21,17 +21,17 @@ export function RentalManagementPage() {
       setSummary(sum)
       setRepairs(reps)
 
-      // Fetch current month payments for each property
       const paymentPromises = props
         .filter((p) => p.status !== 'vacant')
         .map((p) => fetchPayments(p.id).then((pays) => [p.id, pays] as const))
-      Promise.all(paymentPromises).then((results) => {
+      return Promise.all(paymentPromises).then((results) => {
         const map = new Map<string, RentalPayment[]>()
         for (const [id, pays] of results) map.set(id, pays)
         setAllPayments(map)
-        setIsLoading(false)
       })
     })
+      .catch(() => {})
+      .finally(() => setIsLoading(false))
   }, [])
 
   const getCurrentMonthPaymentStatus = (propertyId: string): 'paid' | 'unpaid' | 'none' => {

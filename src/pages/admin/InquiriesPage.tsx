@@ -36,6 +36,7 @@ export function InquiriesPage() {
 
   useEffect(() => {
     let cancelled = false
+    setIsLoading(true)
     Promise.all([
       fetchInquiries({ status: statusFilter, inquiryType: typeFilter, unansweredOnly, search: search || undefined }),
       getUnansweredCount(),
@@ -43,9 +44,7 @@ export function InquiriesPage() {
       if (cancelled) return
       setInquiries(data)
       setUnansweredCount(count)
-      setIsLoading(false)
 
-      // Cache property info for linked inquiries
       const propertyIds = data.filter((i) => i.property_id).map((i) => i.property_id!)
       const unique = [...new Set(propertyIds)]
       for (const pid of unique) {
@@ -54,10 +53,12 @@ export function InquiriesPage() {
             if (p && !cancelled) {
               setPropertyCache((prev) => ({ ...prev, [pid]: p }))
             }
-          })
+          }).catch(() => {})
         }
       }
     })
+      .catch(() => { if (!cancelled) setInquiries([]) })
+      .finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, typeFilter, unansweredOnly, search])
