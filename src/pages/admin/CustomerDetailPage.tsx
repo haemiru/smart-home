@@ -4,6 +4,8 @@ import type { Customer, CustomerActivity, CustomerType } from '@/types/database'
 import { fetchCustomerById, fetchCustomerActivities, updateCustomer, updateCustomerType } from '@/api/customers'
 import { fetchPropertyById } from '@/api/properties'
 import { generateContent, saveGenerationLog } from '@/api/gemini'
+import { isFeatureInPlan } from '@/config/planFeatures'
+import { useFeatureStore } from '@/stores/featureStore'
 import type { Property } from '@/types/database'
 import { customerTypeLabel, customerTypeColor, customerSourceLabel, activityTypeLabel, formatDateTime, formatRelativeTime } from '@/utils/format'
 import { Button } from '@/components/common'
@@ -154,7 +156,11 @@ export function CustomerDetailPage() {
 
       {/* Tab Content */}
       {activeTab === 'profile' && (
-        <ProfileTab customer={customer} prefs={prefs} />
+        <ProfileTab customer={customer} prefs={prefs} onUpdatePrefs={async (newPrefs) => {
+          await updateCustomer(customer.id, { preferences: newPrefs })
+          setCustomer((prev) => prev ? { ...prev, preferences: newPrefs } : prev)
+          toast.success('선호 조건이 저장되었습니다.')
+        }} />
       )}
       {activeTab === 'activity' && (
         <ActivityTab activities={activities} propertyCache={propertyCache} />
@@ -166,7 +172,13 @@ export function CustomerDetailPage() {
         <ConsultationTab />
       )}
       {activeTab === 'analysis' && (
-        <AnalysisTab customer={customer} activities={activities} />
+        isFeatureInPlan('sincerity_analysis', useFeatureStore.getState().plan)
+          ? <AnalysisTab customer={customer} activities={activities} />
+          : <div className="rounded-xl bg-white p-8 text-center shadow-sm ring-1 ring-gray-200">
+              <p className="text-lg font-semibold text-gray-700">Basic 요금제 이상에서 사용 가능합니다</p>
+              <p className="mt-2 text-sm text-gray-500">AI가 고객의 활동 데이터를 분석하여 진성도, 전환 확률, 추천 액션을 제공합니다.</p>
+              <a href="/admin/settings/billing" className="mt-4 inline-block rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700">요금제 업그레이드</a>
+            </div>
       )}
       {activeTab === 'memo' && (
         <MemoTab initialMemo={customer.memo ?? ''} onSave={handleSaveMemo} />
@@ -178,7 +190,37 @@ export function CustomerDetailPage() {
 // ============================================================
 // Profile Tab
 // ============================================================
-function ProfileTab({ customer, prefs }: { customer: Customer; prefs: Record<string, string> }) {
+function ProfileTab({ customer, prefs, onUpdatePrefs }: { customer: Customer; prefs: Record<string, string>; onUpdatePrefs: (prefs: Record<string, string>) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [editPrefs, setEditPrefs] = useState({ region: '', propertyType: '', priceRange: '', area: '' })
+
+  const prefFields = [
+    { key: 'region', label: '선호 지역', placeholder: '강남구, 서초구' },
+    { key: 'propertyType', label: '매물 유형', placeholder: '아파트, 오피스텔' },
+    { key: 'priceRange', label: '가격대', placeholder: '3억~5억' },
+    { key: 'area', label: '면적', placeholder: '25평~35평' },
+  ]
+
+  const startEdit = () => {
+    setEditPrefs({
+      region: prefs.region || '',
+      propertyType: prefs.propertyType || '',
+      priceRange: prefs.priceRange || '',
+      area: prefs.area || '',
+    })
+    setEditing(true)
+  }
+
+  const handleSave = () => {
+    const newPrefs: Record<string, string> = {}
+    if (editPrefs.region.trim()) newPrefs.region = editPrefs.region.trim()
+    if (editPrefs.propertyType.trim()) newPrefs.propertyType = editPrefs.propertyType.trim()
+    if (editPrefs.priceRange.trim()) newPrefs.priceRange = editPrefs.priceRange.trim()
+    if (editPrefs.area.trim()) newPrefs.area = editPrefs.area.trim()
+    onUpdatePrefs(newPrefs)
+    setEditing(false)
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
@@ -201,22 +243,42 @@ function ProfileTab({ customer, prefs }: { customer: Customer; prefs: Record<str
       </div>
 
       <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
-        <h3 className="mb-4 text-sm font-semibold">선호 조건</h3>
-        {Object.keys(prefs).length === 0 ? (
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-semibold">선호 조건</h3>
+          {!editing && (
+            <button onClick={startEdit} className="text-xs font-medium text-primary-600 hover:text-primary-700">
+              {Object.keys(prefs).length === 0 ? '+ 추가' : '편집'}
+            </button>
+          )}
+        </div>
+        {editing ? (
+          <div className="space-y-3">
+            {prefFields.map((f) => (
+              <div key={f.key}>
+                <label className="mb-1 block text-xs text-gray-400">{f.label}</label>
+                <input
+                  value={editPrefs[f.key as keyof typeof editPrefs]}
+                  onChange={(e) => setEditPrefs((p) => ({ ...p, [f.key]: e.target.value }))}
+                  placeholder={f.placeholder}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                />
+              </div>
+            ))}
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => setEditing(false)} className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100">취소</button>
+              <button onClick={handleSave} className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700">저장</button>
+            </div>
+          </div>
+        ) : Object.keys(prefs).length === 0 ? (
           <p className="text-sm text-gray-400">등록된 선호 조건이 없습니다.</p>
         ) : (
           <div className="space-y-3 text-sm">
-            {Object.entries(prefs).map(([key, value]) => {
-              const labelMap: Record<string, string> = {
-                region: '선호 지역', propertyType: '매물 유형', priceRange: '가격대', area: '면적',
-              }
-              return (
-                <div key={key} className="flex justify-between">
-                  <span className="text-gray-400">{labelMap[key] || key}</span>
-                  <span className="font-medium">{value}</span>
-                </div>
-              )
-            })}
+            {prefFields.filter((f) => prefs[f.key]).map((f) => (
+              <div key={f.key} className="flex justify-between">
+                <span className="text-gray-400">{f.label}</span>
+                <span className="font-medium">{prefs[f.key]}</span>
+              </div>
+            ))}
           </div>
         )}
       </div>

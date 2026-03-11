@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import type { Customer, CustomerType, CustomerSource } from '@/types/database'
-import { fetchCustomers, updateCustomerType, getCustomerCountByType } from '@/api/customers'
+import { fetchCustomers, updateCustomerType, getCustomerCountByType, createCustomer } from '@/api/customers'
 import { customerTypeLabel, customerTypeColor, customerSourceLabel, formatRelativeTime } from '@/utils/format'
 import { Button } from '@/components/common'
 import toast from 'react-hot-toast'
@@ -17,6 +17,13 @@ const sourceOptions: { key: CustomerSource | 'all'; label: string }[] = [
   { key: 'website', label: '웹사이트' },
 ]
 
+const customerSourceOptions: { key: CustomerSource; label: string }[] = [
+  { key: 'direct', label: '직접등록' },
+  { key: 'inquiry', label: '문의접수' },
+  { key: 'referral', label: '소개' },
+  { key: 'website', label: '웹사이트' },
+]
+
 export function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [counts, setCounts] = useState<Record<CustomerType, number>>({ lead: 0, interest: 0, consulting: 0, contracting: 0, completed: 0 })
@@ -25,6 +32,7 @@ export function CustomersPage() {
   const [search, setSearch] = useState('')
   const [sourceFilter, setSourceFilter] = useState<CustomerSource | 'all'>('all')
   const [typeFilter, setTypeFilter] = useState<CustomerType | 'all'>('all')
+  const [showAddModal, setShowAddModal] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -66,7 +74,7 @@ export function CustomersPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold">고객 관리 (CRM)</h1>
-        <Button onClick={() => toast('고객 직접 등록 기능은 추후 구현 예정입니다.')}>+ 고객 등록</Button>
+        <Button onClick={() => setShowAddModal(true)}>+ 고객 등록</Button>
       </div>
 
       {/* Summary Cards */}
@@ -133,6 +141,14 @@ export function CustomersPage() {
         <PipelineView customers={customers} onStageChange={handleStageChange} />
       ) : (
         <ListView customers={customers} onStageChange={handleStageChange} />
+      )}
+
+      {/* Add Customer Modal */}
+      {showAddModal && (
+        <AddCustomerModal
+          onClose={() => setShowAddModal(false)}
+          onCreated={() => { setShowAddModal(false); void load() }}
+        />
       )}
     </div>
   )
@@ -287,6 +303,123 @@ function ListView({ customers, onStageChange }: { customers: Customer[]; onStage
           )}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+// ============================================================
+// Add Customer Modal
+// ============================================================
+function AddCustomerModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    source: 'direct' as CustomerSource,
+    customer_type: 'lead' as CustomerType,
+    memo: '',
+    region: '',
+    propertyType: '',
+    priceRange: '',
+    area: '',
+  })
+
+  const set = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }))
+
+  const handleSubmit = async () => {
+    if (!form.name.trim()) { toast.error('이름을 입력해주세요.'); return }
+    if (!form.phone.trim()) { toast.error('연락처를 입력해주세요.'); return }
+    setSaving(true)
+    try {
+      const preferences: Record<string, string> = {}
+      if (form.region) preferences.region = form.region
+      if (form.propertyType) preferences.propertyType = form.propertyType
+      if (form.priceRange) preferences.priceRange = form.priceRange
+      if (form.area) preferences.area = form.area
+
+      await createCustomer({
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim() || undefined,
+        source: form.source,
+        customer_type: form.customer_type,
+        preferences,
+        memo: form.memo.trim() || undefined,
+      })
+      toast.success('고객이 등록되었습니다.')
+      onCreated()
+    } catch {
+      toast.error('고객 등록에 실패했습니다.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="mx-4 w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-bold">고객 등록</h2>
+        <div className="mt-4 space-y-4">
+          {/* 기본 정보 */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">이름 <span className="text-red-500">*</span></label>
+              <input value={form.name} onChange={(e) => set('name', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder="홍길동" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">연락처 <span className="text-red-500">*</span></label>
+              <input value={form.phone} onChange={(e) => set('phone', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder="010-0000-0000" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">이메일</label>
+              <input value={form.email} onChange={(e) => set('email', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder="email@example.com" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">유입 경로</label>
+              <select value={form.source} onChange={(e) => set('source', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                {customerSourceOptions.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* 선호 조건 */}
+          <div>
+            <p className="mb-2 text-xs font-semibold text-gray-500">선호 조건</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">선호 지역</label>
+                <input value={form.region} onChange={(e) => set('region', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder="강남구, 서초구" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">매물 유형</label>
+                <input value={form.propertyType} onChange={(e) => set('propertyType', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder="아파트, 오피스텔" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">가격대</label>
+                <input value={form.priceRange} onChange={(e) => set('priceRange', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder="3억~5억" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">면적</label>
+                <input value={form.area} onChange={(e) => set('area', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder="25평~35평" />
+              </div>
+            </div>
+          </div>
+
+          {/* 메모 */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">메모</label>
+            <textarea value={form.memo} onChange={(e) => set('memo', e.target.value)} rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder="고객 관련 메모" />
+          </div>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">취소</button>
+          <button type="button" onClick={handleSubmit} disabled={saving} className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
+            {saving ? '등록 중...' : '등록'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
