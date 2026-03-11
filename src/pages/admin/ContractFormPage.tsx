@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Property, ContractTemplateType, TransactionType } from '@/types/database'
 import { fetchAdminProperties } from '@/api/properties'
@@ -7,6 +7,7 @@ import { Button } from '@/components/common'
 import { formatPropertyPrice, transactionTypeLabel, contractTemplateLabel, formatNumber, parseCommaNumber, formatPrice } from '@/utils/format'
 import { useFormatArea } from '@/components/common/AreaUnitToggle'
 import { useCategories } from '@/hooks/useCategories'
+import { useAuthStore } from '@/stores/authStore'
 import toast from 'react-hot-toast'
 
 type Step = 1 | 2 | 3 | 4
@@ -20,12 +21,14 @@ const allTemplates: ContractTemplateType[] = [
 
 export function ContractFormPage() {
   const navigate = useNavigate()
+  const agentProfile = useAuthStore((s) => s.agentProfile)
   const [step, setStep] = useState<Step>(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Step 1: Property selection
   const [properties, setProperties] = useState<Property[]>([])
   const [propSearch, setPropSearch] = useState('')
+  const [propCategoryId, setPropCategoryId] = useState('')
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
 
   // Step 2: Template selection
@@ -46,11 +49,11 @@ export function ContractFormPage() {
   // Load properties
   useEffect(() => {
     let cancelled = false
-    fetchAdminProperties({ search: propSearch || undefined })
+    fetchAdminProperties({ search: propSearch || undefined, categoryId: propCategoryId || undefined })
       .then((data) => { if (!cancelled) setProperties(data) })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [propSearch])
+  }, [propSearch, propCategoryId])
 
   // Auto-recommend template when property is selected
   const handleSelectProperty = (p: Property) => {
@@ -76,7 +79,13 @@ export function ContractFormPage() {
       template_type: templateType,
       seller_info: sellerInfo,
       buyer_info: buyerInfo,
-      agent_info: { officeName: '스마트부동산', representative: '홍길동', licenseNumber: '12345-2024-00001', address: '서울 강남구 역삼동', phone: '02-1234-5678' },
+      agent_info: {
+        officeName: agentProfile?.office_name ?? '',
+        representative: agentProfile?.representative ?? '',
+        licenseNumber: agentProfile?.license_number ?? '',
+        address: agentProfile?.address ?? '',
+        phone: agentProfile?.phone ?? '',
+      },
       price_info: {
         salePrice: parseCommaNumber(priceInfo.salePrice),
         deposit: parseCommaNumber(priceInfo.deposit),
@@ -132,6 +141,8 @@ export function ContractFormPage() {
           properties={properties}
           search={propSearch}
           onSearchChange={setPropSearch}
+          categoryId={propCategoryId}
+          onCategoryChange={setPropCategoryId}
           selected={selectedProperty}
           onSelect={handleSelectProperty}
         />
@@ -157,6 +168,7 @@ export function ContractFormPage() {
           specialTerms={specialTerms}
           onSpecialTermsChange={setSpecialTerms}
           property={selectedProperty}
+          agentInfo={{ officeName: agentProfile?.office_name ?? '', representative: agentProfile?.representative ?? '', licenseNumber: agentProfile?.license_number ?? '', address: agentProfile?.address ?? '', phone: agentProfile?.phone ?? '' }}
         />
       )}
       {step === 4 && (
@@ -168,6 +180,7 @@ export function ContractFormPage() {
           buyerInfo={buyerInfo}
           priceInfo={priceInfo}
           specialTerms={specialTerms}
+          agentInfo={{ officeName: agentProfile?.office_name ?? '', representative: agentProfile?.representative ?? '', licenseNumber: agentProfile?.license_number ?? '', address: agentProfile?.address ?? '', phone: agentProfile?.phone ?? '' }}
         />
       )}
 
@@ -181,7 +194,9 @@ export function ContractFormPage() {
         ) : (
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => { window.print() }}>인쇄</Button>
+            {/* 전자서명 — 추후 API 연동 시 활성화
             <Button variant="secondary" onClick={() => toast('전자서명 요청 기능은 추후 구현 예정입니다.')}>전자서명 요청</Button>
+            */}
             <Button onClick={handleSubmit} isLoading={isSubmitting}>계약서 저장</Button>
           </div>
         )}
@@ -193,12 +208,41 @@ export function ContractFormPage() {
 // ============================================================
 // Step 1: Property Selection
 // ============================================================
-function Step1PropertySelect({ properties, search, onSearchChange, selected, onSelect }: {
-  properties: Property[]; search: string; onSearchChange: (v: string) => void; selected: Property | null; onSelect: (p: Property) => void
+function Step1PropertySelect({ properties, search, onSearchChange, categoryId, onCategoryChange, selected, onSelect }: {
+  properties: Property[]; search: string; onSearchChange: (v: string) => void
+  categoryId: string; onCategoryChange: (v: string) => void
+  selected: Property | null; onSelect: (p: Property) => void
 }) {
-  const { findCategory } = useCategories()
+  const { categories, findCategory } = useCategories()
   return (
     <div className="space-y-4">
+      {/* Category Tabs */}
+      <div className="scrollbar-hide flex overflow-x-auto border-b border-gray-200">
+        <button
+          onClick={() => onCategoryChange('')}
+          className={`shrink-0 border-b-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
+            categoryId === ''
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+          }`}
+        >
+          전체
+        </button>
+        {categories.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => onCategoryChange(cat.id)}
+            className={`shrink-0 border-b-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
+              categoryId === cat.id
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+            }`}
+          >
+            {cat.icon} {cat.name}
+          </button>
+        ))}
+      </div>
+
       <div className="relative max-w-md">
         <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -297,7 +341,9 @@ function Step2TemplateSelect({ templateType, onTemplateChange, txType, onTxTypeC
 // ============================================================
 // Step 3: Contract Info Input
 // ============================================================
-function Step3ContractInfo({ txType, sellerInfo, onSellerChange, buyerInfo, onBuyerChange, priceInfo, onPriceChange, specialTerms, onSpecialTermsChange, property }: {
+type AgentInfo = { officeName: string; representative: string; licenseNumber: string; address: string; phone: string }
+
+function Step3ContractInfo({ txType, sellerInfo, onSellerChange, buyerInfo, onBuyerChange, priceInfo, onPriceChange, specialTerms, onSpecialTermsChange, property, agentInfo }: {
   txType: TransactionType
   sellerInfo: { name: string; phone: string; idNumber: string; address: string }
   onSellerChange: (v: typeof sellerInfo) => void
@@ -308,6 +354,7 @@ function Step3ContractInfo({ txType, sellerInfo, onSellerChange, buyerInfo, onBu
   specialTerms: string
   onSpecialTermsChange: (v: string) => void
   property: Property | null
+  agentInfo: AgentInfo
 }) {
   const formatArea = useFormatArea()
   const isSale = txType === 'sale'
@@ -378,10 +425,10 @@ function Step3ContractInfo({ txType, sellerInfo, onSellerChange, buyerInfo, onBu
       <div className="rounded-xl bg-green-50 p-4 ring-1 ring-green-200">
         <p className="mb-2 text-xs font-bold text-green-700">중개사 정보 (자동 로드)</p>
         <div className="grid gap-2 text-sm sm:grid-cols-2">
-          <div><span className="text-gray-500">사무소: </span><span className="font-medium">스마트부동산</span></div>
-          <div><span className="text-gray-500">대표: </span><span className="font-medium">홍길동</span></div>
-          <div><span className="text-gray-500">등록번호: </span><span className="font-medium">12345-2024-00001</span></div>
-          <div><span className="text-gray-500">연락처: </span><span className="font-medium">02-1234-5678</span></div>
+          <div><span className="text-gray-500">사무소: </span><span className="font-medium">{agentInfo.officeName || '-'}</span></div>
+          <div><span className="text-gray-500">대표: </span><span className="font-medium">{agentInfo.representative || '-'}</span></div>
+          <div><span className="text-gray-500">등록번호: </span><span className="font-medium">{agentInfo.licenseNumber || '-'}</span></div>
+          <div><span className="text-gray-500">연락처: </span><span className="font-medium">{agentInfo.phone || '-'}</span></div>
         </div>
       </div>
 
@@ -447,22 +494,57 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
 // ============================================================
 // Step 4: Preview
 // ============================================================
-function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, priceInfo, specialTerms }: {
+function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, priceInfo, specialTerms, agentInfo }: {
   property: Property | null; templateType: ContractTemplateType; txType: TransactionType
   sellerInfo: { name: string; phone: string; idNumber: string; address: string }
   buyerInfo: typeof sellerInfo
   priceInfo: { salePrice: string; deposit: string; monthlyRent: string; downPayment: string; downPaymentDate: string; midPayment: string; midPaymentDate: string; finalPayment: string; finalPaymentDate: string }
   specialTerms: string
+  agentInfo: AgentInfo
 }) {
   const formatArea = useFormatArea()
   const { findCategory } = useCategories()
   const isSale = txType === 'sale'
   const isMonthly = txType === 'monthly'
+  const previewRef = useRef<HTMLDivElement>(null)
+  const [isPdfLoading, setIsPdfLoading] = useState(false)
+
+  const handleDownloadPdf = async () => {
+    if (!previewRef.current) return
+    setIsPdfLoading(true)
+    try {
+      const html2canvas = (await import('html2canvas-pro')).default
+      const { jsPDF } = await import('jspdf')
+      const canvas = await html2canvas(previewRef.current, { scale: 2, useCORS: true })
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pdfW = pdf.internal.pageSize.getWidth()
+      const pdfH = pdf.internal.pageSize.getHeight()
+      const margin = 10
+      const contentW = pdfW - margin * 2
+      const imgH = (canvas.height * contentW) / canvas.width
+      let y = margin
+      let page = 0
+      while (y < imgH + margin) {
+        if (page > 0) pdf.addPage()
+        pdf.addImage(imgData, 'PNG', margin, margin - y + (page === 0 ? 0 : margin), contentW, imgH)
+        y += pdfH - margin * 2
+        page++
+      }
+      const contractNum = property?.title ? property.title.replace(/\s/g, '_') : 'contract'
+      pdf.save(`계약서_${contractNum}.pdf`)
+      toast.success('PDF가 다운로드되었습니다.')
+    } catch {
+      toast.error('PDF 생성에 실패했습니다.')
+    } finally {
+      setIsPdfLoading(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
       {/* Contract Preview */}
-      <div className="mx-auto max-w-3xl rounded-xl bg-white p-8 shadow-sm ring-1 ring-gray-200 print:shadow-none print:ring-0">
+      <div ref={previewRef} className="mx-auto max-w-3xl rounded-xl bg-white p-8 shadow-sm ring-1 ring-gray-200 print:shadow-none print:ring-0">
         <h2 className="mb-6 text-center text-xl font-bold">부동산 {isSale ? '매매' : '임대차'} 계약서</h2>
         <p className="mb-4 text-center text-sm text-gray-500">({contractTemplateLabel[templateType]})</p>
 
@@ -539,19 +621,29 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
           <h3 className="mb-3 border-b-2 border-gray-800 pb-1 text-sm font-bold">개업공인중개사</h3>
           <table className="w-full text-sm">
             <tbody>
-              <Row label="사무소명" value="스마트부동산" />
-              <Row label="대표" value="홍길동" />
-              <Row label="등록번호" value="12345-2024-00001" />
-              <Row label="소재지" value="서울 강남구 역삼동" />
-              <Row label="연락처" value="02-1234-5678" />
+              <Row label="사무소명" value={agentInfo.officeName || '-'} />
+              <Row label="대표" value={agentInfo.representative || '-'} />
+              <Row label="등록번호" value={agentInfo.licenseNumber || '-'} />
+              <Row label="소재지" value={agentInfo.address || '-'} />
+              <Row label="연락처" value={agentInfo.phone || '-'} />
             </tbody>
           </table>
           <div className="mt-4 border-b border-dashed border-gray-400 pb-8 text-center text-xs text-gray-400">서명/날인</div>
         </section>
       </div>
 
-      <div className="text-center text-sm text-gray-500">
-        PDF 다운로드는 계약서 저장 후 가능합니다.
+      <div className="text-center">
+        <button
+          onClick={handleDownloadPdf}
+          disabled={isPdfLoading}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+        >
+          {isPdfLoading ? (
+            <><svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>PDF 생성 중...</>
+          ) : (
+            <><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>PDF 다운로드</>
+          )}
+        </button>
       </div>
     </div>
   )

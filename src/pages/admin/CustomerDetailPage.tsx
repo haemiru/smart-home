@@ -119,6 +119,9 @@ export function CustomerDetailPage() {
             >
               {pipelineStages.map((s) => <option key={s} value={s}>{customerTypeLabel[s]}</option>)}
             </select>
+            <Link to="/admin/customers" className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700">
+              목록보기
+            </Link>
           </div>
         </div>
 

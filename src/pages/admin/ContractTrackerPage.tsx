@@ -242,6 +242,11 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
               <option value="signed">서명완료</option>
               <option value="completed">계약완료</option>
             </select>
+            <Link to={`/admin/contracts/${contract.id}/confirmation`}>
+              <Button variant="outline" size="sm">
+                확인설명서{contract.confirmation_doc && Object.keys(contract.confirmation_doc).length > 0 ? ' (작성됨)' : ''}
+              </Button>
+            </Link>
             <Button variant="outline" size="sm" onClick={handleLegalReview} isLoading={isReviewing}>
               AI 법률 검토
             </Button>
@@ -251,17 +256,12 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={handleShare}>고객에게 공유</Button>
+            {/* 전자서명 — 추후 API 연동 시 활성화
             <Button variant="outline" size="sm" onClick={handleRequestSignature} isLoading={isRequestingSignature}>
               전자서명 요청
             </Button>
+            */}
           </div>
-          {signatureStatus !== 'unsigned' && (
-            <div className="mt-2 flex items-center gap-2 text-xs">
-              <span className="text-gray-400">서명 상태:</span>
-              {signatureStatus === 'signing' && <span className="rounded-full bg-yellow-100 px-2 py-0.5 font-medium text-yellow-700">서명 진행중</span>}
-              {signatureStatus === 'completed' && <span className="rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700">서명 완료</span>}
-            </div>
-          )}
         </div>
 
         {/* Key info */}

@@ -36,6 +36,7 @@ const CustomerDetailPage = lazy(() => import('@/pages/admin/CustomerDetailPage')
 const ContractsPage = lazy(() => import('@/pages/admin/ContractsPage').then((m) => ({ default: m.ContractsPage })))
 const ContractFormPage = lazy(() => import('@/pages/admin/ContractFormPage').then((m) => ({ default: m.ContractFormPage })))
 const ContractTrackerPage = lazy(() => import('@/pages/admin/ContractTrackerPage').then((m) => ({ default: m.ContractTrackerPage })))
+const ConfirmationDocPage = lazy(() => import('@/pages/admin/ConfirmationDocPage').then((m) => ({ default: m.ConfirmationDocPage })))
 const AIDescriptionPage = lazy(() => import('@/pages/admin/AIDescriptionPage').then((m) => ({ default: m.AIDescriptionPage })))
 const ValuationPage = lazy(() => import('@/pages/admin/ValuationPage').then((m) => ({ default: m.ValuationPage })))
 const ROICalculatorPage = lazy(() => import('@/pages/admin/ROICalculatorPage').then((m) => ({ default: m.ROICalculatorPage })))
@@ -131,6 +132,7 @@ export const router = createBrowserRouter([
       { path: 'contracts', element: <S><ContractsPage /></S> },
       { path: 'contracts/new', element: <S><ContractFormPage /></S> },
       { path: 'contracts/:id/tracker', element: <S><ContractTrackerPage /></S> },
+      { path: 'contracts/:id/confirmation', element: <S><ConfirmationDocPage /></S> },
       { path: 'ai-tools', element: <PlanGate navKey="ai-tools"><S><AIDescriptionPage /></S></PlanGate> },
       { path: 'ai-tools/description', element: <PlanGate navKey="ai-tools"><S><AIDescriptionPage /></S></PlanGate> },
       { path: 'analytics', element: <PlanGate navKey="analytics"><S><ValuationPage /></S></PlanGate> },

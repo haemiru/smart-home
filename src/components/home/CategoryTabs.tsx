@@ -50,7 +50,7 @@ export function CategoryTabs() {
                   : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
               }`}
             >
-              {cat.name}
+              {cat.icon} {cat.name}
             </button>
           ))}
         </div>
