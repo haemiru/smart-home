@@ -141,7 +141,11 @@ export function CustomersPage() {
 // ============================================================
 // Pipeline (Kanban) View
 // ============================================================
+const PIPELINE_PAGE_SIZE = 20
+
 function PipelineView({ customers, onStageChange }: { customers: Customer[]; onStageChange: (id: string, type: CustomerType) => void }) {
+  const [expanded, setExpanded] = useState<Record<string, number>>({})
+
   const stageColors: Record<CustomerType, string> = {
     lead: 'border-t-gray-400',
     interest: 'border-t-blue-400',
@@ -154,6 +158,10 @@ function PipelineView({ customers, onStageChange }: { customers: Customer[]; onS
     <div className="scrollbar-hide flex gap-4 overflow-x-auto pb-4">
       {pipelineStages.map((stage) => {
         const stageCustomers = customers.filter((c) => c.customer_type === stage)
+        const visibleCount = expanded[stage] || PIPELINE_PAGE_SIZE
+        const visible = stageCustomers.slice(0, visibleCount)
+        const hasMore = stageCustomers.length > visibleCount
+
         return (
           <div key={stage} className="w-64 shrink-0">
             <div className={`mb-3 rounded-t-lg border-t-4 ${stageColors[stage]} bg-white px-3 py-2 shadow-sm ring-1 ring-gray-200`}>
@@ -163,13 +171,21 @@ function PipelineView({ customers, onStageChange }: { customers: Customer[]; onS
               </div>
             </div>
             <div className="space-y-2">
-              {stageCustomers.map((c) => (
+              {visible.map((c) => (
                 <KanbanCard key={c.id} customer={c} onStageChange={onStageChange} />
               ))}
               {stageCustomers.length === 0 && (
                 <div className="rounded-lg border-2 border-dashed border-gray-200 py-8 text-center text-xs text-gray-400">
                   고객 없음
                 </div>
+              )}
+              {hasMore && (
+                <button
+                  onClick={() => setExpanded((prev) => ({ ...prev, [stage]: visibleCount + PIPELINE_PAGE_SIZE }))}
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 text-xs font-medium text-gray-500 hover:bg-gray-100"
+                >
+                  더보기 ({stageCustomers.length - visibleCount}명 남음)
+                </button>
               )}
             </div>
           </div>
