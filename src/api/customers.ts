@@ -193,6 +193,35 @@ export async function addCustomerActivity(data: {
   }
 }
 
+export async function updateCustomerActivity(id: string, data: {
+  activity_type?: CustomerActivity['activity_type']
+  property_id?: string | null
+  metadata?: Record<string, unknown>
+  created_at?: string
+}): Promise<void> {
+  const updateData: Record<string, unknown> = {}
+  if (data.activity_type !== undefined) updateData.activity_type = data.activity_type
+  if (data.property_id !== undefined) updateData.property_id = data.property_id
+  if (data.metadata !== undefined) updateData.metadata = data.metadata
+  if (data.created_at !== undefined) updateData.created_at = data.created_at
+
+  const { error } = await supabase
+    .from('customer_activities')
+    .update(updateData)
+    .eq('id', id)
+
+  if (error) throw error
+}
+
+export async function deleteCustomerActivity(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('customer_activities')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+}
+
 export async function getCustomerCountByType(): Promise<Record<CustomerType, number>> {
   const counts: Record<CustomerType, number> = { lead: 0, interest: 0, consulting: 0, contracting: 0, completed: 0 }
 

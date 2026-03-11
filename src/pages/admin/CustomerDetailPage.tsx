@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import type { Customer, CustomerActivity, CustomerType, ActivityType } from '@/types/database'
-import { fetchCustomerById, fetchCustomerActivities, updateCustomer, updateCustomerType, addCustomerActivity } from '@/api/customers'
-import { fetchPropertyById } from '@/api/properties'
+import { fetchCustomerById, fetchCustomerActivities, updateCustomer, updateCustomerType, addCustomerActivity, updateCustomerActivity, deleteCustomerActivity } from '@/api/customers'
+import { fetchPropertyById, fetchProperties } from '@/api/properties'
+import { fetchInquiriesByPhone } from '@/api/inquiries'
 import { generateContent, saveGenerationLog } from '@/api/gemini'
 import { isFeatureInPlan } from '@/config/planFeatures'
 import { useFeatureStore } from '@/stores/featureStore'
 import type { Property } from '@/types/database'
-import { customerTypeLabel, customerTypeColor, customerSourceLabel, activityTypeLabel, formatDateTime, formatRelativeTime } from '@/utils/format'
+import { customerTypeLabel, customerTypeColor, customerSourceLabel, activityTypeLabel, formatDateTime, formatRelativeTime, formatPrice } from '@/utils/format'
 import { Button } from '@/components/common'
 import toast from 'react-hot-toast'
 
@@ -181,7 +182,7 @@ export function CustomerDetailPage() {
         />
       )}
       {activeTab === 'matching' && (
-        <MatchingTab prefs={prefs} />
+        <MatchingTab customer={customer} prefs={prefs} activities={activities} />
       )}
       {activeTab === 'analysis' && (
         isFeatureInPlan('sincerity_analysis', useFeatureStore.getState().plan)
@@ -433,6 +434,10 @@ function ActivityTab({ customerId, activities, propertyCache, onActivityAdded }:
   const [formType, setFormType] = useState<ActivityType>('phone_call')
   const [formMemo, setFormMemo] = useState('')
   const [formDatetime, setFormDatetime] = useState('')
+  const [formPropertyId, setFormPropertyId] = useState<string | null>(null)
+  const [propertySearch, setPropertySearch] = useState('')
+  const [propertyResults, setPropertyResults] = useState<Property[]>([])
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
   const nowDatetimeLocal = () => {
@@ -441,6 +446,17 @@ function ActivityTab({ customerId, activities, propertyCache, onActivityAdded }:
     return d.toISOString().slice(0, 16)
   }
 
+  // Property search with debounce
+  useEffect(() => {
+    if (!propertySearch.trim()) { setPropertyResults([]); return }
+    const timer = setTimeout(() => {
+      fetchProperties({ search: propertySearch, status: 'active' }, 'newest', 1, 5)
+        .then(({ data }) => setPropertyResults(data))
+        .catch(() => setPropertyResults([]))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [propertySearch])
+
   const handleAdd = async () => {
     if (!formMemo.trim()) { toast.error('내용을 입력해주세요.'); return }
     setIsSaving(true)
@@ -448,11 +464,15 @@ function ActivityTab({ customerId, activities, propertyCache, onActivityAdded }:
       await addCustomerActivity({
         customer_id: customerId,
         activity_type: formType,
+        property_id: formPropertyId ?? undefined,
         metadata: { memo: formMemo.trim() },
         created_at: formDatetime ? new Date(formDatetime).toISOString() : undefined,
       })
       toast.success('상담 기록이 추가되었습니다.')
       setFormMemo('')
+      setFormPropertyId(null)
+      setSelectedProperty(null)
+      setPropertySearch('')
       setShowForm(false)
       onActivityAdded()
     } catch {
@@ -495,14 +515,48 @@ function ActivityTab({ customerId, activities, propertyCache, onActivityAdded }:
                 </button>
               ))}
             </div>
-            <div className="mb-3">
-              <label className="mb-1 block text-xs text-gray-500">상담 일시</label>
-              <input
-                type="datetime-local"
-                value={formDatetime}
-                onChange={(e) => setFormDatetime(e.target.value)}
-                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-              />
+            <div className="mb-3 flex flex-wrap gap-3">
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">상담 일시</label>
+                <input
+                  type="datetime-local"
+                  value={formDatetime}
+                  onChange={(e) => setFormDatetime(e.target.value)}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                />
+              </div>
+              <div className="relative flex-1">
+                <label className="mb-1 block text-xs text-gray-500">관련 매물 (선택)</label>
+                {selectedProperty ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5">
+                    <span className="flex-1 truncate text-sm text-primary-700">{selectedProperty.title}</span>
+                    <button onClick={() => { setSelectedProperty(null); setFormPropertyId(null); setPropertySearch('') }} className="text-xs text-gray-400 hover:text-red-500">✕</button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      value={propertySearch}
+                      onChange={(e) => setPropertySearch(e.target.value)}
+                      placeholder="매물명 또는 주소 검색..."
+                      className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                    />
+                    {propertyResults.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                        {propertyResults.map((p) => (
+                          <button
+                            key={p.id}
+                            onClick={() => { setFormPropertyId(p.id); setSelectedProperty(p); setPropertySearch(''); setPropertyResults([]) }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
+                          >
+                            <span className="flex-1 truncate font-medium">{p.title}</span>
+                            <span className="shrink-0 text-xs text-gray-400">{p.address}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
             <textarea
               value={formMemo}
@@ -514,7 +568,7 @@ function ActivityTab({ customerId, activities, propertyCache, onActivityAdded }:
             />
             <div className="mt-1 text-right text-xs text-gray-400">{formMemo.length}/500</div>
             <div className="mt-2 flex justify-end gap-2">
-              <button onClick={() => { setShowForm(false); setFormMemo(''); setFormDatetime('') }} className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100">취소</button>
+              <button onClick={() => { setShowForm(false); setFormMemo(''); setFormDatetime(''); setFormPropertyId(null); setSelectedProperty(null); setPropertySearch('') }} className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100">취소</button>
               <button onClick={handleAdd} disabled={isSaving} className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50">
                 {isSaving ? '저장 중...' : '저장'}
               </button>
@@ -529,29 +583,14 @@ function ActivityTab({ customerId, activities, propertyCache, onActivityAdded }:
           <div className="relative space-y-4 pl-6">
             <div className="absolute bottom-0 left-2.5 top-0 w-px bg-gray-200" />
 
-            {activities.map((act) => {
-              const prop = act.property_id ? propertyCache[act.property_id] : null
-              const memo = (act.metadata as Record<string, unknown>)?.memo as string | undefined
-              return (
-                <div key={act.id} className="relative">
-                  <div className="absolute -left-6 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-xs ring-2 ring-gray-200">
-                    {activityIcons[act.activity_type] || '•'}
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      <span className="font-medium">{activityTypeLabel[act.activity_type]}</span>
-                      {prop && (
-                        <Link to={`/admin/properties/${prop.id}`} className="ml-1 text-primary-600 hover:underline">
-                          {prop.title}
-                        </Link>
-                      )}
-                    </p>
-                    {memo && <p className="mt-0.5 text-sm text-gray-600">{memo}</p>}
-                    <p className="mt-0.5 text-xs text-gray-400">{formatDateTime(act.created_at)}</p>
-                  </div>
-                </div>
-              )
-            })}
+            {activities.map((act) => (
+              <ActivityItem
+                key={act.id}
+                activity={act}
+                property={act.property_id ? propertyCache[act.property_id] : null}
+                onUpdated={onActivityAdded}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -562,18 +601,326 @@ function ActivityTab({ customerId, activities, propertyCache, onActivityAdded }:
 // ============================================================
 // Matching Properties Tab (placeholder)
 // ============================================================
-function MatchingTab({ prefs }: { prefs: Record<string, string> }) {
-  return (
-    <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
-      <h3 className="mb-4 text-sm font-semibold">매칭 매물</h3>
-      <div className="flex h-48 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50">
-        <div className="text-center">
-          <p className="text-sm text-gray-400">고객 선호 조건 기반 매물 자동 매칭 (추후 구현)</p>
-          {prefs.region && <p className="mt-1 text-xs text-gray-400">선호 지역: {prefs.region}</p>}
-          {prefs.propertyType && <p className="text-xs text-gray-400">매물 유형: {prefs.propertyType}</p>}
+/** 개별 상담 기록 항목 — 보기/편집/삭제 */
+function ActivityItem({ activity: act, property: prop, onUpdated }: {
+  activity: CustomerActivity
+  property: Property | null
+  onUpdated: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [editType, setEditType] = useState(act.activity_type)
+  const [editMemo, setEditMemo] = useState('')
+  const [editDatetime, setEditDatetime] = useState('')
+  const [editPropertyId, setEditPropertyId] = useState<string | null>(act.property_id)
+  const [editSelectedProperty, setEditSelectedProperty] = useState<Property | null>(prop)
+  const [editPropertySearch, setEditPropertySearch] = useState('')
+  const [editPropertyResults, setEditPropertyResults] = useState<Property[]>([])
+  const [isSaving, setIsSaving] = useState(false)
+
+  const toLocalDatetime = (iso: string) => {
+    const d = new Date(iso)
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+    return d.toISOString().slice(0, 16)
+  }
+
+  // Property search for edit mode
+  useEffect(() => {
+    if (!editing || !editPropertySearch.trim()) { setEditPropertyResults([]); return }
+    const timer = setTimeout(() => {
+      fetchProperties({ search: editPropertySearch, status: 'active' }, 'newest', 1, 5)
+        .then(({ data }) => setEditPropertyResults(data))
+        .catch(() => setEditPropertyResults([]))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [editing, editPropertySearch])
+
+  const startEdit = () => {
+    const memo = (act.metadata as Record<string, unknown>)?.memo as string || ''
+    setEditMemo(memo)
+    setEditType(act.activity_type)
+    setEditDatetime(toLocalDatetime(act.created_at))
+    setEditPropertyId(act.property_id)
+    setEditSelectedProperty(prop)
+    setEditPropertySearch('')
+    setEditing(true)
+  }
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      await updateCustomerActivity(act.id, {
+        activity_type: editType,
+        property_id: editPropertyId,
+        metadata: { ...(act.metadata as Record<string, unknown>), memo: editMemo.trim() },
+        created_at: new Date(editDatetime).toISOString(),
+      })
+      toast.success('수정되었습니다.')
+      setEditing(false)
+      onUpdated()
+    } catch {
+      toast.error('수정에 실패했습니다.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('이 상담 기록을 삭제하시겠습니까?')) return
+    try {
+      await deleteCustomerActivity(act.id)
+      toast.success('삭제되었습니다.')
+      onUpdated()
+    } catch {
+      toast.error('삭제에 실패했습니다.')
+    }
+  }
+
+  const memo = (act.metadata as Record<string, unknown>)?.memo as string | undefined
+
+  if (editing) {
+    return (
+      <div className="relative">
+        <div className="absolute -left-6 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary-100 text-xs ring-2 ring-primary-300">✏️</div>
+        <div className="rounded-lg border border-primary-200 bg-primary-50/30 p-3">
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {consultTypes.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setEditType(t.key)}
+                className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                  editType === t.key ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                {t.icon} {t.label}
+              </button>
+            ))}
+          </div>
+          <div className="mb-2 flex flex-wrap gap-3">
+            <div>
+              <input
+                type="datetime-local"
+                value={editDatetime}
+                onChange={(e) => setEditDatetime(e.target.value)}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              />
+            </div>
+            <div className="relative flex-1">
+              <label className="mb-1 block text-xs text-gray-500">관련 매물</label>
+              {editSelectedProperty ? (
+                <div className="flex items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5">
+                  <span className="flex-1 truncate text-sm text-primary-700">{editSelectedProperty.title}</span>
+                  <button onClick={() => { setEditSelectedProperty(null); setEditPropertyId(null); setEditPropertySearch('') }} className="text-xs text-gray-400 hover:text-red-500">✕</button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    value={editPropertySearch}
+                    onChange={(e) => setEditPropertySearch(e.target.value)}
+                    placeholder="매물명 또는 주소 검색..."
+                    className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                  />
+                  {editPropertyResults.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                      {editPropertyResults.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => { setEditPropertyId(p.id); setEditSelectedProperty(p); setEditPropertySearch(''); setEditPropertyResults([]) }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
+                        >
+                          <span className="flex-1 truncate font-medium">{p.title}</span>
+                          <span className="shrink-0 text-xs text-gray-400">{p.address}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+          <textarea
+            value={editMemo}
+            onChange={(e) => { if (e.target.value.length <= 500) setEditMemo(e.target.value) }}
+            maxLength={500}
+            rows={2}
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+          />
+          <div className="mt-1 flex items-center justify-between">
+            <span className="text-xs text-gray-400">{editMemo.length}/500</span>
+            <div className="flex gap-2">
+              <button onClick={() => setEditing(false)} className="rounded-lg px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100">취소</button>
+              <button onClick={handleSave} disabled={isSaving} className="rounded-lg bg-primary-600 px-3 py-1 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50">
+                {isSaving ? '저장 중...' : '저장'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
+    )
+  }
+
+  return (
+    <div className="group relative">
+      <div className="absolute -left-6 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-xs ring-2 ring-gray-200">
+        {activityIcons[act.activity_type] || '•'}
+      </div>
+      <div>
+        <div className="flex items-start justify-between">
+          <p className="text-sm text-gray-700">
+            <span className="font-medium">{activityTypeLabel[act.activity_type]}</span>
+            {prop && (
+              <Link to={`/admin/properties/${prop.id}`} className="ml-1 text-primary-600 hover:underline">
+                {prop.title}
+              </Link>
+            )}
+          </p>
+          <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <button onClick={startEdit} className="rounded px-1.5 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-primary-600">수정</button>
+            <button onClick={handleDelete} className="rounded px-1.5 py-0.5 text-xs text-gray-400 hover:bg-red-50 hover:text-red-500">삭제</button>
+          </div>
+        </div>
+        {memo && <p className="mt-0.5 text-sm text-gray-600">{memo}</p>}
+        <p className="mt-0.5 text-xs text-gray-400">{formatDateTime(act.created_at)}</p>
+      </div>
     </div>
+  )
+}
+
+function MatchingTab({ customer, prefs, activities }: { customer: Customer; prefs: Record<string, string>; activities: CustomerActivity[] }) {
+  const [interestProperties, setInterestProperties] = useState<Property[]>([])
+  const [recommendedProperties, setRecommendedProperties] = useState<Property[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setIsLoading(true)
+
+    const load = async () => {
+      // 1. 관심 매물: 문의 연결 매물 + 상담일지 태그 매물
+      const propertyIds = new Set<string>()
+
+      // 문의에서 연결된 매물
+      try {
+        const inquiries = await fetchInquiriesByPhone(customer.phone)
+        for (const inq of inquiries) {
+          if (inq.property_id) propertyIds.add(inq.property_id)
+        }
+      } catch { /* ignore */ }
+
+      // 상담일지에서 태그된 매물
+      for (const act of activities) {
+        if (act.property_id) propertyIds.add(act.property_id)
+      }
+
+      const interestList: Property[] = []
+      for (const pid of propertyIds) {
+        try {
+          const p = await fetchPropertyById(pid)
+          if (p && !cancelled) interestList.push(p)
+        } catch { /* ignore */ }
+      }
+
+      // 2. 추천 매물: 선호조건 기반 검색
+      let recommended: Property[] = []
+      if (prefs.region || prefs.propertyType) {
+        try {
+          const { data } = await fetchProperties(
+            { search: prefs.region || undefined, status: 'active' },
+            'newest', 1, 10,
+          )
+          // 관심 매물과 중복 제거
+          recommended = data.filter((p) => !propertyIds.has(p.id))
+        } catch { /* ignore */ }
+      }
+
+      if (!cancelled) {
+        setInterestProperties(interestList)
+        setRecommendedProperties(recommended)
+        setIsLoading(false)
+      }
+    }
+
+    load()
+    return () => { cancelled = true }
+  }, [customer.phone, activities, prefs])
+
+  if (isLoading) {
+    return <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" /></div>
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* 관심 매물 */}
+      <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+        <h3 className="mb-4 text-sm font-semibold">🏷️ 관심 매물</h3>
+        <p className="mb-3 text-xs text-gray-400">문의 시 연결된 매물 + 상담 중 태그한 매물</p>
+        {interestProperties.length === 0 ? (
+          <p className="py-6 text-center text-sm text-gray-400">관심 매물이 없습니다.</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {interestProperties.map((p) => (
+              <PropertyMiniCard key={p.id} property={p} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 추천 매물 */}
+      <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+        <h3 className="mb-4 text-sm font-semibold">✨ 선호조건 기반 추천</h3>
+        <div className="mb-3 flex flex-wrap gap-2">
+          {prefs.region && <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-600">{prefs.region}</span>}
+          {prefs.propertyType && <span className="rounded-full bg-green-50 px-2.5 py-0.5 text-xs text-green-600">{prefs.propertyType}</span>}
+          {prefs.priceRange && <span className="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs text-orange-600">{prefs.priceRange}</span>}
+          {prefs.area && <span className="rounded-full bg-purple-50 px-2.5 py-0.5 text-xs text-purple-600">{prefs.area}</span>}
+        </div>
+        {!prefs.region && !prefs.propertyType ? (
+          <p className="py-6 text-center text-sm text-gray-400">선호 조건을 등록하면 매칭 매물이 표시됩니다.</p>
+        ) : recommendedProperties.length === 0 ? (
+          <p className="py-6 text-center text-sm text-gray-400">조건에 맞는 매물이 없습니다.</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {recommendedProperties.map((p) => (
+              <PropertyMiniCard key={p.id} property={p} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** 매물 미니 카드 — 매칭매물 탭 전용 */
+function PropertyMiniCard({ property: p }: { property: Property }) {
+  const thumb = p.photos?.[0]
+  const price = p.transaction_type === 'sale'
+    ? formatPrice(p.sale_price)
+    : p.transaction_type === 'jeonse'
+      ? formatPrice(p.deposit)
+      : p.deposit && p.monthly_rent
+        ? `${formatPrice(p.deposit)} / 월${formatPrice(p.monthly_rent)}`
+        : formatPrice(p.monthly_rent)
+  const txLabel = { sale: '매매', jeonse: '전세', monthly: '월세' }[p.transaction_type] || ''
+
+  return (
+    <Link
+      to={`/admin/properties/${p.id}`}
+      className="flex gap-3 rounded-lg border border-gray-200 p-3 transition-colors hover:border-primary-300 hover:bg-primary-50/30"
+    >
+      {thumb ? (
+        <img src={thumb} alt="" className="h-16 w-16 shrink-0 rounded-md object-cover" />
+      ) : (
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md bg-gray-100 text-lg text-gray-300">🏠</div>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-gray-800">{p.title}</p>
+        <p className="truncate text-xs text-gray-500">{p.address}</p>
+        <div className="mt-1 flex items-center gap-2">
+          <span className="rounded bg-primary-50 px-1.5 py-0.5 text-[10px] font-bold text-primary-700">{txLabel}</span>
+          <span className="text-xs font-medium text-gray-700">{price}</span>
+          {p.exclusive_area_m2 && <span className="text-xs text-gray-400">{p.exclusive_area_m2}㎡</span>}
+        </div>
+      </div>
+    </Link>
   )
 }
 

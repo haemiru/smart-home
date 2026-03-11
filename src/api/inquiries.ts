@@ -33,6 +33,19 @@ export async function fetchInquiries(filters: InquiryFilters = {}): Promise<Inqu
   return data ?? []
 }
 
+/** 고객 전화번호로 연결된 문의 조회 (매물 연결된 것만) */
+export async function fetchInquiriesByPhone(phone: string): Promise<Inquiry[]> {
+  const { data, error } = await supabase
+    .from('inquiries')
+    .select('*')
+    .eq('phone', phone)
+    .not('property_id', 'is', null)
+    .order('created_at', { ascending: false })
+
+  if (error) return []
+  return data ?? []
+}
+
 export async function fetchInquiryById(id: string): Promise<Inquiry | null> {
   const { data, error } = await supabase
     .from('inquiries')
