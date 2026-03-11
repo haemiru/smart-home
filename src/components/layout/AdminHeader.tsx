@@ -13,7 +13,7 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
   const { user, agentProfile, staffPermissions } = useAuthStore()
-  const { notifications, unreadCount, markAsRead, markAllAsRead, refreshUnansweredCount, loadRecentInquiries, unansweredInquiryCount } = useNotificationStore()
+  const { notifications, unreadCount, markAsRead, markAllAsRead, loadRecentInquiries, unansweredInquiryCount } = useNotificationStore()
   const navigate = useNavigate()
   const { formatted: sessionTimer, remainingMs } = useSessionTimeout()
   const [searchQuery, setSearchQuery] = useState('')

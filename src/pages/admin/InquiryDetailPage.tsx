@@ -278,9 +278,9 @@ ${inquiry.preferred_visit_date ? `\n희망 방문일: ${inquiry.preferred_visit_
 
 사무소 정보 (답변 마무리에 활용):
 - 사무소명: ${agentProfile?.office_name || '(미등록)'}
-- 대표자: ${agentProfile?.representative_name || '(미등록)'}
+- 대표자: ${agentProfile?.representative || '(미등록)'}
 - 대표 전화: ${agentProfile?.phone || '(미등록)'}
-- 이메일: ${agentProfile?.email || '(미등록)'}
+- 이메일: ${(agentProfile as Record<string, unknown>)?.email || '(미등록)'}
 - 주소: ${agentProfile?.address || '(미등록)'}
 - 영업시간: ${agentProfile?.business_hours ? Object.entries(agentProfile.business_hours as Record<string, { open: string; close: string; closed?: boolean }>).filter(([, v]) => !v.closed).map(([k, v]) => `${k} ${v.open}~${v.close}`).join(', ') || '평일 09:00~18:00' : '평일 09:00~18:00'}`
 

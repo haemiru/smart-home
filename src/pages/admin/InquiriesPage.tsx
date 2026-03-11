@@ -4,7 +4,7 @@ import type { Inquiry, InquiryStatus, InquiryType } from '@/types/database'
 import { fetchInquiries, getUnansweredCount, updateInquiryStatus } from '@/api/inquiries'
 import { fetchPropertyById } from '@/api/properties'
 import type { Property } from '@/types/database'
-import { inquiryStatusLabel, inquiryStatusIcon, inquiryStatusColor, inquiryTypeLabel, formatRelativeTime } from '@/utils/format'
+import { inquiryStatusLabel, inquiryStatusColor, inquiryTypeLabel, formatRelativeTime } from '@/utils/format'
 import toast from 'react-hot-toast'
 
 const statusFilters: { key: InquiryStatus | 'all'; label: string }[] = [

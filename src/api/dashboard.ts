@@ -1,5 +1,5 @@
 import { supabase } from '@/api/supabase'
-import type { Inquiry } from '@/types/database'
+import type { Inquiry, InquiryStatus } from '@/types/database'
 
 export type DashboardSummary = {
   newInquiries: number
@@ -213,7 +213,7 @@ export type InquiryStatusCounts = {
 }
 
 export async function fetchInquiryStatusCounts(): Promise<InquiryStatusCounts> {
-  const safe = async (status: string) => {
+  const safe = async (status: InquiryStatus) => {
     try {
       const { count } = await supabase.from('inquiries').select('*', { count: 'exact', head: true }).eq('status', status)
       return count ?? 0
