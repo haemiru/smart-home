@@ -9,8 +9,8 @@ import { formatDate } from '@/utils/format'
 import toast from 'react-hot-toast'
 
 const plans: { key: PlanType; features: string[] }[] = [
-  { key: 'free', features: ['매물 10건', '기본 CRM', '문의 관리', '계약 관리', '서브도메인'] },
-  { key: 'basic', features: ['매물 무제한', 'AI 도구', '데이터 분석', '임장/임대 관리', '공동중개', '커스텀 도메인', '알림톡/SMS'] },
+  { key: 'free', features: ['매물 50건', '고객관리', '문의 관리', '계약 관리', '서브도메인'] },
+  { key: 'basic', features: ['매물 무제한', 'AI 도구', '고객 스코어링/진성 분석', '데이터 분석', '임장/임대 관리', '공동중개', '커스텀 도메인', '알림톡/SMS'] },
   { key: 'pro', features: ['Basic 전체', 'AI 가상스테이징', 'SNS 포스팅', '실시간 채팅', '전자서명'] },
 ]
 

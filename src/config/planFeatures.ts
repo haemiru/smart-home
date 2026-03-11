@@ -52,6 +52,13 @@ export function getRequiredPlan(featureKey: string): PlanType {
   return 'pro'
 }
 
+/** Maximum number of properties allowed per plan (0 = unlimited) */
+export const PLAN_PROPERTY_LIMIT: Record<PlanType, number> = {
+  free: 50,
+  basic: 0,
+  pro: 0,
+}
+
 export const PLAN_INFO: Record<PlanType, { label: string; price: number; color: string; bgColor: string; textColor: string }> = {
   free: { label: 'Free', price: 0, color: '#6B7280', bgColor: 'bg-gray-100', textColor: 'text-gray-700' },
   basic: { label: 'Basic', price: 3000, color: '#3B82F6', bgColor: 'bg-blue-100', textColor: 'text-blue-700' },

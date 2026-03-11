@@ -1,5 +1,7 @@
 import { supabase, supabaseAuth } from '@/api/supabase'
 import { getAgentProfileId } from '@/api/helpers'
+import { PLAN_PROPERTY_LIMIT } from '@/config/planFeatures'
+import { useAuthStore } from '@/stores/authStore'
 import type { Property, PropertyCategory, PropertyStatus, TransactionType } from '@/types/database'
 
 export interface PropertyFilters {
@@ -140,6 +142,20 @@ export async function createProperty(
   data: Omit<Property, 'id' | 'created_at' | 'updated_at' | 'view_count' | 'inquiry_count' | 'favorite_count'>,
 ): Promise<Property> {
   const agentId = await getAgentProfileId()
+
+  // Check property limit for current plan
+  const plan = useAuthStore.getState().agentProfile?.subscription_plan ?? 'free'
+  const limit = PLAN_PROPERTY_LIMIT[plan]
+  if (limit > 0) {
+    const { count } = await supabase
+      .from('properties')
+      .select('*', { count: 'exact', head: true })
+      .eq('agent_id', agentId)
+    if ((count ?? 0) >= limit) {
+      throw new Error(`Free 요금제는 매물을 최대 ${limit}건까지 등록할 수 있습니다. 요금제를 업그레이드해주세요.`)
+    }
+  }
+
   const { data: property, error } = await supabase
     .from('properties')
     .insert({ ...data, agent_id: agentId })
