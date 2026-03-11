@@ -323,6 +323,7 @@ function AddCustomerModal({ onClose, onCreated }: { onClose: () => void; onCreat
     propertyType: '',
     priceRange: '',
     area: '',
+    prefNote: '',
   })
 
   const set = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }))
@@ -337,6 +338,7 @@ function AddCustomerModal({ onClose, onCreated }: { onClose: () => void; onCreat
       if (form.propertyType) preferences.propertyType = form.propertyType
       if (form.priceRange) preferences.priceRange = form.priceRange
       if (form.area) preferences.area = form.area
+      if (form.prefNote) preferences.note = form.prefNote
 
       await createCustomer({
         name: form.name.trim(),
@@ -403,6 +405,10 @@ function AddCustomerModal({ onClose, onCreated }: { onClose: () => void; onCreat
                 <label className="mb-1 block text-xs font-medium text-gray-600">면적</label>
                 <input value={form.area} onChange={(e) => set('area', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder="25평~35평" />
               </div>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-gray-600">비고</label>
+              <textarea value={form.prefNote} onChange={(e) => set('prefNote', e.target.value)} rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder="기타 특이사항, 요청사항 등" />
             </div>
           </div>
 

@@ -192,7 +192,7 @@ export function CustomerDetailPage() {
 // ============================================================
 function ProfileTab({ customer, prefs, onUpdatePrefs }: { customer: Customer; prefs: Record<string, string>; onUpdatePrefs: (prefs: Record<string, string>) => void }) {
   const [editing, setEditing] = useState(false)
-  const [editPrefs, setEditPrefs] = useState({ region: '', propertyType: '', priceRange: '', area: '' })
+  const [editPrefs, setEditPrefs] = useState({ region: '', propertyType: '', priceRange: '', area: '', note: '' })
 
   const prefFields = [
     { key: 'region', label: '선호 지역', placeholder: '강남구, 서초구' },
@@ -205,6 +205,7 @@ function ProfileTab({ customer, prefs, onUpdatePrefs }: { customer: Customer; pr
     setEditPrefs({
       region: prefs.region || '',
       propertyType: prefs.propertyType || '',
+      note: prefs.note || '',
       priceRange: prefs.priceRange || '',
       area: prefs.area || '',
     })
@@ -217,6 +218,7 @@ function ProfileTab({ customer, prefs, onUpdatePrefs }: { customer: Customer; pr
     if (editPrefs.propertyType.trim()) newPrefs.propertyType = editPrefs.propertyType.trim()
     if (editPrefs.priceRange.trim()) newPrefs.priceRange = editPrefs.priceRange.trim()
     if (editPrefs.area.trim()) newPrefs.area = editPrefs.area.trim()
+    if (editPrefs.note.trim()) newPrefs.note = editPrefs.note.trim()
     onUpdatePrefs(newPrefs)
     setEditing(false)
   }
@@ -264,6 +266,16 @@ function ProfileTab({ customer, prefs, onUpdatePrefs }: { customer: Customer; pr
                 />
               </div>
             ))}
+            <div>
+              <label className="mb-1 block text-xs text-gray-400">비고</label>
+              <textarea
+                value={editPrefs.note}
+                onChange={(e) => setEditPrefs((p) => ({ ...p, note: e.target.value }))}
+                placeholder="기타 특이사항, 요청사항 등"
+                rows={2}
+                className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              />
+            </div>
             <div className="flex justify-end gap-2 pt-1">
               <button onClick={() => setEditing(false)} className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100">취소</button>
               <button onClick={handleSave} className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700">저장</button>
@@ -279,6 +291,12 @@ function ProfileTab({ customer, prefs, onUpdatePrefs }: { customer: Customer; pr
                 <span className="font-medium">{prefs[f.key]}</span>
               </div>
             ))}
+            {prefs.note && (
+              <div>
+                <span className="text-gray-400">비고</span>
+                <p className="mt-1 whitespace-pre-wrap text-sm font-medium">{prefs.note}</p>
+              </div>
+            )}
           </div>
         )}
       </div>
