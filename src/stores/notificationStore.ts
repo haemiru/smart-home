@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Inquiry } from '@/types/database'
-import { getUnansweredCount } from '@/api/inquiries'
+import { fetchInquiries, getUnansweredCount } from '@/api/inquiries'
 
 export type Notification = {
   id: string
@@ -12,49 +12,42 @@ export type Notification = {
   created_at: string
 }
 
+const inquiryTypeLabel: Record<string, string> = {
+  property: '매물',
+  price: '시세',
+  contract: '계약',
+  other: '기타',
+}
+
+function inquiryToNotification(inq: Inquiry): Notification {
+  return {
+    id: `inq-notif-${inq.id}`,
+    type: 'inquiry',
+    title: '새 문의',
+    message: `${inq.name}님이 ${inquiryTypeLabel[inq.inquiry_type] ?? '기타'} 문의를 접수했습니다.`,
+    link: `/admin/inquiries/${inq.id}`,
+    isRead: inq.status !== 'new',
+    created_at: inq.created_at,
+  }
+}
+
 type NotificationStore = {
   notifications: Notification[]
   unansweredInquiryCount: number
   unreadCount: number
+  initialized: boolean
   addNotification: (n: Omit<Notification, 'id' | 'isRead' | 'created_at'>) => void
   markAsRead: (id: string) => void
   markAllAsRead: () => void
   refreshUnansweredCount: () => Promise<void>
-  // Supabase Realtime integration placeholder
+  loadRecentInquiries: () => Promise<void>
   handleNewInquiry: (inquiry: Inquiry) => void
 }
 
 export const useNotificationStore = create<NotificationStore>((set, get) => ({
-  notifications: [
-    {
-      id: 'notif-1',
-      type: 'inquiry',
-      title: '새 문의',
-      message: '김철수님이 래미안 레이카운티 매물에 대해 문의했습니다.',
-      link: '/admin/inquiries/inq-1',
-      isRead: false,
-      created_at: '2026-02-17T14:30:00Z',
-    },
-    {
-      id: 'notif-2',
-      type: 'inquiry',
-      title: '새 문의',
-      message: '한지연님이 역삼 센트럴 오피스텔 매물에 대해 문의했습니다.',
-      link: '/admin/inquiries/inq-6',
-      isRead: false,
-      created_at: '2026-02-18T08:00:00Z',
-    },
-    {
-      id: 'notif-3',
-      type: 'inquiry',
-      title: '새 문의',
-      message: '이영희님이 시세 문의를 접수했습니다.',
-      link: '/admin/inquiries/inq-2',
-      isRead: true,
-      created_at: '2026-02-17T10:15:00Z',
-    },
-  ],
+  notifications: [],
   unansweredInquiryCount: 0,
+  initialized: false,
   get unreadCount() {
     return get().notifications.filter((n) => !n.isRead).length
   },
@@ -84,15 +77,31 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
   },
 
   refreshUnansweredCount: async () => {
-    const count = await getUnansweredCount()
-    set({ unansweredInquiryCount: count })
+    try {
+      const count = await getUnansweredCount()
+      set({ unansweredInquiryCount: count })
+    } catch {
+      // ignore
+    }
+  },
+
+  loadRecentInquiries: async () => {
+    if (get().initialized) return
+    try {
+      const inquiries = await fetchInquiries({ unansweredOnly: true })
+      const notifications = inquiries.slice(0, 20).map(inquiryToNotification)
+      const count = await getUnansweredCount()
+      set({ notifications, unansweredInquiryCount: count, initialized: true })
+    } catch {
+      set({ initialized: true })
+    }
   },
 
   handleNewInquiry: (inquiry) => {
     get().addNotification({
       type: 'inquiry',
       title: '새 문의',
-      message: `${inquiry.name}님이 ${inquiry.inquiry_type === 'property' ? '매물' : inquiry.inquiry_type === 'price' ? '시세' : inquiry.inquiry_type === 'contract' ? '계약' : '기타'} 문의를 접수했습니다.`,
+      message: `${inquiry.name}님이 ${inquiryTypeLabel[inquiry.inquiry_type] ?? '기타'} 문의를 접수했습니다.`,
       link: `/admin/inquiries/${inquiry.id}`,
     })
     get().refreshUnansweredCount()

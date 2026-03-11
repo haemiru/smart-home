@@ -4,14 +4,15 @@
  */
 
 export type CategoryGroup =
-  | 'residential'   // 아파트, 오피스텔, 빌라, 주택, 원룸
-  | 'presale'       // 분양권
-  | 'commercial'    // 상가
-  | 'office'        // 사무실
-  | 'industrial'    // 공장/창고
-  | 'land'          // 토지
-  | 'redevelopment' // 재개발
-  | 'pension'       // 숙박/펜션
+  | 'residential'        // 아파트, 오피스텔, 빌라, 주택, 원룸
+  | 'presale'            // 분양권
+  | 'commercial'         // 상가
+  | 'office'             // 사무실
+  | 'knowledge_center'   // 지식산업센터
+  | 'industrial'         // 공장/창고
+  | 'land'               // 토지
+  | 'redevelopment'      // 재개발
+  | 'pension'            // 숙박/펜션
 
 const GROUP_MAP: Record<string, CategoryGroup> = {
   '아파트': 'residential',
@@ -22,6 +23,7 @@ const GROUP_MAP: Record<string, CategoryGroup> = {
   '분양권': 'presale',
   '상가': 'commercial',
   '사무실': 'office',
+  '지식산업센터': 'knowledge_center',
   '공장/창고': 'industrial',
   '토지': 'land',
   '재개발': 'redevelopment',
@@ -65,7 +67,8 @@ export const STRUCTURE_VISIBILITY: Record<CategoryGroup, StructureFields> = {
   residential:   { ...defaultStructure },
   presale:       { ...defaultStructure, built_year: false },
   commercial:    { supply_area: false, exclusive_area: true, rooms: false, bathrooms: false, floor: true, total_floors: true, direction: false, built_year: true },
-  office:        { supply_area: false, exclusive_area: true, rooms: false, bathrooms: false, floor: true, total_floors: true, direction: false, built_year: true },
+  office:            { supply_area: false, exclusive_area: true, rooms: false, bathrooms: false, floor: true, total_floors: true, direction: false, built_year: true },
+  knowledge_center:  { supply_area: false, exclusive_area: true, rooms: false, bathrooms: false, floor: true, total_floors: true, direction: false, built_year: true },
   industrial:    { supply_area: false, exclusive_area: false, rooms: false, bathrooms: false, floor: false, total_floors: false, direction: false, built_year: false },
   land:          { supply_area: false, exclusive_area: false, rooms: false, bathrooms: false, floor: false, total_floors: false, direction: false, built_year: false },
   redevelopment: { supply_area: true, exclusive_area: true, rooms: true, bathrooms: true, floor: true, total_floors: true, direction: false, built_year: false },
@@ -76,7 +79,8 @@ export const DETAIL_VISIBILITY: Record<CategoryGroup, DetailFields> = {
   residential:   { ...defaultDetail },
   presale:       { move_in_date: false, parking: true, elevator: true, pets: false, options: true },
   commercial:    { move_in_date: true, parking: true, elevator: true, pets: false, options: true },
-  office:        { move_in_date: true, parking: true, elevator: true, pets: false, options: true },
+  office:            { move_in_date: true, parking: true, elevator: true, pets: false, options: true },
+  knowledge_center:  { move_in_date: true, parking: true, elevator: true, pets: false, options: true },
   industrial:    { move_in_date: true, parking: false, elevator: false, pets: false, options: false },
   land:          { move_in_date: false, parking: false, elevator: false, pets: false, options: false },
   redevelopment: { move_in_date: true, parking: false, elevator: false, pets: false, options: false },
@@ -87,7 +91,8 @@ export const PRICE_OVERRIDES: Record<CategoryGroup, PriceOverrides> = {
   residential:   { maintenance_fee: true },
   presale:       { maintenance_fee: true, sale_label: '분양가 (만원)' },
   commercial:    { maintenance_fee: true },
-  office:        { maintenance_fee: true },
+  office:            { maintenance_fee: true },
+  knowledge_center:  { maintenance_fee: true },
   industrial:    { maintenance_fee: true },
   land:          { maintenance_fee: false },
   redevelopment: { maintenance_fee: false },
@@ -105,7 +110,8 @@ export const OPTIONS_PER_GROUP: Record<CategoryGroup, string[]> = {
   residential:   RESIDENTIAL_OPTIONS,
   presale:       PRESALE_OPTIONS,
   commercial:    COMMERCIAL_OPTIONS,
-  office:        COMMERCIAL_OPTIONS,
+  office:            COMMERCIAL_OPTIONS,
+  knowledge_center:  COMMERCIAL_OPTIONS,
   industrial:    [],
   land:          [],
   redevelopment: [],
@@ -147,6 +153,12 @@ export const EXTRA_FIELDS: Record<CategoryGroup, ExtraFieldDef[]> = {
   office: [
     { key: 'ceiling_height', label: '층고 (m)', type: 'number', step: '0.1', placeholder: '예: 2.7', tab: 'structure' },
     { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트', '조적조'], tab: 'structure' },
+  ],
+  knowledge_center: [
+    { key: 'ceiling_height', label: '층고 (m)', type: 'number', step: '0.1', placeholder: '예: 2.7', tab: 'structure' },
+    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트'], tab: 'structure' },
+    { key: 'household_count', label: '총 호실수', type: 'number', placeholder: '예: 200', tab: 'structure' },
+    { key: 'business_restriction', label: '입주업종', type: 'text', placeholder: '예: 제조업, IT, 연구개발', tab: 'detail' },
   ],
   industrial: [
     { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure' },
@@ -245,6 +257,8 @@ export type ExtraInfoForm = {
   room_count: string
   monthly_avg_revenue: string
   business_license: string
+  maintenance_per_pyeong: string
+  rent_per_pyeong: string
 }
 
 export const emptyExtraInfo: ExtraInfoForm = {
@@ -278,4 +292,6 @@ export const emptyExtraInfo: ExtraInfoForm = {
   room_count: '',
   monthly_avg_revenue: '',
   business_license: '',
+  maintenance_per_pyeong: '',
+  rent_per_pyeong: '',
 }

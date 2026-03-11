@@ -13,7 +13,7 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
   const { user, agentProfile, staffPermissions } = useAuthStore()
-  const { notifications, unreadCount, markAsRead, markAllAsRead, refreshUnansweredCount, unansweredInquiryCount } = useNotificationStore()
+  const { notifications, unreadCount, markAsRead, markAllAsRead, refreshUnansweredCount, loadRecentInquiries, unansweredInquiryCount } = useNotificationStore()
   const navigate = useNavigate()
   const { formatted: sessionTimer, remainingMs } = useSessionTimeout()
   const [searchQuery, setSearchQuery] = useState('')
@@ -30,10 +30,10 @@ export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  // Refresh unanswered count on mount
+  // Load real inquiry notifications on mount
   useEffect(() => {
-    void refreshUnansweredCount()
-  }, [refreshUnansweredCount])
+    void loadRecentInquiries()
+  }, [loadRecentInquiries])
 
   const handleSignOut = async () => {
     await signOut()

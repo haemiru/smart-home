@@ -1,4 +1,4 @@
-import { supabase } from '@/api/supabase'
+import { supabase, supabaseAuth } from '@/api/supabase'
 import { getAgentProfileId } from '@/api/helpers'
 import type { AgentProfile, AgentFeatureSetting, StaffMember, PropertyCategory, StaffRole, PlanType } from '@/types/database'
 
@@ -740,9 +740,8 @@ export type BillingInfo = {
 
 const PLAN_META: Record<PlanType, { label: string; price: number }> = {
   free: { label: 'Free', price: 0 },
-  basic: { label: 'Basic', price: 29000 },
-  pro: { label: 'Pro', price: 79000 },
-  enterprise: { label: 'Enterprise', price: -1 },
+  basic: { label: 'Basic', price: 3000 },
+  pro: { label: 'Pro', price: 5000 },
 }
 
 export async function fetchBillingInfo(): Promise<BillingInfo> {
@@ -798,7 +797,7 @@ export async function fetchSecuritySettings(): Promise<SecuritySettings> {
   // Check real MFA enrollment status
   let twoFactorEnabled = false
   try {
-    const { data } = await supabase.auth.mfa.listFactors()
+    const { data } = await supabaseAuth.auth.mfa.listFactors()
     twoFactorEnabled = (data?.totp ?? []).some((f) => f.status === 'verified')
   } catch {
     // Not logged in or MFA not supported — default to false

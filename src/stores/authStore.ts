@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Session } from '@supabase/supabase-js'
-import { supabase } from '@/api/supabase'
+import { supabase, supabaseAuth } from '@/api/supabase'
 import type { User, AgentProfile } from '@/types/database'
 import { useFeatureStore } from '@/stores/featureStore'
 import { clearCachedIds } from '@/api/helpers'
@@ -31,7 +31,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   initialize: async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await supabaseAuth.auth.getSession()
       set({ session })
 
       if (session?.user) {
@@ -39,7 +39,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       // Listen for auth state changes
-      supabase.auth.onAuthStateChange(async (_event, session) => {
+      supabaseAuth.auth.onAuthStateChange(async (_event, session) => {
         set({ session })
         if (session?.user) {
           await get().fetchUserProfile(session.user.id)

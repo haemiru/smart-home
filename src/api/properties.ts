@@ -1,4 +1,4 @@
-import { supabase } from '@/api/supabase'
+import { supabase, supabaseAuth } from '@/api/supabase'
 import { getAgentProfileId } from '@/api/helpers'
 import type { Property, PropertyCategory, PropertyStatus, TransactionType } from '@/types/database'
 
@@ -46,7 +46,8 @@ export async function fetchProperties(
   agentId?: string,
 ): Promise<{ data: Property[]; total: number }> {
   try {
-    let query = supabase
+    // Use supabaseAuth for public reads (works for both logged-in and anon users)
+    let query = supabaseAuth
       .from('properties')
       .select('*', { count: 'exact' })
 
@@ -122,7 +123,7 @@ export async function fetchAdminProperties(
 }
 
 export async function fetchPropertyById(id: string): Promise<Property | null> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAuth
     .from('properties')
     .select('*')
     .eq('id', id)

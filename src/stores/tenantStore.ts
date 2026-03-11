@@ -25,7 +25,7 @@ const DEV_MOCK_TENANT: TenantProfile = {
   fax: '02-1234-5679',
   logo_url: null,
   description: '강남 지역 전문 공인중개사 사무소입니다. 아파트, 오피스텔, 상가 등 다양한 매물을 취급합니다.',
-  specialties: ['아파트', '오피스텔', '빌라', '상가', '사무실'],
+  specialties: ['아파트', '오피스텔', '빌라', '상가', '사무실', '지식산업센터'],
   business_hours: null,
   subscription_plan: 'pro',
 }

@@ -61,6 +61,39 @@ export async function fetchCustomerActivities(customerId: string): Promise<Custo
   return data ?? []
 }
 
+/** 전화번호로 기존 고객 조회 (없으면 null) */
+export async function findCustomerByPhone(phone: string): Promise<Customer | null> {
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*')
+    .eq('phone', phone)
+    .limit(1)
+    .maybeSingle()
+
+  if (error) return null
+  return data
+}
+
+/** 문의 접수 시 CRM 자동 등록 — 이미 있으면 기존 고객 반환, 없으면 신규 생성 */
+export async function ensureCustomerFromInquiry(inquiry: {
+  name: string
+  phone: string
+  email?: string | null
+  inquiry_type?: string
+}): Promise<Customer> {
+  const existing = await findCustomerByPhone(inquiry.phone)
+  if (existing) return existing
+
+  return createCustomer({
+    name: inquiry.name,
+    phone: inquiry.phone,
+    email: inquiry.email ?? undefined,
+    customer_type: 'lead',
+    source: 'inquiry',
+    memo: inquiry.inquiry_type ? `문의 유형: ${inquiry.inquiry_type}` : undefined,
+  })
+}
+
 export async function createCustomer(data: {
   name: string
   phone: string

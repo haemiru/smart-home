@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, supabaseAuth } from './supabase'
 import type { UserRole, StaffRole } from '@/types/database'
 
 interface SignUpParams {
@@ -20,7 +20,7 @@ interface SignUpParams {
 }
 
 export async function signUpWithEmail({ email, password, displayName, phone, role, agentData, staffInviteCode, staffRole }: SignUpParams) {
-  const { data, error } = await supabase.auth.signUp({
+  const { data, error } = await supabaseAuth.auth.signUp({
     email,
     password,
     options: {
@@ -107,18 +107,18 @@ export async function signUpWithEmail({ email, password, displayName, phone, rol
 }
 
 export async function signInWithEmail(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  const { data, error } = await supabaseAuth.auth.signInWithPassword({ email, password })
   if (error) throw error
   return data
 }
 
 export async function signOut() {
-  const { error } = await supabase.auth.signOut()
+  const { error } = await supabaseAuth.auth.signOut()
   if (error) throw error
 }
 
 export async function getCurrentUser() {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await supabaseAuth.auth.getUser()
   if (!user) return null
 
   const { data: profile } = await supabase
@@ -146,18 +146,18 @@ export async function getAgentProfile(userId: string) {
 // ──────────────────────────────────────────
 
 export async function changePassword(currentPassword: string, newPassword: string) {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await supabaseAuth.auth.getUser()
   if (!user?.email) throw new Error('로그인 상태를 확인할 수 없습니다.')
 
   // Verify current password by re-signing in
-  const { error: verifyError } = await supabase.auth.signInWithPassword({
+  const { error: verifyError } = await supabaseAuth.auth.signInWithPassword({
     email: user.email,
     password: currentPassword,
   })
   if (verifyError) throw new Error('현재 비밀번호가 올바르지 않습니다.')
 
   // Update password
-  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  const { error } = await supabaseAuth.auth.updateUser({ password: newPassword })
   if (error) throw error
 }
 
@@ -166,16 +166,16 @@ export async function changePassword(currentPassword: string, newPassword: strin
 // ──────────────────────────────────────────
 
 export async function enrollTOTP() {
-  const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp' })
+  const { data, error } = await supabaseAuth.auth.mfa.enroll({ factorType: 'totp' })
   if (error) throw error
   return data // { id, type, totp: { qr_code, secret, uri } }
 }
 
 export async function verifyTOTPEnrollment(factorId: string, code: string) {
-  const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId })
+  const { data: challenge, error: challengeError } = await supabaseAuth.auth.mfa.challenge({ factorId })
   if (challengeError) throw challengeError
 
-  const { error: verifyError } = await supabase.auth.mfa.verify({
+  const { error: verifyError } = await supabaseAuth.auth.mfa.verify({
     factorId,
     challengeId: challenge.id,
     code,
@@ -184,19 +184,19 @@ export async function verifyTOTPEnrollment(factorId: string, code: string) {
 }
 
 export async function unenrollTOTP(factorId: string) {
-  const { error } = await supabase.auth.mfa.unenroll({ factorId })
+  const { error } = await supabaseAuth.auth.mfa.unenroll({ factorId })
   if (error) throw error
 }
 
 export async function verifyMFACode(code: string) {
-  const { data: factors } = await supabase.auth.mfa.listFactors()
+  const { data: factors } = await supabaseAuth.auth.mfa.listFactors()
   const totp = factors?.totp?.[0]
   if (!totp) throw new Error('등록된 2단계 인증이 없습니다.')
 
-  const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: totp.id })
+  const { data: challenge, error: challengeError } = await supabaseAuth.auth.mfa.challenge({ factorId: totp.id })
   if (challengeError) throw challengeError
 
-  const { error: verifyError } = await supabase.auth.mfa.verify({
+  const { error: verifyError } = await supabaseAuth.auth.mfa.verify({
     factorId: totp.id,
     challengeId: challenge.id,
     code,
@@ -238,7 +238,7 @@ async function getClientIP(): Promise<string | null> {
 /** Record a login event. Non-fatal — failures are silently ignored. */
 export async function recordLogin() {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseAuth.auth.getUser()
     if (!user) return
 
     const ip = await getClientIP()
@@ -254,7 +254,7 @@ export async function recordLogin() {
 }
 
 export async function fetchLoginRecords(): Promise<{ date: string; ip: string; device: string }[]> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await supabaseAuth.auth.getUser()
   if (!user) return []
 
   const { data, error } = await supabase

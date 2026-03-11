@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from 'react'
+import { useRef, useMemo } from 'react'
 import { useHomeFilterStore } from '@/stores/homeFilterStore'
 import { useCategories } from '@/hooks/useCategories'
 import { useTenantStore } from '@/stores/tenantStore'
@@ -21,13 +21,6 @@ export function CategoryTabs() {
     return matched.length > 0 ? matched : categories
   }, [categories, specialties])
 
-  // Auto-select the first category once loaded
-  useEffect(() => {
-    if (!isLoading && sorted.length > 0) {
-      setCategory(sorted[0].id)
-    }
-  }, [sorted, isLoading, setCategory])
-
   if (isLoading || sorted.length === 0) return null
 
   return (
@@ -37,6 +30,16 @@ export function CategoryTabs() {
           ref={scrollRef}
           className="scrollbar-hide flex overflow-x-auto"
         >
+          <button
+            onClick={() => setCategory('')}
+            className={`shrink-0 border-b-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
+              selectedCategory === ''
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+            }`}
+          >
+            전체
+          </button>
           {sorted.map((cat) => (
             <button
               key={cat.id}

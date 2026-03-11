@@ -16,7 +16,7 @@ const TYPE_GROUPS: { type: CategoryType; label: string; icon: string; names: str
     type: '상업',
     label: '상업',
     icon: '🏪',
-    names: ['상가', '사무실'],
+    names: ['상가', '사무실', '지식산업센터'],
   },
   {
     type: '산업',

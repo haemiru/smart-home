@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Button, Input } from '@/components/common'
 import { signInWithEmail, verifyMFACode, recordLogin } from '@/api/auth'
-import { supabase } from '@/api/supabase'
+import { supabaseAuth } from '@/api/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import toast from 'react-hot-toast'
 
@@ -40,7 +40,7 @@ export function LoginPage() {
       const data = await signInWithEmail(email, password)
 
       // Check if MFA is required
-      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      const { data: aal } = await supabaseAuth.auth.mfa.getAuthenticatorAssuranceLevel()
       if (aal && aal.currentLevel === 'aal1' && aal.nextLevel === 'aal2') {
         setMfaRequired(true)
         setIsLoading(false)
@@ -66,7 +66,7 @@ export function LoginPage() {
       await verifyMFACode(mfaCode)
       recordLogin()
       toast.success('로그인 성공!')
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      const { data: { user: currentUser } } = await supabaseAuth.auth.getUser()
       const userRole = currentUser?.user_metadata?.role
       navigate(getRedirectTarget(userRole), { replace: true })
     } catch (err) {

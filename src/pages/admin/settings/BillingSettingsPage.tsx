@@ -9,10 +9,9 @@ import { formatDate } from '@/utils/format'
 import toast from 'react-hot-toast'
 
 const plans: { key: PlanType; features: string[] }[] = [
-  { key: 'free', features: ['매물 10건', '기본 CRM', '문의 관리', '계약 관리'] },
-  { key: 'basic', features: ['매물 무제한', 'AI 도구', '데이터 분석', '임장/임대 관리', '공동중개'] },
+  { key: 'free', features: ['매물 10건', '기본 CRM', '문의 관리', '계약 관리', '서브도메인'] },
+  { key: 'basic', features: ['매물 무제한', 'AI 도구', '데이터 분석', '임장/임대 관리', '공동중개', '커스텀 도메인', '알림톡/SMS'] },
   { key: 'pro', features: ['Basic 전체', 'AI 가상스테이징', 'SNS 포스팅', '실시간 채팅', '전자서명'] },
-  { key: 'enterprise', features: ['Pro 전체', '전담 매니저', 'API 연동', '맞춤 개발'] },
 ]
 
 export function BillingSettingsPage() {
@@ -60,7 +59,7 @@ export function BillingSettingsPage() {
           </div>
           <div>
             <p className="text-sm text-gray-600">
-              {billing.price === 0 ? '무료' : billing.price === -1 ? '별도 문의' : `월 ${billing.price.toLocaleString()}원`}
+              {billing.price === 0 ? '무료' : `월 ${billing.price.toLocaleString()}원 (VAT 별도)`}
             </p>
             {billing.price > 0 && (
               <p className="text-xs text-gray-400">다음 결제일: {formatDate(billing.next_billing_date)}</p>
@@ -72,7 +71,7 @@ export function BillingSettingsPage() {
       {/* Plan Comparison */}
       <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
         <h2 className="mb-4 text-sm font-bold">요금제 비교</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {plans.map((plan) => {
             const info = PLAN_INFO[plan.key]
             const isCurrent = plan.key === billing.current_plan
@@ -80,8 +79,8 @@ export function BillingSettingsPage() {
               <div key={plan.key} className={`rounded-xl p-4 ring-1 ${isCurrent ? `${info.bgColor} ring-2` : 'ring-gray-200'}`} style={isCurrent ? { borderColor: info.color } : undefined}>
                 <h3 className="text-sm font-bold">{info.label}</h3>
                 <p className="mt-1 text-lg font-bold">
-                  {info.price === -1 ? '별도 문의' : info.price === 0 ? '무료' : `${info.price.toLocaleString()}원`}
-                  {info.price > 0 && <span className="text-xs font-normal text-gray-400">/월</span>}
+                  {info.price === 0 ? '무료' : `${info.price.toLocaleString()}원`}
+                  {info.price > 0 && <span className="text-xs font-normal text-gray-400">/월 (VAT 별도)</span>}
                 </p>
                 <ul className="mt-3 space-y-1">
                   {plan.features.map((f) => (

@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
+import { useHomeFilterStore } from '@/stores/homeFilterStore'
 import { useTenantStore } from '@/stores/tenantStore'
 import { fetchProperties } from '@/api/properties'
 import type { Property } from '@/types/database'
@@ -10,18 +11,21 @@ export function AIRecommendations() {
   const { session } = useAuthStore()
   const scrollRef = useRef<HTMLDivElement>(null)
   const agentId = useTenantStore((s) => s.agentId)
+  const { selectedCategory } = useHomeFilterStore()
   const [recommended, setRecommended] = useState<Property[]>([])
 
   useEffect(() => {
     if (!session) return
     let cancelled = false
-    fetchProperties({}, 'popular', 1, 6, agentId ?? undefined)
+    fetchProperties({
+      categoryId: selectedCategory || undefined,
+    }, 'popular', 1, 6, agentId ?? undefined)
       .then(({ data }) => {
         if (!cancelled) setRecommended(data)
       })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [session, agentId])
+  }, [session, agentId, selectedCategory])
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollRef.current) return

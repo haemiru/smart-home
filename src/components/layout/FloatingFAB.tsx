@@ -27,7 +27,6 @@ function toFabConfig(settings: FloatingSettings) {
 }
 
 export function FloatingFAB() {
-  const [isExpanded, setIsExpanded] = useState(false)
   const [isInquiryOpen, setIsInquiryOpen] = useState(false)
   const [isChatbotOpen, setIsChatbotOpen] = useState(false)
   const agentId = useTenantStore((s) => s.agentId)
@@ -46,80 +45,55 @@ export function FloatingFAB() {
 
   return (
     <>
-      {/* FAB Group */}
-      <div className="fixed bottom-20 right-4 z-50 flex flex-col items-end gap-2 lg:bottom-6">
-        {/* Expanded buttons */}
-        {isExpanded && (
-          <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2">
-            {/* AI Chatbot */}
-            <button
-              onClick={() => {
-                setIsChatbotOpen(true)
-                setIsExpanded(false)
-              }}
-              className="flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-500 to-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg transition-transform hover:scale-105"
-            >
-              <span>🤖</span>
-              <span>AI 상담</span>
-            </button>
-            {fabConfig.phone.enabled && (
-              <a
-                href={`tel:${fabConfig.phone.number}`}
-                className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-lg ring-1 ring-gray-200 transition-transform hover:scale-105"
-              >
-                <span>📞</span>
-                <span className="hidden sm:inline">{fabConfig.phone.number}</span>
-                <span className="sm:hidden">전화상담</span>
-              </a>
-            )}
-            {fabConfig.kakao.enabled && (
-              <a
-                href={fabConfig.kakao.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 rounded-full bg-[#FEE500] px-4 py-2.5 text-sm font-medium text-[#3C1E1E] shadow-lg transition-transform hover:scale-105"
-              >
-                <span>💬</span>
-                <span>카카오상담</span>
-              </a>
-            )}
-            {fabConfig.naver.enabled && (
-              <a
-                href={fabConfig.naver.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 rounded-full bg-[#03C75A] px-4 py-2.5 text-sm font-medium text-white shadow-lg transition-transform hover:scale-105"
-              >
-                <span>📅</span>
-                <span>네이버예약</span>
-              </a>
-            )}
-            {fabConfig.inquiry.enabled && (
-              <button
-                onClick={() => {
-                  setIsInquiryOpen(true)
-                  setIsExpanded(false)
-                }}
-                className="flex items-center gap-2 rounded-full bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg transition-transform hover:scale-105"
-              >
-                <span>📩</span>
-                <span>문의하기</span>
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Main FAB */}
+      {/* FAB Group — always expanded, uniform width */}
+      <div className="fixed bottom-20 right-4 z-50 flex w-40 flex-col gap-2 lg:bottom-6">
         <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className={`flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all ${
-            isExpanded
-              ? 'bg-gray-600 rotate-45'
-              : 'bg-primary-600 hover:bg-primary-700'
-          }`}
+          onClick={() => setIsChatbotOpen(true)}
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-purple-500 to-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg transition-transform hover:scale-105"
         >
-          <span className="text-2xl text-white">{isExpanded ? '✕' : '💬'}</span>
+          <span>🤖</span>
+          <span>AI 상담</span>
         </button>
+        {fabConfig.phone.enabled && (
+          <a
+            href={`tel:${fabConfig.phone.number}`}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-lg ring-1 ring-gray-200 transition-transform hover:scale-105"
+          >
+            <span>📞</span>
+            <span>전화상담</span>
+          </a>
+        )}
+        {fabConfig.kakao.enabled && (
+          <a
+            href={fabConfig.kakao.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-[#FEE500] px-4 py-2.5 text-sm font-medium text-[#3C1E1E] shadow-lg transition-transform hover:scale-105"
+          >
+            <span>💬</span>
+            <span>카카오상담</span>
+          </a>
+        )}
+        {fabConfig.naver.enabled && (
+          <a
+            href={fabConfig.naver.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-[#03C75A] px-4 py-2.5 text-sm font-medium text-white shadow-lg transition-transform hover:scale-105"
+          >
+            <span>📅</span>
+            <span>네이버예약</span>
+          </a>
+        )}
+        {fabConfig.inquiry.enabled && (
+          <button
+            onClick={() => setIsInquiryOpen(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg transition-transform hover:scale-105"
+          >
+            <span>📩</span>
+            <span>문의하기</span>
+          </button>
+        )}
       </div>
 
       {/* Inquiry Modal */}
@@ -148,19 +122,25 @@ function InquiryModal({ isOpen, onClose, agentId }: { isOpen: boolean; onClose: 
       return
     }
     setIsSubmitting(true)
-    const inquiryTypeMap: Record<string, InquiryType> = { buy: 'property', jeonse: 'property', monthly: 'property', sell: 'other', other: 'other' }
-    const inquiry = await createInquiry({
-      name: form.name,
-      phone: form.phone,
-      email: form.email || undefined,
-      inquiry_type: inquiryTypeMap[form.inquiryType] ?? 'other',
-      content: form.content + (form.region ? `\n\n관심지역: ${form.region}` : ''),
-      agent_id: agentId ?? undefined,
-    })
-    setIsSubmitting(false)
-    toast.success(`문의가 접수되었습니다. 접수번호: ${inquiry.inquiry_number}`)
-    setForm({ name: '', phone: '', email: '', inquiryType: '', region: '', content: '', privacy: false })
-    onClose()
+    try {
+      const inquiryTypeMap: Record<string, InquiryType> = { buy: 'property', jeonse: 'property', monthly: 'property', sell: 'other', other: 'other' }
+      const inquiry = await createInquiry({
+        name: form.name,
+        phone: form.phone,
+        email: form.email || undefined,
+        inquiry_type: inquiryTypeMap[form.inquiryType] ?? 'other',
+        content: form.content + (form.region ? `\n\n관심지역: ${form.region}` : ''),
+        agent_id: agentId ?? undefined,
+      })
+      toast.success(`문의가 접수되었습니다. 접수번호: ${inquiry.inquiry_number}`)
+      setForm({ name: '', phone: '', email: '', inquiryType: '', region: '', content: '', privacy: false })
+      onClose()
+    } catch (err) {
+      console.error('[InquiryModal] createInquiry failed:', err)
+      toast.error('문의 접수에 실패했습니다. 잠시 후 다시 시도해주세요.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (

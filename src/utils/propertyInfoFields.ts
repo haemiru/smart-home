@@ -97,6 +97,14 @@ const BUILDING_STRUCTURE: InfoFieldDef = {
   key: 'building_structure', label: '건물구조',
   getValue: (p) => p.extra_info?.building_structure || '-',
 }
+const MAINTENANCE_PER_PYEONG: InfoFieldDef = {
+  key: 'maintenance_per_pyeong', label: '관리비(평당)',
+  getValue: (p) => p.extra_info?.maintenance_per_pyeong ? `${Number(p.extra_info.maintenance_per_pyeong).toLocaleString()}원/평` : '-',
+}
+const RENT_PER_PYEONG: InfoFieldDef = {
+  key: 'rent_per_pyeong', label: '월세(평당)',
+  getValue: (p) => p.extra_info?.rent_per_pyeong ? `${Number(p.extra_info.rent_per_pyeong).toLocaleString()}원/평` : '-',
+}
 const LAND_AREA: InfoFieldDef = {
   key: 'land_area', label: '대지면적',
   getValue: (p) => p.extra_info?.land_area_m2 ? formatAreaByUnit(p.extra_info.land_area_m2) : '-',
@@ -214,16 +222,16 @@ const PRESALE_FIELDS: InfoFieldDef[] = [
 
 const STORE_FIELDS: InfoFieldDef[] = [
   EXCLUSIVE_AREA, FLOOR, MOVE_IN, PARKING, ELEVATOR, BUILT_YEAR,
-  BUSINESS_RESTRICTION, KEY_MONEY, FOOT_TRAFFIC, FRONTAGE_WIDTH,
+  MAINTENANCE_PER_PYEONG, BUSINESS_RESTRICTION, KEY_MONEY, FOOT_TRAFFIC, FRONTAGE_WIDTH,
 ]
 
 const OFFICE_FIELDS: InfoFieldDef[] = [
   EXCLUSIVE_AREA, FLOOR, MOVE_IN, PARKING, ELEVATOR, BUILT_YEAR,
-  CEILING_HEIGHT, BUILDING_STRUCTURE,
+  MAINTENANCE_PER_PYEONG, CEILING_HEIGHT, BUILDING_STRUCTURE,
 ]
 
 const LAND_FIELDS: InfoFieldDef[] = [
-  LAND_AREA, LAND_CATEGORY, ZONING, ROAD_FRONTAGE, BCR_FAR, SLOPE_TERRAIN,
+  LAND_AREA, LAND_CATEGORY, ZONING, ROAD_FRONTAGE, BCR_FAR, SLOPE_TERRAIN, RENT_PER_PYEONG,
 ]
 
 const FACTORY_FIELDS: InfoFieldDef[] = [
@@ -244,6 +252,11 @@ const PENSION_FIELDS: InfoFieldDef[] = [
   ROOM_COUNT, MONTHLY_AVG_REVENUE, BUSINESS_LICENSE,
 ]
 
+const KNOWLEDGE_CENTER_FIELDS: InfoFieldDef[] = [
+  EXCLUSIVE_AREA, FLOOR, MOVE_IN, PARKING, ELEVATOR, BUILT_YEAR,
+  MAINTENANCE_PER_PYEONG, CEILING_HEIGHT, BUILDING_STRUCTURE, HOUSEHOLD_COUNT, BUSINESS_RESTRICTION,
+]
+
 const CATEGORY_FIELDS_MAP: Record<string, InfoFieldDef[]> = {
   '아파트': RESIDENTIAL_BASE,
   '오피스텔': RESIDENTIAL_BASE,
@@ -253,6 +266,7 @@ const CATEGORY_FIELDS_MAP: Record<string, InfoFieldDef[]> = {
   '분양권': PRESALE_FIELDS,
   '상가': STORE_FIELDS,
   '사무실': OFFICE_FIELDS,
+  '지식산업센터': KNOWLEDGE_CENTER_FIELDS,
   '토지': LAND_FIELDS,
   '공장/창고': FACTORY_FIELDS,
   '재개발': REDEVELOP_FIELDS,

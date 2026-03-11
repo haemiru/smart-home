@@ -8,7 +8,7 @@ interface PlanGateProps {
   children: React.ReactNode
 }
 
-const PLAN_ORDER: PlanType[] = ['free', 'basic', 'pro', 'enterprise']
+const PLAN_ORDER: PlanType[] = ['free', 'basic', 'pro']
 
 /** Wraps a route — renders children if the nav key is available in the current plan, otherwise shows upgrade prompt. */
 export function PlanGate({ navKey, children }: PlanGateProps) {
@@ -22,7 +22,7 @@ export function PlanGate({ navKey, children }: PlanGateProps) {
 
   // Find the next plan that unlocks this feature
   const currentIdx = PLAN_ORDER.indexOf(plan)
-  const nextPlan = PLAN_ORDER[currentIdx + 1] ?? 'enterprise'
+  const nextPlan = PLAN_ORDER[currentIdx + 1] ?? 'pro'
   const nextInfo = PLAN_INFO[nextPlan]
 
   const NAV_LABELS: Record<string, string> = {

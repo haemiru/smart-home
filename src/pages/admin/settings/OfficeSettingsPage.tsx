@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/authStore'
 import toast from 'react-hot-toast'
 
 const DAYS = ['월', '화', '수', '목', '금', '토', '일'] as const
-const SPECIALTY_OPTIONS = ['아파트', '오피스텔', '빌라', '상가', '사무실', '전원주택', '공장', '창고', '토지', '건물', '지식산업센터'] as const
+const SPECIALTY_OPTIONS = ['아파트', '오피스텔', '분양권', '빌라', '주택', '원룸', '상가', '사무실', '지식산업센터', '토지', '공장/창고', '재개발', '숙박/펜션'] as const
 
 const defaultBusinessHours: BusinessHours = Object.fromEntries(
   DAYS.map((day) => [day, { open: '09:00', close: '18:00', isOpen: true }])
@@ -66,7 +66,7 @@ export function OfficeSettingsPage() {
       setBusinessHours((data.business_hours as BusinessHours) ?? defaultBusinessHours)
       setLogoUrl(data.logo_url)
       setDescription(data.description ?? '')
-      setSpecialties(data.specialties ?? [])
+      setSpecialties((data.specialties ?? []).map((s: string) => s.replace(/\s+/g, '').trim()))
       setSlug(data.slug ?? '')
       setSavedSlug(data.slug ?? '')
     } catch {
@@ -140,14 +140,45 @@ export function OfficeSettingsPage() {
     )
   }
 
-  function handleSpecialtyMove(index: number, direction: 'up' | 'down') {
-    setSpecialties((prev) => {
-      const next = [...prev]
-      const targetIndex = direction === 'up' ? index - 1 : index + 1
-      if (targetIndex < 0 || targetIndex >= next.length) return prev
-      ;[next[index], next[targetIndex]] = [next[targetIndex], next[index]]
-      return next
-    })
+  // Pointer-based drag reorder for specialty chips
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const [overIdx, setOverIdx] = useState<number | null>(null)
+  const chipRefs = useRef<(HTMLDivElement | null)[]>([])
+
+  function handlePointerDown(index: number, e: React.PointerEvent) {
+    // ignore if clicking the X button
+    if ((e.target as HTMLElement).closest('button')) return
+    setDragIdx(index)
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }
+
+  function handlePointerMove(e: React.PointerEvent) {
+    if (dragIdx === null) return
+    // find which chip the pointer is over
+    const x = e.clientX
+    const y = e.clientY
+    for (let i = 0; i < chipRefs.current.length; i++) {
+      const el = chipRefs.current[i]
+      if (!el) continue
+      const rect = el.getBoundingClientRect()
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        if (i !== overIdx) setOverIdx(i)
+        return
+      }
+    }
+  }
+
+  function handlePointerUp() {
+    if (dragIdx !== null && overIdx !== null && dragIdx !== overIdx) {
+      setSpecialties((prev) => {
+        const next = [...prev]
+        const [removed] = next.splice(dragIdx, 1)
+        next.splice(overIdx, 0, removed)
+        return next
+      })
+    }
+    setDragIdx(null)
+    setOverIdx(null)
   }
 
   // Slug validation with debounce
@@ -474,69 +505,56 @@ export function OfficeSettingsPage() {
         <h3 className="mb-4 text-sm font-semibold text-gray-900">전문 분야</h3>
         <p className="mb-3 text-sm text-gray-500">취급하는 부동산 유형을 선택하세요. 선택한 항목은 사용자 포털 메인에 표시됩니다.</p>
 
-        {/* Selection */}
-        <div className="flex flex-wrap gap-2">
-          {SPECIALTY_OPTIONS.map((option) => {
-            const isSelected = specialties.includes(option)
-            return (
+        {/* Unselected options */}
+        {SPECIALTY_OPTIONS.filter((o) => !specialties.includes(o)).length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {SPECIALTY_OPTIONS.filter((o) => !specialties.includes(o)).map((option) => (
               <button
                 key={option}
                 type="button"
                 onClick={() => handleSpecialtyToggle(option)}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                  isSelected
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                className="rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-200"
               >
                 {option}
               </button>
-            )
-          })}
-        </div>
+            ))}
+          </div>
+        )}
 
-        {/* Selected order */}
+        {/* Selected: draggable reorder */}
         {specialties.length > 0 && (
-          <div className="mt-4">
-            <p className="mb-2 text-xs font-medium text-gray-500">표시 순서 (위/아래 버튼으로 변경)</p>
-            <div className="space-y-1.5">
-              {specialties.map((item, index) => (
-                <div
-                  key={item}
-                  className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 ring-1 ring-gray-200"
-                >
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary-100 text-xs font-bold text-primary-700">
-                    {index + 1}
-                  </span>
-                  <span className="flex-1 text-sm font-medium text-gray-800">{item}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleSpecialtyMove(index, 'up')}
-                    disabled={index === 0}
-                    className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 disabled:opacity-30 disabled:hover:bg-transparent"
-                    title="위로"
+          <div>
+            <p className="mb-2 text-xs font-medium text-gray-500">선택한 항목 (드래그하여 순서 변경)</p>
+            <div
+              className="flex flex-wrap gap-2"
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+            >
+              {specialties.map((item, index) => {
+                const isDragging = dragIdx === index
+                const isOver = dragIdx !== null && overIdx === index && dragIdx !== index
+                return (
+                  <div
+                    key={item}
+                    ref={(el) => { chipRefs.current[index] = el }}
+                    onPointerDown={(e) => handlePointerDown(index, e)}
+                    className={`group flex cursor-grab select-none items-center gap-1.5 rounded-full py-2 pl-3 pr-2 text-sm font-medium text-white transition-all active:cursor-grabbing ${
+                      isDragging ? 'scale-105 bg-primary-700 opacity-70 shadow-lg' : 'bg-primary-600'
+                    } ${isOver ? 'ring-2 ring-primary-300 ring-offset-2' : ''}`}
                   >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSpecialtyMove(index, 'down')}
-                    disabled={index === specialties.length - 1}
-                    className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 disabled:opacity-30 disabled:hover:bg-transparent"
-                    title="아래로"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSpecialtyToggle(item)}
-                    className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
-                    title="삭제"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                  </button>
-                </div>
-              ))}
+                    <span className="text-[10px] font-bold text-primary-200">{index + 1}</span>
+                    <span>{item}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSpecialtyToggle(item)}
+                      className="ml-0.5 rounded-full p-0.5 text-primary-200 transition-colors hover:bg-primary-500 hover:text-white"
+                      title="해제"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

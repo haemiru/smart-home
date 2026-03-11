@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback, type FormEvent, type DragEvent } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback, type DragEvent } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import type { TransactionType, PropertyStatus, PropertyCategory, PropertyExtraInfo } from '@/types/database'
 import { fetchPropertyById, createProperty, updateProperty, fetchCategories } from '@/api/properties'
@@ -244,6 +244,13 @@ export function PropertyFormPage() {
 
   const catGroup: CategoryGroup | null = useMemo(() => getCategoryGroup(selectedCategoryName), [selectedCategoryName])
 
+  // 전세 불가 카테고리로 변경 시 거래유형 리셋
+  useEffect(() => {
+    if (catGroup && catGroup !== 'residential' && form.transaction_type === 'jeonse') {
+      set('transaction_type', 'sale')
+    }
+  }, [catGroup]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const structVis = catGroup ? STRUCTURE_VISIBILITY[catGroup] : null
   const detailVis = catGroup ? DETAIL_VISIBILITY[catGroup] : null
   const priceOvr = catGroup ? PRICE_OVERRIDES[catGroup] : null
@@ -265,12 +272,14 @@ export function PropertyFormPage() {
 
   // ─── Handlers ───
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async () => {
+    console.log('[Submit] handleSubmit called, activeTab:', activeTab)
     if (!form.title || !form.address) { toast.error('제목과 주소는 필수입니다.'); return }
     setIsLoading(true)
     try {
+      console.log('[Submit] getting agentProfileId...')
       const agentId = await getAgentProfileId()
+      console.log('[Submit] agentId:', agentId)
 
       // Build extra_info from form state (only include fields relevant to current category)
       const extraInfo: PropertyExtraInfo = {}
@@ -286,6 +295,14 @@ export function PropertyFormPage() {
           } else {
             if (val && typeof val === 'string' && val.trim()) (extraInfo as Record<string, unknown>)[fd.key] = val.trim()
           }
+        }
+
+        // 관리비(평당), 월세(평당) — EXTRA_FIELDS에 없는 수동 필드
+        if (form.extra_info.maintenance_per_pyeong) {
+          extraInfo.maintenance_per_pyeong = parseFloat(form.extra_info.maintenance_per_pyeong)
+        }
+        if (form.extra_info.rent_per_pyeong) {
+          extraInfo.rent_per_pyeong = parseFloat(form.extra_info.rent_per_pyeong)
         }
 
         // 공장/창고: buildings 배열 직렬화
@@ -352,6 +369,7 @@ export function PropertyFormPage() {
         photos: form.photos.length > 0 ? form.photos : null,
         extra_info: Object.keys(extraInfo).length > 0 ? extraInfo : null,
       }
+      console.log('[Submit] payload built, calling API...')
       if (isEdit) {
         await updateProperty(id!, payload)
         toast.success('매물이 수정되었습니다.')
@@ -359,9 +377,11 @@ export function PropertyFormPage() {
         await createProperty(payload as Parameters<typeof createProperty>[0])
         toast.success('매물이 등록되었습니다.')
       }
+      console.log('[Submit] API success')
       navigate('/admin/properties')
-    } catch {
-      toast.error('저장에 실패했습니다.')
+    } catch (err) {
+      console.error('매물 저장 실패:', err)
+      toast.error(err instanceof Error ? `저장 실패: ${err.message}` : '저장에 실패했습니다.')
     } finally {
       setIsLoading(false)
     }
@@ -375,53 +395,78 @@ export function PropertyFormPage() {
     set('predefinedTags', form.predefinedTags.includes(tag) ? form.predefinedTags.filter((t) => t !== tag) : [...form.predefinedTags, tag])
   }
 
-  const handleFiles = useCallback(async (files: File[]) => {
-    const remaining = 20 - form.photos.length
-    if (remaining <= 0) { toast.error('사진은 최대 20장까지 등록할 수 있습니다.'); return }
-    const toUpload = files.slice(0, remaining)
-    for (const file of toUpload) {
-      const err = validateFile(file)
-      if (err) { toast.error(`${file.name}: ${err}`); continue }
-    }
+  const handleFiles = async (files: File[]) => {
+    console.log('[Upload] handleFiles called, files:', files.length)
+    const validFiles = files.filter((f) => {
+      const err = validateFile(f)
+      if (err) { toast.error(`${f.name}: ${err}`); return false }
+      return true
+    }).slice(0, 20)
+    if (validFiles.length === 0) { console.log('[Upload] no valid files'); return }
     setUploading(true)
     try {
+      console.log('[Upload] getting agentProfileId...')
       const agentId = await getAgentProfileId()
-      const validFiles = toUpload.filter((f) => !validateFile(f))
-      const urls = await Promise.all(validFiles.map((f) => uploadPropertyPhoto(f, agentId)))
-      set('photos', [...form.photos, ...urls])
-      toast.success(`${urls.length}장 업로드 완료`)
-    } catch {
-      toast.error('사진 업로드에 실패했습니다.')
+      console.log('[Upload] agentId:', agentId)
+      const urls: string[] = []
+      let failCount = 0
+      for (const f of validFiles) {
+        try {
+          console.log('[Upload] uploading:', f.name, f.size, f.type)
+          const url = await uploadPropertyPhoto(f, agentId)
+          console.log('[Upload] success:', f.name, url)
+          urls.push(url)
+        } catch (e) {
+          failCount++
+          console.error('[Upload] 개별 실패:', f.name, e)
+        }
+      }
+      if (urls.length > 0) {
+        setForm((prev) => ({ ...prev, photos: [...prev.photos, ...urls].slice(0, 20) }))
+        toast.success(`${urls.length}장 업로드 완료`)
+      }
+      if (failCount > 0) toast.error(`${failCount}장 업로드 실패`)
+      if (urls.length === 0 && failCount === 0) toast.error('업로드할 파일이 없습니다.')
+    } catch (err) {
+      console.error('[Upload] 전체 에러:', err)
+      toast.error(err instanceof Error ? err.message : '사진 업로드에 실패했습니다.')
     } finally {
+      console.log('[Upload] done, setUploading(false)')
       setUploading(false)
     }
-  }, [form.photos])
+  }
 
-  const handleDragOver = useCallback((e: DragEvent) => { e.preventDefault(); setDragOver(true) }, [])
-  const handleDragLeave = useCallback(() => setDragOver(false), [])
-  const handleDrop = useCallback((e: DragEvent) => {
+  const handleDragOver = (e: DragEvent) => { e.preventDefault(); setDragOver(true) }
+  const handleDragLeave = () => setDragOver(false)
+  const handleDrop = (e: DragEvent) => {
     e.preventDefault(); setDragOver(false)
     const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'))
     if (files.length > 0) handleFiles(files)
-  }, [handleFiles])
+  }
 
   const handleDeletePhoto = useCallback(async (index: number) => {
-    const url = form.photos[index]
-    try { await deletePropertyPhoto(url) } catch { /* ignore */ }
-    set('photos', form.photos.filter((_, i) => i !== index))
-  }, [form.photos])
+    setForm((prev) => {
+      const url = prev.photos[index]
+      if (url) deletePropertyPhoto(url).catch(() => {})
+      return { ...prev, photos: prev.photos.filter((_, i) => i !== index) }
+    })
+  }, [])
 
   const handleSetPrimary = useCallback((index: number) => {
-    const next = [...form.photos]; const [item] = next.splice(index, 1); next.unshift(item)
-    set('photos', next)
-  }, [form.photos])
+    setForm((prev) => {
+      const next = [...prev.photos]; const [item] = next.splice(index, 1); next.unshift(item)
+      return { ...prev, photos: next }
+    })
+  }, [])
 
   const handleMovePhoto = useCallback((index: number, dir: -1 | 1) => {
-    const next = [...form.photos]; const target = index + dir
-    if (target < 0 || target >= next.length) return
-    ;[next[index], next[target]] = [next[target], next[index]]
-    set('photos', next)
-  }, [form.photos])
+    setForm((prev) => {
+      const next = [...prev.photos]; const target = index + dir
+      if (target < 0 || target >= next.length) return prev
+      ;[next[index], next[target]] = [next[target], next[index]]
+      return { ...prev, photos: next }
+    })
+  }, [])
 
   const handleOpenPostcode = useCallback(async () => {
     try {
@@ -485,6 +530,7 @@ export function PropertyFormPage() {
         '빌라': '주소 위치를 기반으로 주변 학군(초·중·고), 가장 가까운 지하철역·버스 정류장과 소요시간, 주변 생활 편의시설을 분석하여 포함하세요.',
         '상가': '주소 위치를 기반으로 해당 상권의 특성(유동인구·업종 분포), 가장 가까운 지하철역과 도보 소요시간, 주변 주요 시설(대형 건물·아파트 단지 등), 상권 투자 적합도를 분석하여 포함하세요.',
         '사무실': '주소 위치를 기반으로 주변 업무지구·상권, 가장 가까운 지하철역과 도보 소요시간, 버스 노선, 주변 편의시설(식당가·은행·관공서), 임대 수요 전망을 분석하여 포함하세요.',
+        '지식산업센터': '주소 위치를 기반으로 가장 가까운 지하철역과 도보 소요시간, 주변 업무지구·산업단지, 주차 편의성, 입주 가능 업종(제조·IT·연구개발), 주변 편의시설(식당가·편의점), 임대 수요 및 투자 적합도를 분석하여 포함하세요.',
         '전원주택': '주소 위치를 기반으로 가장 가까운 IC(나들목)와 차량 소요시간, 대중교통 접근성, 가장 가까운 종합병원·마트·학교까지의 거리, 자연환경(산·하천·공원), 전원생활의 장점을 분석하여 포함하세요.',
         '공장/창고': '주소 위치를 기반으로 가장 가까운 IC(나들목)와 차량 소요시간, 주요 물류 거점과의 거리, 진입 가능 차량(톤수), 층고 정보, 전력 용량, 투자 적합도를 분석하여 포함하세요.',
         '토지': '주소 위치를 기반으로 해당 토지의 용도지역에 따른 건축 가능 용도와 건폐율·용적률, 주변 개발 계획, 도로 접면 상태, 향후 가치 상승 전망 등 투자 적합도를 분석하여 포함하세요.',
@@ -557,7 +603,10 @@ ${categoryGuide}
     const error = validateTab(activeTab)
     if (error) { toast.error(error); return }
     const idx = tabs.findIndex((t) => t.id === activeTab)
-    if (idx < tabs.length - 1) setActiveTab(tabs[idx + 1].id)
+    if (idx < tabs.length - 1) {
+      setIsLoading(false)
+      setActiveTab(tabs[idx + 1].id)
+    }
   }
 
   // ─── Area unit helpers ───
@@ -629,7 +678,7 @@ ${categoryGuide}
       return (
         <div key={fd.key}>
           <label className="mb-1 block text-sm font-medium text-gray-700">{fd.label} ({areaLabel})</label>
-          <input type="number" step="0.01" value={getExtraAreaDisplay(fd.key)}
+          <input type="number" step="0.01" min="0" value={getExtraAreaDisplay(fd.key)}
             onChange={(e) => setExtraAreaFromDisplay(fd.key, e.target.value)}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
           {converted && <p className="mt-1 text-xs text-gray-400">≈ {converted}</p>}
@@ -655,7 +704,7 @@ ${categoryGuide}
       return (
         <div key={fd.key}>
           <label className="mb-1 block text-sm font-medium text-gray-700">{fd.label}</label>
-          <input type="number" step={fd.step || '1'} value={val} placeholder={fd.placeholder}
+          <input type="number" step={fd.step || '1'} min="0" value={val} placeholder={fd.placeholder}
             onChange={(e) => setExtra(fd.key, e.target.value)}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
           {fd.showPriceHint && val && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(val))}원</p>}
@@ -686,7 +735,7 @@ ${categoryGuide}
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => { setIsLoading(false); setActiveTab(tab.id) }}
             className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
@@ -696,7 +745,7 @@ ${categoryGuide}
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
+      <form onSubmit={(e) => e.preventDefault()} className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
         {/* ═══ Basic Info ═══ */}
         {activeTab === 'basic' && (
           <div className="space-y-4">
@@ -707,7 +756,11 @@ ${categoryGuide}
                   <option value="">선택하세요</option>
                   {(() => {
                     const filtered = specialties.length > 0
-                      ? categories.filter((c) => specialties.some((s) => c.name.includes(s) || s.includes(c.name)))
+                      ? categories.filter((c) => specialties.some((s) =>
+                          c.name === s || c.name.includes(s) || s.includes(c.name)
+                          || (s === '공장' && c.name === '공장/창고') || (s === '창고' && c.name === '공장/창고')
+                          || (s === '전원주택' && c.name === '주택') || (s === '건물' && c.name === '재개발')
+                        ))
                       : []
                     const list = filtered.length > 0 ? filtered : categories
                     return list.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)
@@ -717,7 +770,13 @@ ${categoryGuide}
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">거래유형 <span className="text-red-500">*</span></label>
                 <div className="flex gap-2">
-                  {(['sale', 'jeonse', 'monthly'] as const).map((t) => (
+                  {(['sale', 'jeonse', 'monthly'] as const)
+                    .filter((t) => {
+                      if (t !== 'jeonse') return true
+                      // 전세는 주거형만 (아파트, 오피스텔, 빌라, 주택, 원룸)
+                      return !catGroup || catGroup === 'residential'
+                    })
+                    .map((t) => (
                     <button key={t} type="button" onClick={() => set('transaction_type', t)}
                       className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${form.transaction_type === t ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                       {{ sale: '매매', jeonse: '전세', monthly: '월세' }[t]}
@@ -798,20 +857,62 @@ ${categoryGuide}
               </div>
             )}
             {form.transaction_type === 'monthly' && (
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">월세 (만원) <span className="text-red-500">*</span></label>
-                <input type="text" value={formatNumber(form.monthly_rent)} onChange={(e) => set('monthly_rent', e.target.value.replace(/,/g, ''))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 80" />
-                {form.monthly_rent && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(form.monthly_rent))}원</p>}
-              </div>
+              catGroup === 'land' ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">월세 (만원) <span className="text-red-500">*</span></label>
+                    <input type="text" value={formatNumber(form.monthly_rent)} onChange={(e) => set('monthly_rent', e.target.value.replace(/,/g, ''))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 80" />
+                    {form.monthly_rent && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(form.monthly_rent))}원</p>}
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">월세 (평당, 원)</label>
+                    <input type="text"
+                      value={formatNumber(form.extra_info.rent_per_pyeong ?? '')}
+                      onChange={(e) => setExtra('rent_per_pyeong', e.target.value.replace(/,/g, ''))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 3,000" />
+                    {form.extra_info.rent_per_pyeong && (
+                      <p className="mt-1 text-xs text-gray-400">{Number(form.extra_info.rent_per_pyeong).toLocaleString()}원/평</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">월세 (만원) <span className="text-red-500">*</span></label>
+                  <input type="text" value={formatNumber(form.monthly_rent)} onChange={(e) => set('monthly_rent', e.target.value.replace(/,/g, ''))}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 80" />
+                  {form.monthly_rent && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(form.monthly_rent))}원</p>}
+                </div>
+              )
             )}
             {(priceOvr?.maintenance_fee !== false) && (
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">관리비 (만원)</label>
-                <input type="text" value={formatNumber(form.maintenance_fee)} onChange={(e) => set('maintenance_fee', e.target.value.replace(/,/g, ''))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 15" />
-                {form.maintenance_fee && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(form.maintenance_fee))}원</p>}
-              </div>
+              catGroup === 'commercial' || catGroup === 'office' || catGroup === 'knowledge_center' ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">관리비 (만원)</label>
+                    <input type="text" value={formatNumber(form.maintenance_fee)} onChange={(e) => set('maintenance_fee', e.target.value.replace(/,/g, ''))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 15" />
+                    {form.maintenance_fee && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(form.maintenance_fee))}원</p>}
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">관리비 (평당, 원)</label>
+                    <input type="text"
+                      value={formatNumber(form.extra_info.maintenance_per_pyeong ?? '')}
+                      onChange={(e) => setExtra('maintenance_per_pyeong', e.target.value.replace(/,/g, ''))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 15,000" />
+                    {form.extra_info.maintenance_per_pyeong && (
+                      <p className="mt-1 text-xs text-gray-400">{Number(form.extra_info.maintenance_per_pyeong).toLocaleString()}원/평</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">관리비 (만원)</label>
+                  <input type="text" value={formatNumber(form.maintenance_fee)} onChange={(e) => set('maintenance_fee', e.target.value.replace(/,/g, ''))}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="예: 15" />
+                  {form.maintenance_fee && <p className="mt-1 text-xs text-gray-400">{formatPrice(Number(form.maintenance_fee))}원</p>}
+                </div>
+              )
             )}
             {/* Extra price fields (권리금, 프리미엄, 조합원분양가 etc.) */}
             {extraFieldsForTab('price').map(renderExtraField)}
@@ -956,7 +1057,7 @@ ${categoryGuide}
                           </div>
                           <div>
                             <label className="mb-1 block text-xs font-medium text-gray-600">층고 (m)</label>
-                            <input type="number" step="0.1" value={b.ceiling_height} placeholder="예: 8.0"
+                            <input type="number" step="0.1" min="0" value={b.ceiling_height} placeholder="예: 8.0"
                               onChange={(e) => setBuilding(i, 'ceiling_height', e.target.value)}
                               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
                           </div>
@@ -1018,7 +1119,7 @@ ${categoryGuide}
         {activeTab === 'detail' && (
           <div className="space-y-4">
             {detailVis?.move_in_date !== false && (
-              <Input id="move_in_date" label="입주가능일" type="date" value={form.move_in_date} onChange={(e) => set('move_in_date', e.target.value)} />
+              <Input id="move_in_date" label="입주가능일" type="date" min={new Date().toISOString().slice(0, 10)} value={form.move_in_date} onChange={(e) => set('move_in_date', e.target.value)} />
             )}
             {detailVis?.parking !== false && (
               <Input id="parking" label="주차 (대/세대)" type="number" step="0.1" value={form.parking_per_unit} onChange={(e) => set('parking_per_unit', e.target.value)} />
@@ -1192,7 +1293,7 @@ ${categoryGuide}
             {activeTab !== tabs[tabs.length - 1].id ? (
               <Button type="button" onClick={handleNext}>다음 →</Button>
             ) : (
-              <Button type="submit" isLoading={isLoading}>{isEdit ? '수정 완료' : '매물 등록'}</Button>
+              <Button type="button" isLoading={isLoading} onClick={handleSubmit}>{isEdit ? '수정 완료' : '매물 등록'}</Button>
             )}
           </div>
         </div>

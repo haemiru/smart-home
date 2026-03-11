@@ -3,17 +3,24 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import type { Inquiry, InquiryReply, InquiryStatus, Property } from '@/types/database'
 import { fetchInquiryById, fetchInquiryReplies, createInquiryReply, updateInquiryStatus } from '@/api/inquiries'
 import { fetchPropertyById } from '@/api/properties'
+import { findCustomerByPhone, ensureCustomerFromInquiry } from '@/api/customers'
+import type { Customer } from '@/types/database'
 import { generateContent, saveGenerationLog } from '@/api/gemini'
+import { sendEmail } from '@/api/email'
 import { Button } from '@/components/common'
 import { inquiryStatusLabel, inquiryStatusIcon, inquiryStatusColor, inquiryTypeLabel, formatDateTime, formatPropertyPrice } from '@/utils/format'
+import { useAuthStore } from '@/stores/authStore'
+import { isFeatureInPlan } from '@/config/planFeatures'
 import toast from 'react-hot-toast'
 
 export function InquiryDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { agentProfile } = useAuthStore()
   const [inquiry, setInquiry] = useState<Inquiry | null>(null)
   const [replies, setReplies] = useState<InquiryReply[]>([])
   const [property, setProperty] = useState<Property | null>(null)
+  const [linkedCustomer, setLinkedCustomer] = useState<Customer | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   // Reply form
@@ -44,6 +51,13 @@ export function InquiryDetailPage() {
           if (!cancelled) setProperty(p)
         }).catch(() => {})
       }
+
+      // CRM 연결된 고객 조회
+      if (inq?.phone) {
+        findCustomerByPhone(inq.phone).then((c) => {
+          if (!cancelled) setLinkedCustomer(c)
+        }).catch(() => {})
+      }
     })
       .catch(() => {})
       .finally(() => { if (!cancelled) setIsLoading(false) })
@@ -64,16 +78,63 @@ export function InquiryDetailPage() {
       return
     }
     setIsSubmitting(true)
-    const reply = await createInquiryReply({
-      inquiry_id: inquiry.id,
-      content: replyContent,
-      sent_via: [...sentVia],
-    })
-    setReplies((prev) => [...prev, reply])
-    setInquiry((prev) => prev ? { ...prev, status: 'answered' } : prev)
-    setReplyContent('')
-    setIsSubmitting(false)
-    toast.success('답변이 발송되었습니다.')
+    try {
+      // Save reply to DB
+      const reply = await createInquiryReply({
+        inquiry_id: inquiry.id,
+        content: replyContent,
+        sent_via: [...sentVia],
+      })
+      setReplies((prev) => [...prev, reply])
+      setInquiry((prev) => prev ? { ...prev, status: 'answered' } : prev)
+
+      const results: string[] = []
+
+      // Send email via Resend if email channel selected
+      if (sentVia.has('email') && inquiry.email) {
+        try {
+          const officeName = agentProfile?.office_name ?? '부동산'
+          await sendEmail({
+            to: inquiry.email,
+            subject: `[${officeName}] 문의 답변 (${inquiry.inquiry_number})`,
+            html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto">
+              <h2 style="color:#2563eb">${officeName}</h2>
+              <p>${inquiry.name}님, 문의해주셔서 감사합니다.</p>
+              <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0"/>
+              <div style="white-space:pre-wrap;line-height:1.8">${replyContent}</div>
+              <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0"/>
+              <p style="color:#6b7280;font-size:13px">문의번호: ${inquiry.inquiry_number}<br/>
+              ${agentProfile?.phone ? `연락처: ${agentProfile.phone}` : ''}</p>
+            </div>`,
+            replyTo: agentProfile?.phone ? undefined : undefined,
+          })
+          results.push('이메일 발송 완료')
+        } catch {
+          results.push('이메일 발송 실패')
+        }
+      } else if (sentVia.has('email') && !inquiry.email) {
+        results.push('이메일 주소 없음')
+      }
+
+      // SMS: open sms: link
+      if (sentVia.has('sms') && inquiry.phone) {
+        const smsBody = encodeURIComponent(replyContent.slice(0, 200))
+        window.open(`sms:${inquiry.phone}?body=${smsBody}`, '_self')
+        results.push('문자 앱 열림')
+      }
+
+      // Alimtalk: placeholder
+      if (sentVia.has('alimtalk')) {
+        results.push('알림톡 (미연동)')
+      }
+
+      setReplyContent('')
+      toast.success(`답변 저장 완료${results.length ? '. ' + results.join(', ') : ''}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '답변 발송에 실패했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleSaveDraft = () => {
@@ -97,11 +158,16 @@ export function InquiryDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-400">
-        <Link to="/admin/inquiries" className="hover:text-gray-600">문의 관리</Link>
-        <span>/</span>
-        <span className="text-gray-600">{inquiry.inquiry_number}</span>
+      {/* Breadcrumb + 목록보기 */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <Link to="/admin/inquiries" className="hover:text-gray-600">문의 관리</Link>
+          <span>/</span>
+          <span className="text-gray-600">{inquiry.inquiry_number}</span>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => navigate('/admin/inquiries')}>
+          ← 목록보기
+        </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -208,9 +274,17 @@ ${inquiry.content}
 ${inquiry.preferred_visit_date ? `\n희망 방문일: ${inquiry.preferred_visit_date}` : ''}${propertyInfo}
 
 정중하고 전문적인 톤으로, 고객이 궁금해하는 내용에 직접적으로 답변해주세요.
-문의 유형에 맞는 실용적 정보를 포함하세요.`
+문의 유형에 맞는 실용적 정보를 포함하세요.
 
-                    const systemPrompt = '공인중개사 사무소의 전문적이고 정중한 톤으로 고객 문의에 대한 답변을 작성하세요. 고객명을 호칭에 포함하고, 사무소 연락처 안내로 마무리하세요.'
+사무소 정보 (답변 마무리에 활용):
+- 사무소명: ${agentProfile?.office_name || '(미등록)'}
+- 대표자: ${agentProfile?.representative_name || '(미등록)'}
+- 대표 전화: ${agentProfile?.phone || '(미등록)'}
+- 이메일: ${agentProfile?.email || '(미등록)'}
+- 주소: ${agentProfile?.address || '(미등록)'}
+- 영업시간: ${agentProfile?.business_hours ? Object.entries(agentProfile.business_hours as Record<string, { open: string; close: string; closed?: boolean }>).filter(([, v]) => !v.closed).map(([k, v]) => `${k} ${v.open}~${v.close}`).join(', ') || '평일 09:00~18:00' : '평일 09:00~18:00'}`
+
+                    const systemPrompt = '공인중개사 사무소의 전문적이고 정중한 톤으로 고객 문의에 대한 답변을 작성하세요. 고객명을 호칭에 포함하고, 제공된 실제 사무소 정보로 연락처 안내를 마무리하세요. 절대 000-0000-0000 같은 placeholder를 사용하지 마세요. 정보가 "(미등록)"인 항목은 생략하세요.'
 
                     const text = await generateContent(prompt, systemPrompt)
                     setReplyContent(text)
@@ -244,24 +318,60 @@ ${inquiry.preferred_visit_date ? `\n희망 방문일: ${inquiry.preferred_visit_
             />
 
             {/* Send channels */}
-            <div className="mt-3 flex flex-wrap items-center gap-4">
-              <p className="text-xs font-medium text-gray-500">발송 채널:</p>
-              {[
-                { key: 'email', label: '이메일' },
-                { key: 'alimtalk', label: '알림톡' },
-                { key: 'sms', label: 'SMS' },
-              ].map((ch) => (
-                <label key={ch.key} className="flex items-center gap-1.5 text-sm text-gray-600">
-                  <input
-                    type="checkbox"
-                    checked={sentVia.has(ch.key)}
-                    onChange={() => toggleChannel(ch.key)}
-                    className="h-4 w-4 rounded border-gray-300 text-primary-600"
-                  />
-                  {ch.label}
-                </label>
-              ))}
-            </div>
+            {(() => {
+              const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+              const alimtalkAvailable = agentProfile ? isFeatureInPlan('ai_chatbot', agentProfile.subscription_plan) : false
+              return (
+                <div className="mt-3 flex flex-wrap items-center gap-4">
+                  <p className="text-xs font-medium text-gray-500">발송 채널:</p>
+                  {/* 이메일 */}
+                  <label className="flex items-center gap-1.5 text-sm text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={sentVia.has('email')}
+                      onChange={() => toggleChannel('email')}
+                      className="h-4 w-4 rounded border-gray-300 text-primary-600"
+                    />
+                    이메일
+                  </label>
+                  {/* SMS: 모바일에서만 체크 가능, PC에서는 안내 토스트 */}
+                  <label className="flex items-center gap-1.5 text-sm text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={sentVia.has('sms')}
+                      onChange={() => {
+                        if (isMobile) {
+                          toggleChannel('sms')
+                        } else {
+                          toast('SMS는 모바일에서 이용해 주세요.', { icon: '📱' })
+                        }
+                      }}
+                      className={`h-4 w-4 rounded border-gray-300 ${isMobile ? 'text-primary-600' : 'text-gray-300'}`}
+                    />
+                    SMS
+                  </label>
+                  {/* 알림톡: Basic+ 플랜에서만 활성 */}
+                  <label className={`flex items-center gap-1.5 text-sm ${alimtalkAvailable ? 'text-gray-600' : 'text-gray-400'}`}>
+                    <input
+                      type="checkbox"
+                      checked={sentVia.has('alimtalk')}
+                      onChange={() => {
+                        if (alimtalkAvailable) {
+                          toggleChannel('alimtalk')
+                        } else {
+                          toast('알림톡은 Basic 이상 플랜에서 사용 가능합니다.', { icon: '🔒' })
+                        }
+                      }}
+                      className={`h-4 w-4 rounded border-gray-300 ${alimtalkAvailable ? 'text-primary-600' : 'text-gray-300'}`}
+                    />
+                    알림톡
+                    {!alimtalkAvailable && (
+                      <span className="rounded bg-gray-100 px-1 py-0.5 text-[10px] text-gray-400">Basic+</span>
+                    )}
+                  </label>
+                </div>
+              )
+            })()}
 
             {/* Action buttons */}
             <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -304,18 +414,37 @@ ${inquiry.preferred_visit_date ? `\n희망 방문일: ${inquiry.preferred_visit_
               </div>
 
               <div className="mt-4 flex gap-2">
-                <a
-                  href={`tel:${inquiry.phone}`}
-                  className="flex-1 rounded-lg bg-green-50 py-2 text-center text-xs font-medium text-green-700 hover:bg-green-100"
-                >
-                  전화
-                </a>
-                <button
-                  onClick={() => toast.success('문자 발송 화면으로 이동합니다.')}
-                  className="flex-1 rounded-lg bg-blue-50 py-2 text-center text-xs font-medium text-blue-700 hover:bg-blue-100"
-                >
-                  문자
-                </button>
+                {/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? (
+                  <>
+                    <a
+                      href={`tel:${inquiry.phone}`}
+                      className="flex-1 rounded-lg bg-green-50 py-2 text-center text-xs font-medium text-green-700 hover:bg-green-100"
+                    >
+                      전화
+                    </a>
+                    <a
+                      href={`sms:${inquiry.phone}`}
+                      className="flex-1 rounded-lg bg-blue-50 py-2 text-center text-xs font-medium text-blue-700 hover:bg-blue-100"
+                    >
+                      문자
+                    </a>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => toast('전화 기능은 모바일에서 이용해 주세요.', { icon: '📱' })}
+                      className="flex-1 rounded-lg bg-green-50 py-2 text-center text-xs font-medium text-green-700 hover:bg-green-100"
+                    >
+                      전화
+                    </button>
+                    <button
+                      onClick={() => toast('문자 기능은 모바일에서 이용해 주세요.', { icon: '📱' })}
+                      className="flex-1 rounded-lg bg-blue-50 py-2 text-center text-xs font-medium text-blue-700 hover:bg-blue-100"
+                    >
+                      문자
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -343,13 +472,44 @@ ${inquiry.preferred_visit_date ? `\n희망 방문일: ${inquiry.preferred_visit_
             {/* CRM Link */}
             <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
               <p className="mb-3 text-xs font-semibold text-gray-500">고객 관리</p>
-              <p className="text-xs text-gray-500">이 문의자는 CRM에 자동 등록됩니다.</p>
-              <Link
-                to="/admin/customers"
-                className="mt-2 block rounded-lg bg-gray-50 py-2 text-center text-xs font-medium text-gray-600 hover:bg-gray-100"
-              >
-                고객 관리 바로가기 →
-              </Link>
+              {linkedCustomer ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">등록됨</span>
+                    <span className="text-xs text-gray-600">{linkedCustomer.name}</span>
+                  </div>
+                  <Link
+                    to={`/admin/customers/${linkedCustomer.id}`}
+                    className="mt-2 block rounded-lg bg-primary-50 py-2 text-center text-xs font-medium text-primary-700 hover:bg-primary-100"
+                  >
+                    고객 상세 보기 →
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-gray-500">이 문의자는 아직 고객으로 등록되지 않았습니다.</p>
+                  <button
+                    onClick={async () => {
+                      if (!inquiry) return
+                      try {
+                        const customer = await ensureCustomerFromInquiry({
+                          name: inquiry.name,
+                          phone: inquiry.phone,
+                          email: inquiry.email,
+                          inquiry_type: inquiry.inquiry_type,
+                        })
+                        setLinkedCustomer(customer)
+                        toast.success('고객이 CRM에 등록되었습니다.')
+                      } catch {
+                        toast.error('고객 등록에 실패했습니다.')
+                      }
+                    }}
+                    className="mt-2 block w-full rounded-lg bg-primary-50 py-2 text-center text-xs font-medium text-primary-700 hover:bg-primary-100"
+                  >
+                    고객으로 등록 →
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

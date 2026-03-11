@@ -5,7 +5,7 @@ import { router } from './router'
 import { useAuthStore } from './stores/authStore'
 import { useFeatureStore } from './stores/featureStore'
 import { useTenantStore } from './stores/tenantStore'
-import { supabase } from './api/supabase'
+import { supabaseAuth } from './api/supabase'
 
 const SESSION_FLAG = 'sh-session-active'
 
@@ -21,7 +21,7 @@ export default function App() {
       if (!sessionStorage.getItem(SESSION_FLAG)) {
         const stored = localStorage.getItem('smart-home-auth')
         if (stored) {
-          await supabase.auth.signOut()
+          await supabaseAuth.auth.signOut()
         }
         sessionStorage.setItem(SESSION_FLAG, '1')
       }

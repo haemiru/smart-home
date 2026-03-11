@@ -5,7 +5,7 @@ import { useFeatureStore } from '@/stores/featureStore'
 import { getRequiredPlan, PLAN_INFO, isFeatureInPlan } from '@/config/planFeatures'
 import toast from 'react-hot-toast'
 
-const PLAN_ORDER = ['free', 'basic', 'pro', 'enterprise'] as const
+const PLAN_ORDER = ['free', 'basic', 'pro'] as const
 
 export function FeatureSettingsPage() {
   const [groups, setGroups] = useState<FeatureGroup[]>([])

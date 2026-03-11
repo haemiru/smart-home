@@ -1,5 +1,5 @@
 export type UserRole = 'customer' | 'agent' | 'staff'
-export type PlanType = 'free' | 'basic' | 'pro' | 'enterprise'
+export type PlanType = 'free' | 'basic' | 'pro'
 export type StaffRole = 'associate_agent' | 'assistant'
 export type TransactionType = 'sale' | 'jeonse' | 'monthly'
 export type PropertyStatus = 'draft' | 'active' | 'contracted' | 'completed' | 'hold'
@@ -127,9 +127,11 @@ export type PropertyExtraInfo = {
   key_money?: number
   foot_traffic?: string
   frontage_width?: number
-  // 사무실
+  // 사무실 / 상가 / 지식산업센터
   ceiling_height?: number
   building_structure?: string
+  maintenance_per_pyeong?: number
+  rent_per_pyeong?: number
   // 토지
   land_area_m2?: number
   land_category?: string

@@ -102,8 +102,60 @@ function kakaoGeoProxy(): PluginOption {
   }
 }
 
+/** Vite dev server plugin: proxies /api/send-email → Resend API (key stays server-side) */
+function resendEmailProxy(): PluginOption {
+  return {
+    name: 'resend-email-proxy',
+    configureServer(server) {
+      server.middlewares.use('/api/send-email', async (req, res) => {
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST', 'Access-Control-Allow-Headers': 'Content-Type' })
+          res.end()
+          return
+        }
+        const apiKey = env.RESEND_API_KEY
+        if (!apiKey) { res.writeHead(500); res.end(JSON.stringify({ error: 'RESEND_API_KEY not set' })); return }
+
+        let rawBody = ''
+        for await (const chunk of req) rawBody += chunk
+        const { to, subject, html, replyTo } = JSON.parse(rawBody)
+
+        const payload: Record<string, unknown> = {
+          from: 'onboarding@resend.dev',
+          to,
+          subject,
+          html,
+        }
+        if (replyTo) payload.reply_to = replyTo
+
+        try {
+          const resp = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify(payload),
+          })
+          const data = await resp.json() as Record<string, unknown>
+          if (!resp.ok) {
+            res.writeHead(resp.status, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: (data?.message as string) || `HTTP ${resp.status}` }))
+            return
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(data))
+        } catch (e) {
+          res.writeHead(502)
+          res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'proxy error' }))
+        }
+      })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), geminiProxy(), kakaoGeoProxy()],
+  plugins: [react(), tailwindcss(), geminiProxy(), kakaoGeoProxy(), resendEmailProxy()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

@@ -18,6 +18,7 @@ const ROLE_OPTIONS: { value: StaffRole; label: string }[] = [
 type PermissionKey =
   | 'property_create'
   | 'property_delete'
+  | 'inquiry_manage'
   | 'contract_create'
   | 'contract_approve'
   | 'e_signature'
@@ -29,6 +30,7 @@ type PermissionKey =
 const PERMISSION_LABELS: { key: PermissionKey; label: string }[] = [
   { key: 'property_create', label: '매물등록' },
   { key: 'property_delete', label: '매물삭제' },
+  { key: 'inquiry_manage', label: '문의관리' },
   { key: 'contract_create', label: '계약서생성' },
   { key: 'contract_approve', label: '계약서승인' },
   { key: 'e_signature', label: '전자서명' },

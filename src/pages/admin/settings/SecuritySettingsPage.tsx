@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { fetchSecuritySettings } from '@/api/settings'
 import type { SecuritySettings } from '@/api/settings'
 import { changePassword, enrollTOTP, verifyTOTPEnrollment, unenrollTOTP } from '@/api/auth'
-import { supabase } from '@/api/supabase'
+import { supabaseAuth } from '@/api/supabase'
 import { formatDateTime } from '@/utils/format'
 import toast from 'react-hot-toast'
 
@@ -32,7 +32,7 @@ export function SecuritySettingsPage() {
   useEffect(() => {
     loadSecurity()
     // Also load existing factor ID for unenroll
-    supabase.auth.mfa.listFactors().then(({ data }) => {
+    supabaseAuth.auth.mfa.listFactors().then(({ data }) => {
       const verified = data?.totp?.find((f) => f.status === 'verified')
       if (verified) setMfaFactorId(verified.id)
     })

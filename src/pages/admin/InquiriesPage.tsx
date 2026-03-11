@@ -141,9 +141,9 @@ export function InquiriesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-medium text-gray-500">
-                <th className="px-4 py-3">상태</th>
-                <th className="px-4 py-3">유형</th>
                 <th className="px-4 py-3">문의자</th>
+                <th className="px-4 py-3">유형</th>
+                <th className="px-4 py-3">상태</th>
                 <th className="hidden px-4 py-3 lg:table-cell">관련 매물</th>
                 <th className="hidden px-4 py-3 sm:table-cell">내용</th>
                 <th className="px-4 py-3">접수일</th>
@@ -156,15 +156,20 @@ export function InquiriesPage() {
                 return (
                   <tr key={inq.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ${inquiryStatusColor[inq.status]}`}>
-                        <span>{inquiryStatusIcon[inq.status]}</span>
-                        <span className="hidden sm:inline">{inquiryStatusLabel[inq.status]}</span>
-                      </span>
+                      <p className="font-medium text-gray-800">{inq.name}</p>
+                      <p className="text-xs text-gray-400">{inq.phone}</p>
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-600">{inquiryTypeLabel[inq.inquiry_type]}</td>
                     <td className="px-4 py-3">
-                      <p className="font-medium text-gray-800">{inq.name}</p>
-                      <p className="text-xs text-gray-400">{inq.phone}</p>
+                      <select
+                        value={inq.status}
+                        onChange={(e) => handleStatusChange(inq.id, e.target.value as InquiryStatus)}
+                        className={`rounded-md border-0 px-2 py-1 text-xs font-semibold focus:ring-2 focus:ring-primary-500 ${inquiryStatusColor[inq.status]}`}
+                      >
+                        {statusFilters.filter((f) => f.key !== 'all').map((f) => (
+                          <option key={f.key} value={f.key}>{f.label}</option>
+                        ))}
+                      </select>
                     </td>
                     <td className="hidden px-4 py-3 lg:table-cell">
                       {prop ? (
@@ -184,22 +189,12 @@ export function InquiriesPage() {
                       {formatRelativeTime(inq.created_at)}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <Link
-                          to={`/admin/inquiries/${inq.id}`}
-                          className="rounded-md bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100"
-                        >
-                          상세
-                        </Link>
-                        {inq.status === 'new' && (
-                          <button
-                            onClick={() => handleStatusChange(inq.id, 'checked')}
-                            className="rounded-md bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700 hover:bg-orange-100"
-                          >
-                            확인
-                          </button>
-                        )}
-                      </div>
+                      <Link
+                        to={`/admin/inquiries/${inq.id}`}
+                        className="rounded-md bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100"
+                      >
+                        상세
+                      </Link>
                     </td>
                   </tr>
                 )

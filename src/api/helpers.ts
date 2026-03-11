@@ -1,4 +1,4 @@
-import { supabase } from '@/api/supabase'
+import { supabase, supabaseAuth } from '@/api/supabase'
 
 let _agentProfileId: string | null = null
 let _currentUserId: string | null = null
@@ -10,7 +10,7 @@ let _currentUserId: string | null = null
 export async function getAgentProfileId(): Promise<string> {
   if (_agentProfileId) return _agentProfileId
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await supabaseAuth.auth.getUser()
   if (!user) throw new Error('로그인이 필요합니다.')
 
   // Try agent_profiles directly (works for agents)
@@ -45,7 +45,7 @@ export async function getAgentProfileId(): Promise<string> {
 export async function getCurrentUserId(): Promise<string> {
   if (_currentUserId) return _currentUserId
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await supabaseAuth.auth.getUser()
   if (!user) throw new Error('로그인이 필요합니다.')
 
   _currentUserId = user.id

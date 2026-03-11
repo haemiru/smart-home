@@ -28,10 +28,6 @@ export function PropertyGrid() {
   }, [agentId])
 
   useEffect(() => {
-    if (!selectedCategory) {
-      setLoading(false)
-      return
-    }
     setLoading(true)
     let cancelled = false
 

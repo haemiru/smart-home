@@ -21,15 +21,16 @@ const PLAN_FEATURES: Record<PlanType, string[]> = {
     'registry',
     // Collaboration
     'co_brokerage',
+    // Domain & Messaging
+    'custom_domain', 'alimtalk', 'sms',
   ],
   pro: [
     'ai_staging', 'sns_posting', 'curation_alimtalk', 'realtime_chat', 'e_signature',
   ],
-  enterprise: [],
 }
 
 // Build cumulative feature sets
-const PLAN_ORDER: PlanType[] = ['free', 'basic', 'pro', 'enterprise']
+const PLAN_ORDER: PlanType[] = ['free', 'basic', 'pro']
 
 const cumulativeFeatures: Record<PlanType, Set<string>> = {} as Record<PlanType, Set<string>>
 let accumulated: string[] = []
@@ -48,12 +49,11 @@ export function getRequiredPlan(featureKey: string): PlanType {
   for (const plan of PLAN_ORDER) {
     if (cumulativeFeatures[plan].has(featureKey)) return plan
   }
-  return 'enterprise'
+  return 'pro'
 }
 
 export const PLAN_INFO: Record<PlanType, { label: string; price: number; color: string; bgColor: string; textColor: string }> = {
   free: { label: 'Free', price: 0, color: '#6B7280', bgColor: 'bg-gray-100', textColor: 'text-gray-700' },
-  basic: { label: 'Basic', price: 29000, color: '#3B82F6', bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
-  pro: { label: 'Pro', price: 79000, color: '#8B5CF6', bgColor: 'bg-purple-100', textColor: 'text-purple-700' },
-  enterprise: { label: 'Enterprise', price: -1, color: '#F59E0B', bgColor: 'bg-amber-100', textColor: 'text-amber-700' },
+  basic: { label: 'Basic', price: 3000, color: '#3B82F6', bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
+  pro: { label: 'Pro', price: 5000, color: '#8B5CF6', bgColor: 'bg-purple-100', textColor: 'text-purple-700' },
 }

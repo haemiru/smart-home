@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { generateContent, saveGenerationLog } from '@/api/gemini'
 import { createInquiry } from '@/api/inquiries'
-import type { InquiryType } from '@/types/database'
+import { fetchProperties, fetchCategories } from '@/api/properties'
+import { useTenantStore } from '@/stores/tenantStore'
+import type { InquiryType, Property, PropertyCategory } from '@/types/database'
+import { formatNumber } from '@/utils/format'
 import toast from 'react-hot-toast'
 
 type Message = {
@@ -11,42 +14,98 @@ type Message = {
   timestamp: Date
 }
 
-const SYSTEM_PROMPT = `당신은 "스마트부동산" 공인중개사 사무소의 AI 상담 어시스턴트입니다.
+const txLabel: Record<string, string> = { sale: '매매', jeonse: '전세', monthly: '월세' }
+
+function formatPropertyPrice(p: Property): string {
+  if (p.transaction_type === 'sale' && p.sale_price) return `매매 ${formatNumber(p.sale_price)}만원`
+  if (p.transaction_type === 'jeonse' && p.deposit) return `전세 ${formatNumber(p.deposit)}만원`
+  if (p.transaction_type === 'monthly') {
+    const dep = p.deposit ? `${formatNumber(p.deposit)}` : '0'
+    const rent = p.monthly_rent ? `${formatNumber(p.monthly_rent)}` : '0'
+    return `월세 ${dep}/${rent}만원`
+  }
+  return ''
+}
+
+function buildPropertySummary(p: Property, catMap: Record<string, string>): string {
+  const parts: string[] = []
+  parts.push(`[${p.title}]`)
+  const cat = p.category_id ? catMap[p.category_id] : ''
+  if (cat) parts.push(`유형: ${cat}`)
+  parts.push(`거래: ${txLabel[p.transaction_type] ?? p.transaction_type}`)
+  parts.push(`가격: ${formatPropertyPrice(p)}`)
+  parts.push(`위치: ${p.address}`)
+  if (p.exclusive_area_m2) parts.push(`전용면적: ${p.exclusive_area_m2}㎡`)
+  if (p.rooms) parts.push(`방 ${p.rooms}개`)
+  if (p.bathrooms) parts.push(`욕실 ${p.bathrooms}개`)
+  if (p.floor) parts.push(`${p.floor}층`)
+  if (p.direction) parts.push(`${p.direction}`)
+  if (p.move_in_date) parts.push(`입주: ${p.move_in_date}`)
+  if (p.description) parts.push(`설명: ${p.description.slice(0, 100)}`)
+  return parts.join(' | ')
+}
+
+function buildSystemPrompt(
+  officeName: string,
+  representative: string,
+  address: string,
+  phone: string,
+  specialties: string[] | null,
+  description: string | null,
+  properties: Property[],
+  catMap: Record<string, string>,
+): string {
+  const propertiesList = properties.length > 0
+    ? properties.map((p, i) => `${i + 1}. ${buildPropertySummary(p, catMap)}`).join('\n')
+    : '현재 등록된 매물이 없습니다.'
+
+  return `당신은 "${officeName}" 공인중개사 사무소의 AI 상담 어시스턴트입니다.
 
 사무소 정보:
-- 상호: 스마트부동산
-- 대표: 홍길동
-- 주소: 서울 강남구 역삼동 123-45
-- 전화: 02-1234-5678
-- 영업시간: 평일 09:00-18:00, 토요일 10:00-14:00 (일/공휴일 휴무)
-- 전문 분야: 강남/서초/송파 아파트, 오피스텔, 상가
+- 상호: ${officeName}
+- 대표: ${representative}
+- 주소: ${address}
+- 전화: ${phone}
+${specialties?.length ? `- 전문 분야: ${specialties.join(', ')}` : ''}
+${description ? `- 소개: ${description}` : ''}
+
+현재 등록된 매물 (총 ${properties.length}건):
+${propertiesList}
 
 역할:
-- 매물 FAQ 자동 응답 (가격, 면적, 위치, 교통 등)
+- 고객이 매물을 물으면 위 매물 목록에서 조건에 맞는 매물을 찾아 안내
+- 매물이 없으면 "현재 조건에 맞는 매물이 없지만, 문의를 남겨주시면 새 매물 등록 시 연락드리겠습니다" 안내
 - 계약 절차 안내 (매매/전세/월세 절차, 필요 서류, 비용)
 - 부동산 법률 기본 안내 (주택임대차보호법, 전입신고, 확정일자 등)
-- 영업시간 외 문의 접수 안내
+- 중개보수 안내 (거래금액별 요율표 기반)
 
 규칙:
 - 항상 정중하고 친절한 톤으로 응대
+- 매물 추천 시 가격, 면적, 위치 등 핵심 정보 포함
 - 법률 관련 답변 시 "참고용이며 정확한 상담은 전문가에게" 안내
-- 구체적인 매물 추천은 "담당 중개사 연결" 안내
+- 더 자세한 상담이 필요하면 전화(${phone}) 또는 문의 접수 안내
 - 답변은 간결하게 (3-5문장)
-- 한국어로 응답`
+- 한국어로 응답
+- 매물 목록에 없는 매물을 지어내지 말 것`
+}
 
 const QUICK_QUESTIONS = [
+  '현재 매물 보여주세요',
   '매매 절차가 궁금해요',
   '전세 계약 시 주의사항은?',
   '중개보수는 얼마인가요?',
-  '전입신고 방법 알려주세요',
 ]
 
 export function AIChatbot({ onClose }: { onClose: () => void }) {
+  const tenant = useTenantStore((s) => s.tenant)
+  const agentId = useTenantStore((s) => s.agentId)
+  const officeName = tenant?.office_name ?? '부동산'
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      content: '안녕하세요! 스마트부동산 AI 상담 어시스턴트입니다.\n\n매물 문의, 계약 절차, 법률 안내 등 도움이 필요하시면 편하게 말씀해주세요.',
+      content: `안녕하세요! ${officeName} AI 상담 어시스턴트입니다.\n\n매물 문의, 계약 절차, 법률 안내 등 도움이 필요하시면 편하게 말씀해주세요.`,
       timestamp: new Date(),
     },
   ])
@@ -55,6 +114,52 @@ export function AIChatbot({ onClose }: { onClose: () => void }) {
   const [showInquiryForm, setShowInquiryForm] = useState(false)
   const [inquiryForm, setInquiryForm] = useState({ name: '', phone: '', content: '' })
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Load properties & categories once for context
+  const systemPromptRef = useRef<string>('')
+  const [contextReady, setContextReady] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadContext() {
+      try {
+        const [{ data: properties }, categories] = await Promise.all([
+          fetchProperties({}, 'newest', 1, 50, agentId ?? undefined),
+          fetchCategories(agentId ?? undefined),
+        ])
+        if (cancelled) return
+
+        const catMap: Record<string, string> = {}
+        categories.forEach((c: PropertyCategory) => { catMap[c.id] = c.name })
+
+        systemPromptRef.current = buildSystemPrompt(
+          tenant?.office_name ?? '부동산',
+          tenant?.representative ?? '',
+          tenant?.address ?? '',
+          tenant?.phone ?? '',
+          tenant?.specialties ?? null,
+          tenant?.description ?? null,
+          properties,
+          catMap,
+        )
+      } catch {
+        // Fallback: basic prompt without property data
+        systemPromptRef.current = buildSystemPrompt(
+          tenant?.office_name ?? '부동산',
+          tenant?.representative ?? '',
+          tenant?.address ?? '',
+          tenant?.phone ?? '',
+          tenant?.specialties ?? null,
+          tenant?.description ?? null,
+          [],
+          {},
+        )
+      }
+      if (!cancelled) setContextReady(true)
+    }
+    loadContext()
+    return () => { cancelled = true }
+  }, [agentId, tenant])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -74,16 +179,15 @@ export function AIChatbot({ onClose }: { onClose: () => void }) {
     setIsLoading(true)
 
     try {
-      // Build conversation context
       const conversationContext = messages
         .filter((m) => m.role !== 'system')
-        .slice(-6) // Last 6 messages for context
+        .slice(-6)
         .map((m) => `${m.role === 'user' ? '고객' : '상담원'}: ${m.content}`)
         .join('\n')
 
       const prompt = `이전 대화:\n${conversationContext}\n\n고객: ${text}\n\n위 대화 맥락을 고려하여 답변해주세요.`
 
-      const response = await generateContent(prompt, SYSTEM_PROMPT)
+      const response = await generateContent(prompt, systemPromptRef.current)
 
       const assistantMsg: Message = {
         id: `assistant-${Date.now()}`,
@@ -122,6 +226,7 @@ export function AIChatbot({ onClose }: { onClose: () => void }) {
       phone: inquiryForm.phone,
       inquiry_type: 'other' as InquiryType,
       content: inquiryForm.content || messages.filter((m) => m.role === 'user').map((m) => m.content).join('\n'),
+      agent_id: agentId ?? undefined,
     })
     toast.success(`문의가 접수되었습니다. 접수번호: ${inquiry.inquiry_number}`)
     setShowInquiryForm(false)
@@ -144,7 +249,7 @@ export function AIChatbot({ onClose }: { onClose: () => void }) {
           <span className="text-lg">🤖</span>
           <div>
             <p className="text-sm font-semibold text-white">AI 상담</p>
-            <p className="text-[10px] text-primary-200">스마트부동산</p>
+            <p className="text-[10px] text-primary-200">{officeName}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -159,6 +264,13 @@ export function AIChatbot({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       </div>
+
+      {/* Context loading indicator */}
+      {!contextReady && (
+        <div className="bg-primary-50 px-3 py-1.5 text-center text-[10px] text-primary-600">
+          매물 정보 불러오는 중...
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 space-y-3 overflow-y-auto p-3">
@@ -240,7 +352,8 @@ export function AIChatbot({ onClose }: { onClose: () => void }) {
               <button
                 key={q}
                 onClick={() => sendMessage(q)}
-                className="rounded-full bg-gray-100 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200"
+                disabled={!contextReady}
+                className="rounded-full bg-gray-100 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 disabled:opacity-50"
               >
                 {q}
               </button>
