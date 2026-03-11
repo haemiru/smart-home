@@ -312,6 +312,23 @@ function ListView({ customers, onStageChange }: { customers: Customer[]; onStage
 // ============================================================
 function AddCustomerModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [saving, setSaving] = useState(false)
+  const [regionHint, setRegionHint] = useState('강남구, 서초구')
+  const [specialtyHint, setSpecialtyHint] = useState('아파트, 오피스텔')
+
+  useEffect(() => {
+    import('@/api/settings').then(({ fetchRegionSettings }) => {
+      fetchRegionSettings().then((regions) => {
+        if (regions.length > 0) setRegionHint(regions.slice(0, 3).map((r: { name: string }) => r.name).join(', '))
+      }).catch(() => {})
+    })
+    import('@/api/settings').then(({ fetchOfficeSettings }) => {
+      fetchOfficeSettings().then((data) => {
+        const specs = data?.specialties as string[] | undefined
+        if (specs && specs.length > 0) setSpecialtyHint(specs.slice(0, 3).join(', '))
+      }).catch(() => {})
+    })
+  }, [])
+
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -391,11 +408,11 @@ function AddCustomerModal({ onClose, onCreated }: { onClose: () => void; onCreat
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">선호 지역</label>
-                <input value={form.region} onChange={(e) => set('region', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder="강남구, 서초구" />
+                <input value={form.region} onChange={(e) => set('region', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder={regionHint} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">매물 유형</label>
-                <input value={form.propertyType} onChange={(e) => set('propertyType', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder="아파트, 오피스텔" />
+                <input value={form.propertyType} onChange={(e) => set('propertyType', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" placeholder={specialtyHint} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">가격대</label>

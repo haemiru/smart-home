@@ -185,11 +185,12 @@ export const customerSourceLabel: Record<string, string> = {
 
 /** 활동 유형 한글 라벨 */
 export const activityTypeLabel: Record<string, string> = {
-  view: '매물 열람',
-  favorite: '관심 저장',
-  inquiry: '문의',
-  appointment: '임장 예약',
-  contract_view: '계약서 열람',
+  inquiry: '문의 접수',
+  phone_call: '전화 상담',
+  visit: '방문 상담',
+  site_tour: '현장 안내',
+  contract_consult: '계약 상담',
+  other: '기타',
 }
 
 /** 계약서 상태 한글 라벨 */

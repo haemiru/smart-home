@@ -8,7 +8,7 @@ export type InquiryType = 'property' | 'price' | 'contract' | 'other'
 export type InquiryStatus = 'new' | 'checked' | 'in_progress' | 'answered' | 'closed'
 export type CustomerType = 'lead' | 'interest' | 'consulting' | 'contracting' | 'completed'
 export type CustomerSource = 'inquiry' | 'direct' | 'referral' | 'website'
-export type ActivityType = 'view' | 'favorite' | 'inquiry' | 'appointment' | 'contract_view'
+export type ActivityType = 'inquiry' | 'phone_call' | 'visit' | 'site_tour' | 'contract_consult' | 'other'
 
 export type ContractTemplateType =
   | 'apartment_sale' | 'apartment_lease'

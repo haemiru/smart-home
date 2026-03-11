@@ -104,7 +104,7 @@ export async function createCustomer(data: {
   memo?: string
 }): Promise<Customer> {
   const agentId = await getAgentProfileId()
-  const initialScore = data.source === 'inquiry' ? 20 : 0
+  const initialScore = data.source === 'inquiry' ? 10 : 0
 
   const { data: customer, error } = await supabase
     .from('customers')
@@ -155,21 +155,25 @@ export async function addCustomerActivity(data: {
   activity_type: CustomerActivity['activity_type']
   property_id?: string
   metadata?: Record<string, unknown>
+  created_at?: string
 }): Promise<void> {
   // Insert activity
+  const insertData: Record<string, unknown> = {
+    customer_id: data.customer_id,
+    activity_type: data.activity_type,
+    property_id: data.property_id ?? null,
+    metadata: data.metadata ?? {},
+  }
+  if (data.created_at) insertData.created_at = data.created_at
+
   const { error: actError } = await supabase
     .from('customer_activities')
-    .insert({
-      customer_id: data.customer_id,
-      activity_type: data.activity_type,
-      property_id: data.property_id ?? null,
-      metadata: data.metadata ?? {},
-    })
+    .insert(insertData)
 
   if (actError) throw actError
 
-  // Score adjustments
-  const scoreMap: Record<string, number> = { view: 5, favorite: 10, inquiry: 20, appointment: 30, contract_view: 40 }
+  // Score adjustments — based on agent-recorded consultation activities
+  const scoreMap: Record<string, number> = { inquiry: 10, phone_call: 10, visit: 20, site_tour: 30, contract_consult: 40 }
   const scoreIncrement = scoreMap[data.activity_type] ?? 0
 
   if (scoreIncrement > 0) {

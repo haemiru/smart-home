@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import type { Customer, CustomerActivity, CustomerType } from '@/types/database'
-import { fetchCustomerById, fetchCustomerActivities, updateCustomer, updateCustomerType } from '@/api/customers'
+import type { Customer, CustomerActivity, CustomerType, ActivityType } from '@/types/database'
+import { fetchCustomerById, fetchCustomerActivities, updateCustomer, updateCustomerType, addCustomerActivity } from '@/api/customers'
 import { fetchPropertyById } from '@/api/properties'
 import { generateContent, saveGenerationLog } from '@/api/gemini'
 import { isFeatureInPlan } from '@/config/planFeatures'
@@ -11,12 +11,11 @@ import { customerTypeLabel, customerTypeColor, customerSourceLabel, activityType
 import { Button } from '@/components/common'
 import toast from 'react-hot-toast'
 
-type TabKey = 'profile' | 'activity' | 'matching' | 'consultation' | 'memo' | 'analysis'
+type TabKey = 'profile' | 'activity' | 'matching' | 'memo' | 'analysis'
 const tabs: { key: TabKey; label: string }[] = [
   { key: 'profile', label: '프로필' },
-  { key: 'activity', label: '활동이력' },
+  { key: 'activity', label: '상담일지' },
   { key: 'matching', label: '매칭매물' },
-  { key: 'consultation', label: '상담기록' },
   { key: 'analysis', label: '진성 분석' },
   { key: 'memo', label: '메모' },
 ]
@@ -156,20 +155,33 @@ export function CustomerDetailPage() {
 
       {/* Tab Content */}
       {activeTab === 'profile' && (
-        <ProfileTab customer={customer} prefs={prefs} onUpdatePrefs={async (newPrefs) => {
-          await updateCustomer(customer.id, { preferences: newPrefs })
-          setCustomer((prev) => prev ? { ...prev, preferences: newPrefs } : prev)
-          toast.success('선호 조건이 저장되었습니다.')
-        }} />
+        <ProfileTab customer={customer} prefs={prefs}
+          onUpdateBasic={async (data) => {
+            await updateCustomer(customer.id, data)
+            setCustomer((prev) => prev ? { ...prev, ...data } : prev)
+            toast.success('기본 정보가 저장되었습니다.')
+          }}
+          onUpdatePrefs={async (newPrefs) => {
+            await updateCustomer(customer.id, { preferences: newPrefs })
+            setCustomer((prev) => prev ? { ...prev, preferences: newPrefs } : prev)
+            toast.success('선호 조건이 저장되었습니다.')
+          }}
+        />
       )}
       {activeTab === 'activity' && (
-        <ActivityTab activities={activities} propertyCache={propertyCache} />
+        <ActivityTab
+          customerId={customer.id}
+          activities={activities}
+          propertyCache={propertyCache}
+          onActivityAdded={async () => {
+            const [cust, acts] = await Promise.all([fetchCustomerById(customer.id), fetchCustomerActivities(customer.id)])
+            if (cust) setCustomer(cust)
+            setActivities(acts)
+          }}
+        />
       )}
       {activeTab === 'matching' && (
         <MatchingTab prefs={prefs} />
-      )}
-      {activeTab === 'consultation' && (
-        <ConsultationTab />
       )}
       {activeTab === 'analysis' && (
         isFeatureInPlan('sincerity_analysis', useFeatureStore.getState().plan)
@@ -190,13 +202,41 @@ export function CustomerDetailPage() {
 // ============================================================
 // Profile Tab
 // ============================================================
-function ProfileTab({ customer, prefs, onUpdatePrefs }: { customer: Customer; prefs: Record<string, string>; onUpdatePrefs: (prefs: Record<string, string>) => void }) {
+function ProfileTab({ customer, prefs, onUpdateBasic, onUpdatePrefs }: {
+  customer: Customer; prefs: Record<string, string>;
+  onUpdateBasic: (data: Partial<Customer>) => void;
+  onUpdatePrefs: (prefs: Record<string, string>) => void;
+}) {
+  const [editingBasic, setEditingBasic] = useState(false)
+  const [editBasic, setEditBasic] = useState({ name: '', phone: '', email: '' })
   const [editing, setEditing] = useState(false)
   const [editPrefs, setEditPrefs] = useState({ region: '', propertyType: '', priceRange: '', area: '', note: '' })
+  const [regionHint, setRegionHint] = useState('강남구, 서초구')
+  const [specialtyHint, setSpecialtyHint] = useState('아파트, 오피스텔')
+
+  useEffect(() => {
+    // Load region settings for placeholder
+    import('@/api/settings').then(({ fetchRegionSettings }) => {
+      fetchRegionSettings().then((regions) => {
+        if (regions.length > 0) {
+          setRegionHint(regions.slice(0, 3).map((r: { name: string }) => r.name).join(', '))
+        }
+      }).catch(() => {})
+    })
+    // Load specialties for placeholder
+    import('@/api/settings').then(({ fetchOfficeSettings }) => {
+      fetchOfficeSettings().then((data) => {
+        const specs = data?.specialties as string[] | undefined
+        if (specs && specs.length > 0) {
+          setSpecialtyHint(specs.slice(0, 3).join(', '))
+        }
+      }).catch(() => {})
+    })
+  }, [])
 
   const prefFields = [
-    { key: 'region', label: '선호 지역', placeholder: '강남구, 서초구' },
-    { key: 'propertyType', label: '매물 유형', placeholder: '아파트, 오피스텔' },
+    { key: 'region', label: '선호 지역', placeholder: regionHint },
+    { key: 'propertyType', label: '매물 유형', placeholder: specialtyHint },
     { key: 'priceRange', label: '가격대', placeholder: '3억~5억' },
     { key: 'area', label: '면적', placeholder: '25평~35평' },
   ]
@@ -226,26 +266,64 @@ function ProfileTab({ customer, prefs, onUpdatePrefs }: { customer: Customer; pr
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
-        <h3 className="mb-4 text-sm font-semibold">기본 정보</h3>
-        <div className="space-y-3 text-sm">
-          {([
-            ['이름', customer.name],
-            ['연락처', customer.phone],
-            ['이메일', customer.email || '-'],
-            ['소스', customerSourceLabel[customer.source]],
-            ['등록일', formatDateTime(customer.created_at)],
-            ['최근 업데이트', formatDateTime(customer.updated_at)],
-          ] as [string, string][]).map(([label, value]) => (
-            <div key={label} className="flex justify-between">
-              <span className="text-gray-400">{label}</span>
-              <span className="font-medium">{value}</span>
-            </div>
-          ))}
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold">기본 정보</h3>
+          {!editingBasic && (
+            <button onClick={() => {
+              setEditBasic({ name: customer.name, phone: customer.phone, email: customer.email || '' })
+              setEditingBasic(true)
+            }} className="text-xs font-medium text-primary-600 hover:text-primary-700">편집</button>
+          )}
         </div>
+        {editingBasic ? (
+          <div className="space-y-3">
+            {[
+              { key: 'name', label: '이름' },
+              { key: 'phone', label: '연락처' },
+              { key: 'email', label: '이메일' },
+            ].map((f) => (
+              <div key={f.key}>
+                <label className="mb-1 block text-xs font-semibold text-primary-600">{f.label}</label>
+                <input
+                  value={editBasic[f.key as keyof typeof editBasic]}
+                  onChange={(e) => setEditBasic((p) => ({ ...p, [f.key]: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                />
+              </div>
+            ))}
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => setEditingBasic(false)} className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100">취소</button>
+              <button onClick={() => {
+                if (!editBasic.name.trim()) { toast.error('이름을 입력해주세요.'); return }
+                if (!editBasic.phone.trim()) { toast.error('연락처를 입력해주세요.'); return }
+                onUpdateBasic({ name: editBasic.name.trim(), phone: editBasic.phone.trim(), email: editBasic.email.trim() || null })
+                setEditingBasic(false)
+              }} className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700">저장</button>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-lg border border-gray-300"><table className="w-full border-collapse text-sm">
+            <tbody>
+              {([
+                ['이름', customer.name],
+                ['연락처', customer.phone],
+                ['이메일', customer.email || '-'],
+                ['소스', customerSourceLabel[customer.source]],
+                ['등록일', formatDateTime(customer.created_at)],
+                ['최근 업데이트', formatDateTime(customer.updated_at)],
+              ] as [string, string][]).map(([label, value]) => (
+                <tr key={label} className="border-b border-gray-300 last:border-0">
+                  <td className="w-32 border-r border-gray-300 bg-gray-50 px-4 py-2.5 text-xs font-semibold text-primary-600">{label}</td>
+                  <td className="px-4 py-2.5 font-medium text-gray-800">{value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+        )}
       </div>
 
       <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold">선호 조건</h3>
           {!editing && (
             <button onClick={startEdit} className="text-xs font-medium text-primary-600 hover:text-primary-700">
@@ -254,7 +332,7 @@ function ProfileTab({ customer, prefs, onUpdatePrefs }: { customer: Customer; pr
           )}
         </div>
         {editing ? (
-          <div className="space-y-3">
+          <div className="space-y-3 p-5">
             {prefFields.map((f) => (
               <div key={f.key}>
                 <label className="mb-1 block text-xs text-gray-400">{f.label}</label>
@@ -282,40 +360,41 @@ function ProfileTab({ customer, prefs, onUpdatePrefs }: { customer: Customer; pr
             </div>
           </div>
         ) : Object.keys(prefs).length === 0 ? (
-          <p className="text-sm text-gray-400">등록된 선호 조건이 없습니다.</p>
+          <p className="p-5 text-sm text-gray-400">등록된 선호 조건이 없습니다.</p>
         ) : (
-          <div className="space-y-3 text-sm">
-            {prefFields.filter((f) => prefs[f.key]).map((f) => (
-              <div key={f.key} className="flex justify-between">
-                <span className="text-gray-400">{f.label}</span>
-                <span className="font-medium">{prefs[f.key]}</span>
-              </div>
-            ))}
-            {prefs.note && (
-              <div>
-                <span className="text-gray-400">비고</span>
-                <p className="mt-1 whitespace-pre-wrap text-sm font-medium">{prefs.note}</p>
-              </div>
-            )}
-          </div>
+          <div className="overflow-hidden rounded-lg border border-gray-300"><table className="w-full border-collapse text-sm">
+            <tbody>
+              {prefFields.filter((f) => prefs[f.key]).map((f) => (
+                <tr key={f.key} className="border-b border-gray-300 last:border-0">
+                  <td className="w-32 border-r border-gray-300 bg-gray-50 px-4 py-2.5 text-xs font-semibold text-primary-600">{f.label}</td>
+                  <td className="px-4 py-2.5 font-medium text-gray-800">{prefs[f.key]}</td>
+                </tr>
+              ))}
+              {prefs.note && (
+                <tr className="border-b border-gray-300 last:border-0">
+                  <td className="w-32 border-r border-gray-300 bg-gray-50 px-4 py-2.5 align-top text-xs font-semibold text-primary-600">비고</td>
+                  <td className="whitespace-pre-wrap px-4 py-2.5 font-medium text-gray-800">{prefs.note}</td>
+                </tr>
+              )}
+            </tbody>
+          </table></div>
         )}
       </div>
 
       {/* Score Breakdown */}
       <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200 lg:col-span-2">
         <h3 className="mb-4 text-sm font-semibold">스코어 산정 기준</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {([
-            ['매물 열람', '+5점'],
-            ['관심 저장', '+10점'],
-            ['문의', '+20점'],
-            ['임장 예약', '+30점'],
-            ['계약서 열람', '+40점'],
-            ['7일 미활동', '-15점'],
+            ['문의 접수', '+10점'],
+            ['전화 상담', '+10점'],
+            ['방문 상담', '+20점'],
+            ['현장 안내', '+30점'],
+            ['계약 상담', '+40점'],
           ] as [string, string][]).map(([label, score]) => (
             <div key={label} className="rounded-lg bg-gray-50 p-3 text-center">
               <p className="text-xs text-gray-400">{label}</p>
-              <p className={`mt-1 text-sm font-bold ${score.startsWith('-') ? 'text-red-500' : 'text-primary-700'}`}>{score}</p>
+              <p className="mt-1 text-sm font-bold text-primary-700">{score}</p>
             </div>
           ))}
         </div>
@@ -325,51 +404,157 @@ function ProfileTab({ customer, prefs, onUpdatePrefs }: { customer: Customer; pr
 }
 
 // ============================================================
-// Activity Timeline Tab
+// Activity (Consultation Log) Tab — 개공이 직접 기록하는 상담일지
 // ============================================================
-function ActivityTab({ activities, propertyCache }: { activities: CustomerActivity[]; propertyCache: Record<string, Property> }) {
-  const activityIcons: Record<string, string> = {
-    view: '\uD83D\uDC41\uFE0F',
-    favorite: '\u2764\uFE0F',
-    inquiry: '\uD83D\uDCE9',
-    appointment: '\uD83D\uDCC5',
-    contract_view: '\uD83D\uDCDD',
+const consultTypes: { key: ActivityType; label: string; icon: string }[] = [
+  { key: 'phone_call', label: '전화 상담', icon: '📞' },
+  { key: 'visit', label: '방문 상담', icon: '🏢' },
+  { key: 'site_tour', label: '현장 안내', icon: '🏠' },
+  { key: 'contract_consult', label: '계약 상담', icon: '📝' },
+  { key: 'other', label: '기타', icon: '📋' },
+]
+
+const activityIcons: Record<string, string> = {
+  inquiry: '📩',
+  phone_call: '📞',
+  visit: '🏢',
+  site_tour: '🏠',
+  contract_consult: '📝',
+  other: '📋',
+}
+
+function ActivityTab({ customerId, activities, propertyCache, onActivityAdded }: {
+  customerId: string
+  activities: CustomerActivity[]
+  propertyCache: Record<string, Property>
+  onActivityAdded: () => void
+}) {
+  const [showForm, setShowForm] = useState(false)
+  const [formType, setFormType] = useState<ActivityType>('phone_call')
+  const [formMemo, setFormMemo] = useState('')
+  const [formDatetime, setFormDatetime] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+
+  const nowDatetimeLocal = () => {
+    const d = new Date()
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+    return d.toISOString().slice(0, 16)
+  }
+
+  const handleAdd = async () => {
+    if (!formMemo.trim()) { toast.error('내용을 입력해주세요.'); return }
+    setIsSaving(true)
+    try {
+      await addCustomerActivity({
+        customer_id: customerId,
+        activity_type: formType,
+        metadata: { memo: formMemo.trim() },
+        created_at: formDatetime ? new Date(formDatetime).toISOString() : undefined,
+      })
+      toast.success('상담 기록이 추가되었습니다.')
+      setFormMemo('')
+      setShowForm(false)
+      onActivityAdded()
+    } catch {
+      toast.error('저장에 실패했습니다.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
-    <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
-      <h3 className="mb-4 text-sm font-semibold">활동 이력</h3>
-      {activities.length === 0 ? (
-        <p className="py-8 text-center text-sm text-gray-400">활동 이력이 없습니다.</p>
-      ) : (
-        <div className="relative space-y-4 pl-6">
-          {/* Timeline line */}
-          <div className="absolute bottom-0 left-2.5 top-0 w-px bg-gray-200" />
-
-          {activities.map((act) => {
-            const prop = act.property_id ? propertyCache[act.property_id] : null
-            return (
-              <div key={act.id} className="relative">
-                {/* Dot */}
-                <div className="absolute -left-6 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-xs ring-2 ring-gray-200">
-                  {activityIcons[act.activity_type] || '\u2022'}
-                </div>
-                <div>
-                  <p className="text-sm text-gray-700">
-                    <span className="font-medium">{activityTypeLabel[act.activity_type]}</span>
-                    {prop && (
-                      <Link to={`/admin/properties/${prop.id}`} className="ml-1 text-primary-600 hover:underline">
-                        {prop.title}
-                      </Link>
-                    )}
-                  </p>
-                  <p className="text-xs text-gray-400">{formatDateTime(act.created_at)}</p>
-                </div>
-              </div>
-            )
-          })}
+    <div className="space-y-4">
+      <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-semibold">상담일지</h3>
+          {!showForm && (
+            <button
+              onClick={() => { setFormDatetime(nowDatetimeLocal()); setShowForm(true) }}
+              className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700"
+            >
+              + 상담 기록 추가
+            </button>
+          )}
         </div>
-      )}
+
+        {/* Add form */}
+        {showForm && (
+          <div className="mb-5 rounded-lg border border-primary-200 bg-primary-50/30 p-4">
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {consultTypes.map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setFormType(t.key)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                    formType === t.key
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {t.icon} {t.label}
+                </button>
+              ))}
+            </div>
+            <div className="mb-3">
+              <label className="mb-1 block text-xs text-gray-500">상담 일시</label>
+              <input
+                type="datetime-local"
+                value={formDatetime}
+                onChange={(e) => setFormDatetime(e.target.value)}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              />
+            </div>
+            <textarea
+              value={formMemo}
+              onChange={(e) => { if (e.target.value.length <= 500) setFormMemo(e.target.value) }}
+              placeholder="상담 내용을 기록하세요..."
+              maxLength={500}
+              rows={3}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+            />
+            <div className="mt-1 text-right text-xs text-gray-400">{formMemo.length}/500</div>
+            <div className="mt-2 flex justify-end gap-2">
+              <button onClick={() => { setShowForm(false); setFormMemo(''); setFormDatetime('') }} className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100">취소</button>
+              <button onClick={handleAdd} disabled={isSaving} className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50">
+                {isSaving ? '저장 중...' : '저장'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Timeline */}
+        {activities.length === 0 ? (
+          <p className="py-8 text-center text-sm text-gray-400">상담 기록이 없습니다.</p>
+        ) : (
+          <div className="relative space-y-4 pl-6">
+            <div className="absolute bottom-0 left-2.5 top-0 w-px bg-gray-200" />
+
+            {activities.map((act) => {
+              const prop = act.property_id ? propertyCache[act.property_id] : null
+              const memo = (act.metadata as Record<string, unknown>)?.memo as string | undefined
+              return (
+                <div key={act.id} className="relative">
+                  <div className="absolute -left-6 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-xs ring-2 ring-gray-200">
+                    {activityIcons[act.activity_type] || '•'}
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      <span className="font-medium">{activityTypeLabel[act.activity_type]}</span>
+                      {prop && (
+                        <Link to={`/admin/properties/${prop.id}`} className="ml-1 text-primary-600 hover:underline">
+                          {prop.title}
+                        </Link>
+                      )}
+                    </p>
+                    {memo && <p className="mt-0.5 text-sm text-gray-600">{memo}</p>}
+                    <p className="mt-0.5 text-xs text-gray-400">{formatDateTime(act.created_at)}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -392,22 +577,6 @@ function MatchingTab({ prefs }: { prefs: Record<string, string> }) {
   )
 }
 
-// ============================================================
-// Consultation Records Tab (placeholder)
-// ============================================================
-function ConsultationTab() {
-  return (
-    <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-semibold">상담 기록</h3>
-        <Button size="sm" onClick={() => toast('상담 기록 추가 기능은 추후 구현 예정입니다.')}>+ 상담 기록 추가</Button>
-      </div>
-      <div className="flex h-48 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50">
-        <p className="text-sm text-gray-400">상담 기록이 없습니다. (추후 구현 예정)</p>
-      </div>
-    </div>
-  )
-}
 
 // ============================================================
 // AI Analysis Tab
@@ -429,6 +598,12 @@ function AnalysisTab({ customer, activities }: { customer: Customer; activities:
         return acc
       }, {})
 
+      // Collect consultation memos for richer analysis
+      const recentMemos = activities.slice(0, 10).map((a) => {
+        const m = (a.metadata as Record<string, unknown>)?.memo as string | undefined
+        return m ? `[${activityTypeLabel[a.activity_type]}] ${m}` : null
+      }).filter(Boolean)
+
       const prompt = `아래 고객 데이터를 분석하여 진성 고객 분석 리포트를 작성해주세요.
 
 고객 정보:
@@ -441,11 +616,12 @@ function AnalysisTab({ customer, activities }: { customer: Customer; activities:
 - 선호 조건: ${Object.entries(prefs).map(([k, v]) => `${k}: ${v}`).join(', ') || '없음'}
 - 메모: ${customer.memo || '없음'}
 
-활동 이력 집계:
+상담 기록 집계:
 ${Object.entries(activitySummary).map(([type, count]) => `- ${activityTypeLabel[type]}: ${count}회`).join('\n')}
-- 총 활동: ${activities.length}건
-- 첫 활동: ${activities.length > 0 ? activities[activities.length - 1].created_at : '없음'}
-- 최근 활동: ${activities.length > 0 ? activities[0].created_at : '없음'}
+- 총 상담: ${activities.length}건
+- 첫 상담: ${activities.length > 0 ? activities[activities.length - 1].created_at : '없음'}
+- 최근 상담: ${activities.length > 0 ? activities[0].created_at : '없음'}
+${recentMemos.length > 0 ? `\n최근 상담 내용:\n${recentMemos.join('\n')}` : ''}
 
 분석 결과를 다음 형식으로 작성해주세요:
 
@@ -459,8 +635,8 @@ ${Object.entries(activitySummary).map(([type, count]) => `- ${activityTypeLabel[
 - 추정 예산: (신뢰도 %)
 - 관심 지역: (신뢰도 %)
 
-## 행동 근거
-(활동 패턴 분석 3-5개)
+## 상담 패턴 분석
+(상담 기록 기반 분석 3-5개)
 
 ## AI 추천 액션
 1. (구체적 액션)
