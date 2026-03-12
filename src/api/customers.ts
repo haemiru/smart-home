@@ -158,7 +158,7 @@ export async function addCustomerActivity(data: {
   created_at?: string
 }): Promise<void> {
   // Insert activity
-  const insertData: Record<string, unknown> = {
+  const insertData: { customer_id: string; activity_type: CustomerActivity['activity_type']; property_id: string | null; metadata: Record<string, unknown>; created_at?: string } = {
     customer_id: data.customer_id,
     activity_type: data.activity_type,
     property_id: data.property_id ?? null,

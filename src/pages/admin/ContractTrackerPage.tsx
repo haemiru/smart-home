@@ -5,8 +5,9 @@ import { fetchContractById, fetchContractProcess, toggleProcessStep, updateProce
 import { fetchPropertyById } from '@/api/properties'
 import { generateContent, saveGenerationLog } from '@/api/gemini'
 import { saveMoveInGuide } from '@/api/moveInGuide'
-import { requestSignature } from '@/api/legal'
-import type { SignatureStatus } from '@/api/legal'
+// 전자서명 — 추후 활성화 시 복원
+// import { requestSignature } from '@/api/legal'
+// import type { SignatureStatus } from '@/api/legal'
 import { Button } from '@/components/common'
 import { contractStatusLabel, contractStatusColor, contractTemplateLabel, transactionTypeLabel, formatPrice, formatDDay, dDayColor, formatDateTime } from '@/utils/format'
 import toast from 'react-hot-toast'
@@ -20,8 +21,9 @@ export function ContractTrackerPage() {
   const [isReviewing, setIsReviewing] = useState(false)
   const [reviewResult, setReviewResult] = useState<string | null>(null)
   const [isGeneratingGuide, setIsGeneratingGuide] = useState(false)
-  const [signatureStatus, setSignatureStatus] = useState<SignatureStatus>('unsigned')
-  const [isRequestingSignature, setIsRequestingSignature] = useState(false)
+  // 전자서명 상태 — 추후 활성화 시 복원
+  // const [signatureStatus, setSignatureStatus] = useState<SignatureStatus>('unsigned')
+  // const [isRequestingSignature, setIsRequestingSignature] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -173,6 +175,7 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
     }
   }
 
+  /* 전자서명 기능 — 추후 카카오/네이버 API 연동 시 활성화
   const handleRequestSignature = async () => {
     if (!contract) return
     const buyer = contract.buyer_info as Record<string, string>
@@ -191,6 +194,7 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
       setIsRequestingSignature(false)
     }
   }
+  */
 
   const handleShare = () => {
     const url = `${window.location.origin}/my/contracts/${contract?.id}`

@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react'
 import { uploadRegistryPdf, validatePdfFile, deleteStorageFile } from '@/api/storage'
 import { getAgentProfileId } from '@/api/helpers'
-import { Button } from '@/components/common'
 import toast from 'react-hot-toast'
 
 type RegistryDoc = {
