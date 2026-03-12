@@ -22,6 +22,7 @@ const allTemplates: ContractTemplateType[] = [
 export function ContractFormPage() {
   const navigate = useNavigate()
   const agentProfile = useAuthStore((s) => s.agentProfile)
+  const { findCategory } = useCategories()
   const [step, setStep] = useState<Step>(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -50,7 +51,12 @@ export function ContractFormPage() {
   useEffect(() => {
     let cancelled = false
     fetchAdminProperties({ search: propSearch || undefined, categoryId: propCategoryId || undefined })
-      .then((data) => { if (!cancelled) setProperties(data) })
+      .then((data) => {
+        if (!cancelled) {
+          // 거래완료·보류 매물은 계약서 작성 대상에서 제외
+          setProperties(data.filter((p) => p.status !== 'completed' && p.status !== 'hold'))
+        }
+      })
       .catch(() => {})
     return () => { cancelled = true }
   }, [propSearch, propCategoryId])
@@ -58,7 +64,8 @@ export function ContractFormPage() {
   // Auto-recommend template when property is selected
   const handleSelectProperty = (p: Property) => {
     setSelectedProperty(p)
-    const rec = recommendTemplate(p.category_id, p.transaction_type)
+    const categoryName = findCategory(p.category_id)?.name ?? null
+    const rec = recommendTemplate(categoryName, p.transaction_type)
     setTemplateType(rec)
     setTxType(p.transaction_type)
 

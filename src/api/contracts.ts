@@ -2,19 +2,30 @@ import { supabase } from '@/api/supabase'
 import { getAgentProfileId } from '@/api/helpers'
 import type { Contract, ContractProcess, ContractStatus, ContractTemplateType, ContractStepType, TransactionType } from '@/types/database'
 
-// Template recommendation based on property category — pure function
-export function recommendTemplate(categoryId: string | null, txType: TransactionType): ContractTemplateType {
+// Template recommendation based on property category name — pure function
+export function recommendTemplate(categoryName: string | null, txType: TransactionType): ContractTemplateType {
   const isSale = txType === 'sale'
-  switch (categoryId) {
-    case 'cat-apt': return isSale ? 'apartment_sale' : 'apartment_lease'
-    case 'cat-ofi': return isSale ? 'officetel_sale' : 'officetel_lease'
-    case 'cat-sto': return isSale ? 'commercial_sale' : 'commercial_lease'
-    case 'cat-off': return isSale ? 'commercial_sale' : 'commercial_lease'
-    case 'cat-lan': return 'land_sale'
-    case 'cat-vil': return isSale ? 'apartment_sale' : 'apartment_lease'
-    case 'cat-hou': return isSale ? 'apartment_sale' : 'apartment_lease'
-    case 'cat-one': return isSale ? 'officetel_sale' : 'officetel_lease'
-    default: return isSale ? 'apartment_sale' : 'apartment_lease'
+  const name = (categoryName ?? '').trim()
+  switch (name) {
+    case '아파트':
+    case '빌라':
+    case '주택':
+    case '분양권':
+    case '재개발':
+      return isSale ? 'apartment_sale' : 'apartment_lease'
+    case '오피스텔':
+    case '원룸':
+      return isSale ? 'officetel_sale' : 'officetel_lease'
+    case '상가':
+    case '사무실':
+    case '숙박/펜션':
+      return isSale ? 'commercial_sale' : 'commercial_lease'
+    case '토지':
+      return 'land_sale'
+    case '공장/창고':
+      return isSale ? 'factory_sale' : 'factory_lease'
+    default:
+      return isSale ? 'apartment_sale' : 'apartment_lease'
   }
 }
 
