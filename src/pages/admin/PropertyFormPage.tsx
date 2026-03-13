@@ -279,8 +279,22 @@ export function PropertyFormPage() {
   const handleSubmit = async () => {
     console.log('[Submit] handleSubmit called, activeTab:', activeTab)
     if (!form.title || !form.address) { toast.error('제목과 주소는 필수입니다.'); return }
-    if (!form.exclusive_area_m2 || !form.supply_area_m2) { toast.error('전용면적과 공급면적은 필수입니다.'); return }
-    if (!form.built_year) { toast.error('준공연도는 필수입니다.'); return }
+    // 카테고리별 필수 필드 검증
+    const submitCatName = categories.find((c) => c.id === form.category_id)?.name || ''
+    const submitGroup = getCategoryGroup(submitCatName)
+    if (submitGroup === 'land') {
+      if (!form.extra_info.land_category) { toast.error('지목을 선택해주세요.'); return }
+      if (!form.extra_info.land_area_m2) { toast.error('대지면적을 입력해주세요.'); return }
+    } else if (submitGroup === 'industrial') {
+      if (!form.extra_info.land_category) { toast.error('지목을 선택해주세요.'); return }
+      if (!form.extra_info.land_area_m2) { toast.error('대지면적을 입력해주세요.'); return }
+      if (form.buildings.length === 0 || !form.buildings[0].building_area_m2) { toast.error('건물 면적을 입력해주세요.'); return }
+    } else {
+      const submitSv = submitGroup ? STRUCTURE_VISIBILITY[submitGroup] : null
+      if (submitSv?.exclusive_area && !form.exclusive_area_m2) { toast.error('전용면적을 입력해주세요.'); return }
+      if (submitSv?.supply_area && !form.supply_area_m2) { toast.error('공급면적을 입력해주세요.'); return }
+      if (submitSv?.built_year && !form.built_year) { toast.error('준공연도를 입력해주세요.'); return }
+    }
     setIsLoading(true)
     try {
       console.log('[Submit] getting agentProfileId...')
@@ -583,6 +597,8 @@ ${categoryGuide}
   }, [form, categories])
 
   const validateTab = (tabId: TabId): string | null => {
+    const catName = categories.find((c) => c.id === form.category_id)?.name || ''
+    const group = getCategoryGroup(catName)
     switch (tabId) {
       case 'basic':
         if (!form.category_id) return '매물유형을 선택해주세요.'
@@ -590,8 +606,7 @@ ${categoryGuide}
         return null
       case 'location': {
         if (!form.address) return '주소를 입력해주세요.'
-        const locCatName = categories.find((c) => c.id === form.category_id)?.name || ''
-        if (['아파트', '오피스텔', '빌라'].includes(locCatName)) {
+        if (['아파트', '오피스텔', '빌라'].includes(catName)) {
           if (!form.dong) return '동을 입력해주세요.'
           if (!form.ho) return '호를 입력해주세요.'
         }
@@ -603,11 +618,29 @@ ${categoryGuide}
         if (form.transaction_type === 'monthly' && !form.deposit) return '보증금을 입력해주세요.'
         if (form.transaction_type === 'monthly' && !form.monthly_rent) return '월세를 입력해주세요.'
         return null
-      case 'structure':
-        if (!form.exclusive_area_m2) return '전용면적을 입력해주세요.'
-        if (!form.supply_area_m2) return '공급면적을 입력해주세요.'
-        if (!form.built_year) return '준공연도를 입력해주세요.'
+      case 'structure': {
+        if (group === 'land') {
+          // 토지: 지목, 토지면적 필수
+          if (!form.extra_info.land_category) return '지목을 선택해주세요.'
+          if (!form.extra_info.land_area_m2) return '대지면적을 입력해주세요.'
+        } else if (group === 'industrial') {
+          // 공장/창고: 지목, 토지면적 필수 + 건물 1개 이상 면적/구조 필수
+          if (!form.extra_info.land_category) return '지목을 선택해주세요.'
+          if (!form.extra_info.land_area_m2) return '대지면적을 입력해주세요.'
+          if (form.buildings.length === 0) return '건물을 1개 이상 추가해주세요.'
+          const b = form.buildings[0]
+          if (!b.building_area_m2) return '첫 번째 건물의 면적을 입력해주세요.'
+          if (!b.building_structure) return '첫 번째 건물의 구조를 선택해주세요.'
+          if (!b.usage) return '첫 번째 건물의 용도를 선택해주세요.'
+        } else {
+          // 주거/상가/사무실 등: 전용면적, 공급면적, 준공연도 필수
+          const sv = group ? STRUCTURE_VISIBILITY[group] : null
+          if (sv?.exclusive_area && !form.exclusive_area_m2) return '전용면적을 입력해주세요.'
+          if (sv?.supply_area && !form.supply_area_m2) return '공급면적을 입력해주세요.'
+          if (sv?.built_year && !form.built_year) return '준공연도를 입력해주세요.'
+        }
         return null
+      }
       case 'co-brokerage':
         if (form.is_co_brokerage && !form.co_brokerage_fee_ratio) return '공동중개 수수료 비율을 입력해주세요.'
         return null

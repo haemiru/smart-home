@@ -137,12 +137,6 @@ export function ContractFormPage() {
       },
       special_terms: specialTerms,
     })
-    // 포털공개중(active)/매물등록중(draft) 매물은 자동으로 계약진행(contracted) 상태로 변경
-    if (selectedProperty && ['active', 'draft'].includes(selectedProperty.status)) {
-      try {
-        await updatePropertyStatus([selectedProperty.id], 'contracted')
-      } catch { /* 상태 변경 실패해도 계약 생성은 완료 */ }
-    }
     setIsSubmitting(false)
     toast.success(`계약서가 생성되었습니다. (${contract.contract_number})`)
     navigate(`/admin/contracts/${contract.id}/tracker`)
@@ -252,7 +246,50 @@ export function ContractFormPage() {
           {step === 1 ? '취소' : '이전'}
         </Button>
         {step < 4 ? (
-          <Button onClick={() => setStep((step + 1) as Step)} disabled={!canNext()}>다음</Button>
+          <div className="flex gap-2">
+            {step === 3 && (
+              <Button variant="outline" onClick={async () => {
+                try {
+                  await createContract({
+                    property_id: selectedProperty?.id ?? null,
+                    transaction_type: txType,
+                    template_type: templateType,
+                    seller_info: sellerInfo,
+                    buyer_info: buyerInfo,
+                    agent_info: {
+                      officeName: agentProfile?.office_name ?? '',
+                      representative: agentProfile?.representative ?? '',
+                      licenseNumber: agentProfile?.license_number ?? '',
+                      address: agentProfile?.address ?? '',
+                      phone: agentProfile?.phone ?? '',
+                    },
+                    price_info: {
+                      salePrice: parseCommaNumber(priceInfo.salePrice),
+                      deposit: parseCommaNumber(priceInfo.deposit),
+                      monthlyRent: parseCommaNumber(priceInfo.monthlyRent),
+                      downPayment: parseCommaNumber(priceInfo.downPayment),
+                      downPaymentDate: priceInfo.downPaymentDate,
+                      midPayment: parseCommaNumber(priceInfo.midPayment),
+                      midPaymentDate: priceInfo.midPaymentDate,
+                      finalPayment: parseCommaNumber(priceInfo.finalPayment),
+                      finalPaymentDate: priceInfo.finalPaymentDate,
+                    },
+                    special_terms: specialTerms,
+                  })
+                  toast.success('임시저장되었습니다.')
+                } catch { toast.error('임시저장에 실패했습니다.') }
+              }}>임시저장</Button>
+            )}
+            <Button onClick={async () => {
+              // Step 3 → 4 전환 시: 포털공개중/매물등록중 매물을 계약진행으로 변경
+              if (step === 3 && selectedProperty && ['active', 'draft'].includes(selectedProperty.status)) {
+                try {
+                  await updatePropertyStatus([selectedProperty.id], 'contracted')
+                } catch { /* 상태 변경 실패해도 계속 진행 */ }
+              }
+              setStep((step + 1) as Step)
+            }} disabled={!canNext()}>다음</Button>
+          </div>
         ) : (
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => { window.print() }}>인쇄</Button>
@@ -741,7 +778,11 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
   const sellerRole = isSale ? '매도인' : '임대인'
   const buyerRole = isSale ? '매수인' : '임차인'
   const td = 'border border-gray-400 px-2 py-1.5 text-sm'
-  const th = 'border border-gray-400 bg-gray-50 px-2 py-1.5 text-sm font-medium text-center whitespace-nowrap'
+  const th = 'border border-gray-400 bg-blue-50 px-2 py-1.5 text-sm font-medium text-center whitespace-nowrap text-blue-900'
+  const sectionHeader = 'mb-1 text-sm font-bold text-blue-800'
+  const articleNum = 'font-semibold text-blue-700'
+  const SPECIAL_TERMS_BYEOLJI_THRESHOLD = 200  // 특약사항이 이 글자수 넘으면 별지로 분리
+  const needsByeolji = specialTerms.length > SPECIAL_TERMS_BYEOLJI_THRESHOLD
 
   const handleDownloadPdf = async () => {
     if (!previewRef.current) return
@@ -780,7 +821,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
       <div ref={previewRef} className="mx-auto max-w-3xl bg-white px-8 py-8 shadow ring-1 ring-gray-200 print:shadow-none print:ring-0" style={{ fontFamily: 'serif' }}>
 
         {/* ── 제목 ── */}
-        <h2 className="mb-4 text-center text-2xl font-bold tracking-[0.3em]">{getContractTitle(templateType, txType)}</h2>
+        <h2 className="mb-4 text-center text-2xl font-bold tracking-[0.3em] text-blue-900">{getContractTitle(templateType, txType)}</h2>
         <p className="mb-6 text-sm leading-relaxed">
           {isSale
             ? `본 부동산에 대하여 ${sellerRole}과 ${buyerRole} 쌍방은 다음과 같이 합의하여 매매 계약을 체결한다.`
@@ -788,7 +829,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
         </p>
 
         {/* ── 1. 부동산의 표시 ── */}
-        <p className="mb-1 text-sm font-bold">1. 부동산의 표시</p>
+        <p className={sectionHeader}>1. 부동산의 표시</p>
         <table className="mb-6 w-full border-collapse">
           <colgroup>
             <col style={{ width: 80 }} />
@@ -843,13 +884,13 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
         </table>
 
         {/* ── 2. 계약내용 ── */}
-        <p className="mb-1 text-sm font-bold">2. 계약내용</p>
+        <p className={sectionHeader}>2. 계약내용</p>
 
         {/* 제1조 */}
         <p className="mb-1 indent-4 text-sm leading-relaxed">
           {isSale
-            ? `제1조 [목 적] 위 부동산의 매매에 있어 ${buyerRole}은 매매대금을 아래와 같이 지불하기로 한다.`
-            : `제1조 [목 적] 위 부동산의 임대차에 한하여 ${sellerRole}과 ${buyerRole}은 합의에 의하여 임차보증금 및 차임을 아래와 같이 지급하기로 한다.`}
+            ? <><span className={articleNum}>제1조</span> [목 적] 위 부동산의 매매에 있어 {buyerRole}은 매매대금을 아래와 같이 지불하기로 한다.</>
+            : <><span className={articleNum}>제1조</span> [목 적] 위 부동산의 임대차에 한하여 {sellerRole}과 {buyerRole}은 합의에 의하여 임차보증금 및 차임을 아래와 같이 지급하기로 한다.</>}
         </p>
 
         {/* 가격 테이블 */}
@@ -924,31 +965,33 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
         {/* ── 제2조~제9조 ── */}
         <div className="mb-6 space-y-2 text-sm leading-relaxed">
           {isSale ? (<>
-            <p className="indent-4">제2조 [소유권이전 등] {sellerRole}은 매매대금의 잔금을 수령과 동시에 {buyerRole}에게 소유권이전등기에 필요한 모든 서류를 교부하고 등기절차에 협력하며, 위 부동산의 인도일은 <b>{fmtDate(deliveryDate)}</b>에 인도한다.</p>
-            <p className="indent-4">제3조 [제한물권 등의 소멸] {sellerRole}은 위 부동산에 설정된 저당권, 지상권, 임차권 등 소유권의 행사를 제한하는 사유가 있거나, 제세공과 기타 부담금의 미납금 등이 있을때에는 잔금 수수일까지 그 권리의 하자 및 부담 등을 제거하여 완전한 소유권을 {buyerRole}에게 이전한다. 다만, 승계하기로 합의하는 권리 및 금액은 그러하지 아니한다.</p>
-            <p className="indent-4">제4조 [지방세 등] 위 부동산에 관하여 발생한 수익의 귀속과 제세공과금 등의 부담은 위 부동산의 인도일을 기준으로 하되, 지방세의 납부의무 및 납부책임은 지방세법의 규정에 의한다.</p>
-            <p className="indent-4">제5조 [계약의 해제] {buyerRole}이 {sellerRole}에게 중도금(중도금이 없을때에는 잔금)을 지불하기 전까지 {sellerRole}은 계약금의 배액을 상환하고, {buyerRole}은 계약금을 포기하고 본 계약을 해제할 수 있다.</p>
-            <p className="indent-4">제6조 [채무불이행과 손해배상의 예정] {sellerRole} 또는 {buyerRole}가 본 계약상의 내용에 대하여 불이행이 있을 경우 그 상대방은 불이행한 자에 대하여 서면으로 최고하고 계약을 해제할 수 있다. 그리고 계약 당사자는 계약해제에 따른 손해배상을 각각 상대방에게 청구할 수 있으며, 손해배상에 대하여 별도의 약정이 없는 한 계약금을 손해배상의 기준으로 본다.</p>
-            <p className="indent-4">제7조 [중개보수] 개업공인중개사는 {sellerRole} 또는 {buyerRole}의 본 계약 불이행에 대하여 책임을 지지 않는다. 또한 중개보수는 본 계약 체결에 따라 계약당사자 쌍방이 각각 지불하며, 개업공인중개사의 고의나 과실없이 본계약이 무효, 취소 또는 해제되어도 중개보수는 지급한다. 공동 중개인 경우에 {sellerRole}과 {buyerRole}은 자신이 중개 의뢰한 개업공인중개사에게 각각 중개보수를 지급한다.</p>
-            <p className="indent-4">제8조 [중개보수 외] {sellerRole} 또는 {buyerRole}이 본 계약 이외의 업무를 의뢰한 경우 이에 관한 보수는 중개보수와는 별도로 지급하며 그 금액은 합의에 의한다.</p>
-            <p className="indent-4">제9조 [중개대상물확인설명서교부 등] 개업공인중개사는 중개대상물확인설명서를 작성하고 업무보증관계증서(공제증서등)사본을 첨부하여 계약체결과 동시에 거래당사자 쌍방에게 교부한다.</p>
+            <p className="indent-4"><span className={articleNum}>제2조</span> [소유권이전 등] {sellerRole}은 매매대금의 잔금을 수령과 동시에 {buyerRole}에게 소유권이전등기에 필요한 모든 서류를 교부하고 등기절차에 협력하며, 위 부동산의 인도일은 <b>{fmtDate(deliveryDate)}</b>에 인도한다.</p>
+            <p className="indent-4"><span className={articleNum}>제3조</span> [제한물권 등의 소멸] {sellerRole}은 위 부동산에 설정된 저당권, 지상권, 임차권 등 소유권의 행사를 제한하는 사유가 있거나, 제세공과 기타 부담금의 미납금 등이 있을때에는 잔금 수수일까지 그 권리의 하자 및 부담 등을 제거하여 완전한 소유권을 {buyerRole}에게 이전한다. 다만, 승계하기로 합의하는 권리 및 금액은 그러하지 아니한다.</p>
+            <p className="indent-4"><span className={articleNum}>제4조</span> [지방세 등] 위 부동산에 관하여 발생한 수익의 귀속과 제세공과금 등의 부담은 위 부동산의 인도일을 기준으로 하되, 지방세의 납부의무 및 납부책임은 지방세법의 규정에 의한다.</p>
+            <p className="indent-4"><span className={articleNum}>제5조</span> [계약의 해제] {buyerRole}이 {sellerRole}에게 중도금(중도금이 없을때에는 잔금)을 지불하기 전까지 {sellerRole}은 계약금의 배액을 상환하고, {buyerRole}은 계약금을 포기하고 본 계약을 해제할 수 있다.</p>
+            <p className="indent-4"><span className={articleNum}>제6조</span> [채무불이행과 손해배상의 예정] {sellerRole} 또는 {buyerRole}가 본 계약상의 내용에 대하여 불이행이 있을 경우 그 상대방은 불이행한 자에 대하여 서면으로 최고하고 계약을 해제할 수 있다. 그리고 계약 당사자는 계약해제에 따른 손해배상을 각각 상대방에게 청구할 수 있으며, 손해배상에 대하여 별도의 약정이 없는 한 계약금을 손해배상의 기준으로 본다.</p>
+            <p className="indent-4"><span className={articleNum}>제7조</span> [중개보수] 개업공인중개사는 {sellerRole} 또는 {buyerRole}의 본 계약 불이행에 대하여 책임을 지지 않는다. 또한 중개보수는 본 계약 체결에 따라 계약당사자 쌍방이 각각 지불하며, 개업공인중개사의 고의나 과실없이 본계약이 무효, 취소 또는 해제되어도 중개보수는 지급한다. 공동 중개인 경우에 {sellerRole}과 {buyerRole}은 자신이 중개 의뢰한 개업공인중개사에게 각각 중개보수를 지급한다.</p>
+            <p className="indent-4"><span className={articleNum}>제8조</span> [중개보수 외] {sellerRole} 또는 {buyerRole}이 본 계약 이외의 업무를 의뢰한 경우 이에 관한 보수는 중개보수와는 별도로 지급하며 그 금액은 합의에 의한다.</p>
+            <p className="indent-4"><span className={articleNum}>제9조</span> [중개대상물확인설명서교부 등] 개업공인중개사는 중개대상물확인설명서를 작성하고 업무보증관계증서(공제증서등)사본을 첨부하여 계약체결과 동시에 거래당사자 쌍방에게 교부한다.</p>
           </>) : (<>
-            <p className="indent-4">제2조 [존속기간] {sellerRole}은 위 부동산을 임대차 목적대로 사용할 수 있는 상태로 <b>{fmtDate(deliveryDate)}</b>까지 {buyerRole}에게 인도하며, 임대차 기간은 인도일로부터 <b>{fmtDate(leasePeriodEnd)}</b>까지로 한다.</p>
-            <p className="indent-4">제3조 [용도변경 및 전대 등] {buyerRole}은 {sellerRole}의 동의없이 위 부동산의 용도나 구조를 변경하거나 전대, 임차권 양도 또는 담보제공을 하지 못하며 임대차 목적 이외의 용도로 사용할 수 없다.</p>
-            <p className="indent-4">제4조 [계약의 해지] {buyerRole}의 차임 연체액이 {isCommercial ? '3기' : '2기'}의 차임액에 달하거나, 제3조를 위반하였을 때 {sellerRole}은 즉시 본 계약을 해지할 수 있다.</p>
-            <p className="indent-4">제5조 [계약의 종료] 임대차 계약이 종료된 경우 {buyerRole}은 위 부동산을 원상으로 회복하여 {sellerRole}에게 반환한다. 이러한 경우 {sellerRole}은 보증금을 {buyerRole}에게 반환하고, 연체 임대료 또는 손해배상금이 있을 때는 이들을 제하고 그 잔액을 반환한다.</p>
-            <p className="indent-4">제6조 [계약의 해제] {buyerRole}이 {sellerRole}에게 중도금(중도금이 없을때는 잔금)을 지급하기 전까지 {sellerRole}은 계약금의 배액을 상환하고, {buyerRole}은 계약금을 포기하고 이 계약을 해제할 수 있다.</p>
-            <p className="indent-4">제7조 [채무불이행과 손해배상의 예정] {sellerRole} 또는 {buyerRole}은 본 계약상의 내용에 대하여 불이행이 있을 경우 그 상대방은 불이행한 자에 대하여 서면으로 최고하고 계약을 해제할 수 있다. 이 경우 계약 당사자는 계약해제에 따른 손해배상을 각각 상대방에게 청구할 수 있으며, 손해배상에 대하여 별도의 약정이 없는 한 계약금을 손해배상의 기준으로 본다.</p>
-            <p className="indent-4">제8조 [중개보수] 개업공인중개사는 {sellerRole} 또는 {buyerRole}의 본 계약 불이행에 대하여 책임을 지지 않는다. 또한 중개보수는 본 계약 체결에 따라 계약 당사자 쌍방이 각각 지급하며, 개업공인중개사의 고의나 과실 없이 본 계약이 무효, 취소 또는 해제되어도 중개보수는 지급한다. 공동중개인 경우에 {sellerRole}과 {buyerRole}은 자신이 중개 의뢰한 개업공인중개사에게 각각 중개보수를 지급한다.</p>
-            <p className="indent-4">제9조 [중개대상물확인설명서교부 등] 개업공인중개사는 중개대상물확인설명서를 작성하고 업무보증관계증서(공제증서 등) 사본을 첨부하여 거래당사자 쌍방에게 교부한다.</p>
+            <p className="indent-4"><span className={articleNum}>제2조</span> [존속기간] {sellerRole}은 위 부동산을 임대차 목적대로 사용할 수 있는 상태로 <b>{fmtDate(deliveryDate)}</b>까지 {buyerRole}에게 인도하며, 임대차 기간은 인도일로부터 <b>{fmtDate(leasePeriodEnd)}</b>까지로 한다.</p>
+            <p className="indent-4"><span className={articleNum}>제3조</span> [용도변경 및 전대 등] {buyerRole}은 {sellerRole}의 동의없이 위 부동산의 용도나 구조를 변경하거나 전대, 임차권 양도 또는 담보제공을 하지 못하며 임대차 목적 이외의 용도로 사용할 수 없다.</p>
+            <p className="indent-4"><span className={articleNum}>제4조</span> [계약의 해지] {buyerRole}의 차임 연체액이 {isCommercial ? '3기' : '2기'}의 차임액에 달하거나, 제3조를 위반하였을 때 {sellerRole}은 즉시 본 계약을 해지할 수 있다.</p>
+            <p className="indent-4"><span className={articleNum}>제5조</span> [계약의 종료] 임대차 계약이 종료된 경우 {buyerRole}은 위 부동산을 원상으로 회복하여 {sellerRole}에게 반환한다. 이러한 경우 {sellerRole}은 보증금을 {buyerRole}에게 반환하고, 연체 임대료 또는 손해배상금이 있을 때는 이들을 제하고 그 잔액을 반환한다.</p>
+            <p className="indent-4"><span className={articleNum}>제6조</span> [계약의 해제] {buyerRole}이 {sellerRole}에게 중도금(중도금이 없을때는 잔금)을 지급하기 전까지 {sellerRole}은 계약금의 배액을 상환하고, {buyerRole}은 계약금을 포기하고 이 계약을 해제할 수 있다.</p>
+            <p className="indent-4"><span className={articleNum}>제7조</span> [채무불이행과 손해배상의 예정] {sellerRole} 또는 {buyerRole}은 본 계약상의 내용에 대하여 불이행이 있을 경우 그 상대방은 불이행한 자에 대하여 서면으로 최고하고 계약을 해제할 수 있다. 이 경우 계약 당사자는 계약해제에 따른 손해배상을 각각 상대방에게 청구할 수 있으며, 손해배상에 대하여 별도의 약정이 없는 한 계약금을 손해배상의 기준으로 본다.</p>
+            <p className="indent-4"><span className={articleNum}>제8조</span> [중개보수] 개업공인중개사는 {sellerRole} 또는 {buyerRole}의 본 계약 불이행에 대하여 책임을 지지 않는다. 또한 중개보수는 본 계약 체결에 따라 계약 당사자 쌍방이 각각 지급하며, 개업공인중개사의 고의나 과실 없이 본 계약이 무효, 취소 또는 해제되어도 중개보수는 지급한다. 공동중개인 경우에 {sellerRole}과 {buyerRole}은 자신이 중개 의뢰한 개업공인중개사에게 각각 중개보수를 지급한다.</p>
+            <p className="indent-4"><span className={articleNum}>제9조</span> [중개대상물확인설명서교부 등] 개업공인중개사는 중개대상물확인설명서를 작성하고 업무보증관계증서(공제증서 등) 사본을 첨부하여 거래당사자 쌍방에게 교부한다.</p>
           </>)}
         </div>
 
         {/* ── 특약사항 ── */}
         <div className="mb-6">
-          <p className="mb-2 text-sm font-bold">[ 특약사항 ]</p>
-          <div className="min-h-[80px] border border-gray-300 p-3">
-            {specialTerms ? (
+          <p className="mb-2 text-sm font-bold text-blue-800">[ 특약사항 ]</p>
+          <div className="min-h-[80px] rounded border-2 border-blue-200 bg-blue-50/30 p-3">
+            {needsByeolji ? (
+              <p className="text-sm font-medium text-blue-700">---별지첨부---</p>
+            ) : specialTerms ? (
               <p className="whitespace-pre-wrap text-sm leading-relaxed">{specialTerms}</p>
             ) : (
               <p className="text-sm text-gray-300">-이하여백-</p>
@@ -1051,6 +1094,61 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
           {sellerRole}과 {buyerRole} 및 개업공인중개사는 매 장마다 간인하여야 하며 각 1통씩 보관한다.
         </p>
       </div>
+
+      {/* ── 별지 (특약사항이 긴 경우) ── */}
+      {needsByeolji && (
+        <div className="mx-auto mt-8 max-w-3xl bg-white px-8 py-8 shadow ring-1 ring-gray-200 print:shadow-none print:ring-0 print:break-before-page" style={{ fontFamily: 'serif' }}>
+          <h2 className="mb-6 text-center text-2xl font-bold tracking-[0.3em] text-blue-900">계 약 서  별 지</h2>
+
+          {/* 별지 부동산 정보 */}
+          <table className="mb-6 w-full border-collapse">
+            <tbody>
+              <tr>
+                <td className={th} style={{ width: 80 }}>계약일자</td>
+                <td className={td}>{new Date().getFullYear()}년 {String(new Date().getMonth() + 1).padStart(2, '0')}월 {String(new Date().getDate()).padStart(2, '0')}일</td>
+              </tr>
+              <tr>
+                <td className={th}>소 재 지</td>
+                <td className={td}>{property?.address || ''}{property?.dong ? ` ${property.dong}동` : ''}{property?.ho ? ` ${property.ho}호` : ''}</td>
+              </tr>
+              {!isLand && (
+                <tr>
+                  <td className={th}>토 &nbsp; 지</td>
+                  <td className={td}>
+                    지목: {(property?.extra_info as Record<string, string> | null)?.land_category || '대'}, 면적: {(property?.extra_info as Record<string, string> | null)?.land_area_m2 ? `${(property?.extra_info as Record<string, string>).land_area_m2}㎡` : ''}
+                  </td>
+                </tr>
+              )}
+              {isLand && (
+                <tr>
+                  <td className={th}>토 &nbsp; 지</td>
+                  <td className={td}>
+                    지목: {(property?.extra_info as Record<string, string> | null)?.land_category || ''}, 면적: {(property?.extra_info as Record<string, string> | null)?.land_area_m2 ? `${(property?.extra_info as Record<string, string>).land_area_m2}㎡` : ''}
+                  </td>
+                </tr>
+              )}
+              {!isLand && (
+                <tr>
+                  <td className={th}>건 &nbsp; 물</td>
+                  <td className={td}>
+                    구조: {(property?.extra_info as Record<string, string> | null)?.building_structure || ''}, 용도: {(property?.extra_info as Record<string, string> | null)?.building_usage || findCategory(property?.category_id)?.name || ''}, 면적: {property?.exclusive_area_m2 ? `${property.exclusive_area_m2}㎡` : ''}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {/* 특약사항 내용 */}
+          <div className="mb-6">
+            <p className="mb-3 text-sm font-bold text-blue-800">특약사항</p>
+            <div className="min-h-[300px] rounded border-2 border-blue-200 bg-blue-50/30 p-4">
+              <p className="whitespace-pre-wrap text-sm leading-loose">{specialTerms}</p>
+            </div>
+          </div>
+
+          <p className="text-center text-xs text-gray-500">────────── 이 하 여 백 ──────────</p>
+        </div>
+      )}
 
       <div className="text-center">
         <button onClick={handleDownloadPdf} disabled={isPdfLoading}

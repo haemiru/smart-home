@@ -134,6 +134,10 @@ export type ExtraFieldDef = {
 
 export const EXTRA_FIELDS: Record<CategoryGroup, ExtraFieldDef[]> = {
   residential: [
+    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트', '조적조', '목조', '경량철골'], tab: 'structure' },
+    { key: 'building_usage', label: '건물용도', type: 'text', placeholder: '예: 단독주택, 다세대주택, 아파트', tab: 'structure' },
+    { key: 'land_category', label: '지목', type: 'select', options: ['대', '전', '답', '임야', '잡종지', '기타'], tab: 'structure' },
+    { key: 'land_area_m2', label: '토지면적', type: 'area', tab: 'structure' },
     { key: 'heating_type', label: '난방방식', type: 'select', options: ['개별난방', '중앙난방', '지역난방'], tab: 'structure' },
     { key: 'household_count', label: '세대수', type: 'number', placeholder: '예: 500', tab: 'structure' },
   ],
@@ -144,6 +148,10 @@ export const EXTRA_FIELDS: Record<CategoryGroup, ExtraFieldDef[]> = {
     { key: 'premium', label: '프리미엄 (만원)', type: 'number', placeholder: '예: 5000', showPriceHint: true, tab: 'price' },
   ],
   commercial: [
+    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트', '조적조'], tab: 'structure' },
+    { key: 'building_usage', label: '건물용도', type: 'text', placeholder: '예: 근린생활시설, 판매시설', tab: 'structure' },
+    { key: 'land_category', label: '지목', type: 'select', options: ['대', '전', '답', '잡종지', '기타'], tab: 'structure' },
+    { key: 'land_area_m2', label: '토지면적', type: 'area', tab: 'structure' },
     { key: 'frontage_width', label: '전면폭 (m)', type: 'number', step: '0.1', placeholder: '예: 5.5', tab: 'structure' },
     { key: 'ceiling_height', label: '층고 (m)', type: 'number', step: '0.1', placeholder: '예: 3.0', tab: 'structure' },
     { key: 'key_money', label: '권리금 (만원)', type: 'number', placeholder: '예: 5000', showPriceHint: true, tab: 'price' },
@@ -161,6 +169,7 @@ export const EXTRA_FIELDS: Record<CategoryGroup, ExtraFieldDef[]> = {
     { key: 'business_restriction', label: '입주업종', type: 'text', placeholder: '예: 제조업, IT, 연구개발', tab: 'detail' },
   ],
   industrial: [
+    { key: 'land_category', label: '지목', type: 'select', options: ['대', '전', '답', '임야', '잡종지', '기타'], tab: 'structure' },
     { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure' },
     // 건물면적, 층고, 건물구조는 buildings 배열로 관리 (PropertyFormPage에서 별도 UI 렌더링)
     { key: 'zoning', label: '용도지역', type: 'select', options: ['일반공업', '준공업', '전용공업', '계획관리', '자연녹지', '기타'], tab: 'structure' },
@@ -238,6 +247,7 @@ export type ExtraInfoForm = {
   frontage_width: string
   ceiling_height: string
   building_structure: string
+  building_usage: string
   land_area_m2: string
   land_category: string
   zoning: string
@@ -273,6 +283,7 @@ export const emptyExtraInfo: ExtraInfoForm = {
   frontage_width: '',
   ceiling_height: '',
   building_structure: '',
+  building_usage: '',
   land_area_m2: '',
   land_category: '',
   zoning: '',
