@@ -4,7 +4,7 @@ import type { Property, ContractTemplateType, TransactionType } from '@/types/da
 import { fetchAdminProperties, updatePropertyStatus } from '@/api/properties'
 import { createContract, recommendTemplate } from '@/api/contracts'
 import { Button } from '@/components/common'
-import { formatPropertyPrice, transactionTypeLabel, contractTemplateLabel, formatNumber, parseCommaNumber, formatPrice } from '@/utils/format'
+import { formatPropertyPrice, transactionTypeLabel, contractTemplateLabel, formatNumber, parseCommaNumber } from '@/utils/format'
 import { useFormatArea } from '@/components/common/AreaUnitToggle'
 import { useCategories } from '@/hooks/useCategories'
 import { useAuthStore } from '@/stores/authStore'
@@ -418,7 +418,7 @@ type PriceInfoType = {
   loanAmount: string
 }
 
-function Step3ContractInfo({ txType, templateType, sellerInfo, onSellerChange, buyerInfo, onBuyerChange, priceInfo, onPriceChange, deliveryDate, onDeliveryDateChange, leasePeriodStart, onLeasePeriodStartChange, leasePeriodEnd, onLeasePeriodEndChange, leasePartDesc, onLeasePartDescChange, leasePartArea, onLeasePartAreaChange, monthlyPayDay, onMonthlyPayDayChange, monthlyPayMethod, onMonthlyPayMethodChange, specialTerms, onSpecialTermsChange, property, agentInfo, isJointBrokerage, onJointBrokerageChange, coAgentInfo, onCoAgentInfoChange }: {
+function Step3ContractInfo({ txType, templateType: _templateType, sellerInfo, onSellerChange, buyerInfo, onBuyerChange, priceInfo, onPriceChange, deliveryDate, onDeliveryDateChange, leasePeriodStart, onLeasePeriodStartChange, leasePeriodEnd, onLeasePeriodEndChange, leasePartDesc, onLeasePartDescChange, leasePartArea, onLeasePartAreaChange, monthlyPayDay, onMonthlyPayDayChange, monthlyPayMethod, onMonthlyPayMethodChange, specialTerms, onSpecialTermsChange, property, agentInfo, isJointBrokerage, onJointBrokerageChange, coAgentInfo, onCoAgentInfoChange }: {
   txType: TransactionType; templateType: ContractTemplateType
   sellerInfo: { name: string; phone: string; idNumber: string; address: string }
   onSellerChange: (v: typeof sellerInfo) => void
@@ -720,7 +720,7 @@ function getContractTitle(templateType: ContractTemplateType, txType: Transactio
   return `부동산 ${txLabel} 계약서`
 }
 
-function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, priceInfo, deliveryDate, leasePeriodStart, leasePeriodEnd, leasePartDesc, leasePartArea, monthlyPayDay, monthlyPayMethod, specialTerms, agentInfo, isJointBrokerage, coAgentInfo }: {
+function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, priceInfo, deliveryDate, leasePeriodStart: _leasePeriodStart, leasePeriodEnd, leasePartDesc, leasePartArea, monthlyPayDay, monthlyPayMethod, specialTerms, agentInfo, isJointBrokerage, coAgentInfo }: {
   property: Property | null; templateType: ContractTemplateType; txType: TransactionType
   sellerInfo: { name: string; phone: string; idNumber: string; address: string }
   buyerInfo: typeof sellerInfo
