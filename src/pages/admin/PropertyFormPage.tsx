@@ -53,6 +53,8 @@ type FormData = {
   status: PropertyStatus
   address: string
   address_detail: string
+  dong: string
+  ho: string
   sale_price: string
   deposit: string
   monthly_rent: string
@@ -86,7 +88,7 @@ type FormData = {
 
 const emptyForm: FormData = {
   category_id: '', title: '', transaction_type: 'sale', status: 'draft',
-  address: '', address_detail: '',
+  address: '', address_detail: '', dong: '', ho: '',
   sale_price: '', deposit: '', monthly_rent: '', maintenance_fee: '',
   supply_area_m2: '', exclusive_area_m2: '', rooms: '', bathrooms: '',
   total_floors: '', floor: '', direction: '', move_in_date: '',
@@ -140,6 +142,8 @@ export function PropertyFormPage() {
           status: p.status,
           address: p.address,
           address_detail: p.address_detail || '',
+          dong: p.dong || '',
+          ho: p.ho || '',
           sale_price: p.sale_price ? String(p.sale_price) : '',
           deposit: p.deposit ? String(p.deposit) : '',
           monthly_rent: p.monthly_rent ? String(p.monthly_rent) : '',
@@ -275,6 +279,8 @@ export function PropertyFormPage() {
   const handleSubmit = async () => {
     console.log('[Submit] handleSubmit called, activeTab:', activeTab)
     if (!form.title || !form.address) { toast.error('제목과 주소는 필수입니다.'); return }
+    if (!form.exclusive_area_m2 || !form.supply_area_m2) { toast.error('전용면적과 공급면적은 필수입니다.'); return }
+    if (!form.built_year) { toast.error('준공연도는 필수입니다.'); return }
     setIsLoading(true)
     try {
       console.log('[Submit] getting agentProfileId...')
@@ -335,8 +341,8 @@ export function PropertyFormPage() {
         status: form.status,
         address: form.address,
         address_detail: form.address_detail || null,
-        dong: null,
-        ho: null,
+        dong: form.dong || null,
+        ho: form.ho || null,
         latitude: form.latitude ? parseFloat(form.latitude) : null,
         longitude: form.longitude ? parseFloat(form.longitude) : null,
         sale_price: parseCommaNumber(form.sale_price),
@@ -582,14 +588,25 @@ ${categoryGuide}
         if (!form.category_id) return '매물유형을 선택해주세요.'
         if (!form.title) return '제목을 입력해주세요.'
         return null
-      case 'location':
+      case 'location': {
         if (!form.address) return '주소를 입력해주세요.'
+        const locCatName = categories.find((c) => c.id === form.category_id)?.name || ''
+        if (['아파트', '오피스텔', '빌라'].includes(locCatName)) {
+          if (!form.dong) return '동을 입력해주세요.'
+          if (!form.ho) return '호를 입력해주세요.'
+        }
         return null
+      }
       case 'price':
         if (form.transaction_type === 'sale' && !form.sale_price) return '매매가를 입력해주세요.'
         if (form.transaction_type === 'jeonse' && !form.deposit) return '전세금을 입력해주세요.'
         if (form.transaction_type === 'monthly' && !form.deposit) return '보증금을 입력해주세요.'
         if (form.transaction_type === 'monthly' && !form.monthly_rent) return '월세를 입력해주세요.'
+        return null
+      case 'structure':
+        if (!form.exclusive_area_m2) return '전용면적을 입력해주세요.'
+        if (!form.supply_area_m2) return '공급면적을 입력해주세요.'
+        if (!form.built_year) return '준공연도를 입력해주세요.'
         return null
       case 'co-brokerage':
         if (form.is_co_brokerage && !form.co_brokerage_fee_ratio) return '공동중개 수수료 비율을 입력해주세요.'
@@ -817,7 +834,18 @@ ${categoryGuide}
                 </button>
               </div>
             </div>
-            <Input id="address_detail" label="상세주소" value={form.address_detail} onChange={(e) => set('address_detail', e.target.value)} placeholder="동, 호수 등" />
+            {/* 공동주택 동/호수 (필수) */}
+            {(() => {
+              const cn = categories.find((c) => c.id === form.category_id)?.name || ''
+              const isMultiUnit = ['아파트', '오피스텔', '빌라'].includes(cn)
+              return isMultiUnit ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <Input id="dong" label={<>동 <span className="text-red-500">*</span></>} value={form.dong} onChange={(e) => set('dong', e.target.value)} placeholder="예: 101" required />
+                  <Input id="ho" label={<>호 <span className="text-red-500">*</span></>} value={form.ho} onChange={(e) => set('ho', e.target.value)} placeholder="예: 502" required />
+                </div>
+              ) : null
+            })()}
+            <Input id="address_detail" label="상세주소" value={form.address_detail} onChange={(e) => set('address_detail', e.target.value)} placeholder="상세주소" />
             <KakaoMap
               latitude={form.latitude ? parseFloat(form.latitude) : null}
               longitude={form.longitude ? parseFloat(form.longitude) : null}
@@ -935,17 +963,17 @@ ${categoryGuide}
               <div className="grid gap-4 sm:grid-cols-2">
                 {structVis?.supply_area !== false && (
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">공급면적 ({areaLabel})</label>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">공급면적 ({areaLabel}) <span className="text-red-500">*</span></label>
                     <input type="number" step="0.01" value={getAreaDisplay(form.supply_area_m2)} onChange={(e) => setAreaFromDisplay('supply_area_m2', e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" required />
                     {supplyConverted && <p className="mt-1 text-xs text-gray-400">≈ {supplyConverted}</p>}
                   </div>
                 )}
                 {structVis?.exclusive_area !== false && (
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">전용면적 ({areaLabel})</label>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">전용면적 ({areaLabel}) <span className="text-red-500">*</span></label>
                     <input type="number" step="0.01" value={getAreaDisplay(form.exclusive_area_m2)} onChange={(e) => setAreaFromDisplay('exclusive_area_m2', e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" required />
                     {exclusiveConverted && <p className="mt-1 text-xs text-gray-400">≈ {exclusiveConverted}</p>}
                   </div>
                 )}
@@ -976,9 +1004,9 @@ ${categoryGuide}
                 )}
                 {structVis?.built_year !== false && (
                   <div>
-                    <label htmlFor="built_year" className="mb-1 block text-sm font-medium text-gray-700">준공연도</label>
+                    <label htmlFor="built_year" className="mb-1 block text-sm font-medium text-gray-700">준공연도 <span className="text-red-500">*</span></label>
                     <input id="built_year" type="month" value={form.built_year} onChange={(e) => set('built_year', e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" required />
                   </div>
                 )}
               </div>
@@ -1290,9 +1318,10 @@ ${categoryGuide}
           </div>
           <div className="flex gap-3">
             <Button type="button" variant="outline" onClick={() => { if (confirm('작성 중인 내용이 모두 사라집니다. 취소하시겠습니까?')) navigate('/admin/properties') }}>취소</Button>
-            {activeTab !== tabs[tabs.length - 1].id ? (
+            {activeTab !== tabs[tabs.length - 1].id && (
               <Button type="button" onClick={handleNext}>다음 →</Button>
-            ) : (
+            )}
+            {(activeTab === tabs[tabs.length - 1].id || isEdit) && (
               <Button type="button" isLoading={isLoading} onClick={handleSubmit}>{isEdit ? '수정 완료' : '매물 등록'}</Button>
             )}
           </div>

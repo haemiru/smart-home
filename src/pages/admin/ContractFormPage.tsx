@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Property, ContractTemplateType, TransactionType } from '@/types/database'
-import { fetchAdminProperties } from '@/api/properties'
+import { fetchAdminProperties, updatePropertyStatus } from '@/api/properties'
 import { createContract, recommendTemplate } from '@/api/contracts'
 import { Button } from '@/components/common'
 import { formatPropertyPrice, transactionTypeLabel, contractTemplateLabel, formatNumber, parseCommaNumber, formatPrice } from '@/utils/format'
@@ -10,6 +10,7 @@ import { useCategories } from '@/hooks/useCategories'
 import { useAuthStore } from '@/stores/authStore'
 import toast from 'react-hot-toast'
 
+type AgentInfo = { officeName: string; representative: string; licenseNumber: string; address: string; phone: string }
 type Step = 1 | 2 | 3 | 4
 const stepLabels = ['매물 선택', '양식 선택', '계약 정보 입력', '미리보기']
 
@@ -39,13 +40,40 @@ export function ContractFormPage() {
   // Step 3: Contract info
   const [sellerInfo, setSellerInfo] = useState({ name: '', phone: '', idNumber: '', address: '' })
   const [buyerInfo, setBuyerInfo] = useState({ name: '', phone: '', idNumber: '', address: '' })
+  const todayStr = new Date().toISOString().slice(0, 10)
   const [priceInfo, setPriceInfo] = useState({
     salePrice: '', deposit: '', monthlyRent: '',
-    downPayment: '', downPaymentDate: '',
+    downPayment: '', downPaymentDate: todayStr,
     midPayment: '', midPaymentDate: '',
+    midPayment2: '', midPaymentDate2: '',
     finalPayment: '', finalPaymentDate: '',
+    loanAmount: '',
   })
   const [specialTerms, setSpecialTerms] = useState('')
+  const [deliveryDate, setDeliveryDate] = useState('')            // 인도일
+  const [leasePeriodStart, setLeasePeriodStart] = useState('')    // 임대차 기간 시작
+  const [leasePeriodEnd, setLeasePeriodEnd] = useState('')        // 임대차 기간 종료
+  const [leasePartDesc, setLeasePartDesc] = useState('')           // 임대할부분 설명
+  const [leasePartArea, setLeasePartArea] = useState('')           // 임대할부분 면적
+  const [monthlyPayDay, setMonthlyPayDay] = useState('1')         // 차임 지급일
+  const [monthlyPayMethod, setMonthlyPayMethod] = useState<'prepaid' | 'postpaid'>('postpaid')
+  const [isJointBrokerage, setIsJointBrokerage] = useState(false)
+  const [coAgentInfo, setCoAgentInfo] = useState<AgentInfo>({ officeName: '', representative: '', licenseNumber: '', address: '', phone: '' })
+
+  // Auto-calculate 잔금 = 거래금액 - 계약금 - 중도금
+  useEffect(() => {
+    const total = txType === 'sale'
+      ? (Number(priceInfo.salePrice) || 0)
+      : (Number(priceInfo.deposit) || 0)
+    const down = Number(priceInfo.downPayment) || 0
+    const mid = Number(priceInfo.midPayment) || 0
+    const mid2 = Number(priceInfo.midPayment2) || 0
+    const final = Math.max(total - down - mid - mid2, 0)
+    const finalStr = final > 0 ? String(final) : ''
+    if (priceInfo.finalPayment !== finalStr) {
+      setPriceInfo((prev) => ({ ...prev, finalPayment: finalStr }))
+    }
+  }, [txType, priceInfo.salePrice, priceInfo.deposit, priceInfo.downPayment, priceInfo.midPayment, priceInfo.midPayment2])
 
   // Load properties
   useEffect(() => {
@@ -68,6 +96,9 @@ export function ContractFormPage() {
     const rec = recommendTemplate(categoryName, p.transaction_type)
     setTemplateType(rec)
     setTxType(p.transaction_type)
+
+    // Auto-fill lease part area
+    setLeasePartArea(p.exclusive_area_m2 ? String(p.exclusive_area_m2) : '')
 
     // Auto-fill price info
     setPriceInfo((prev) => ({
@@ -106,6 +137,12 @@ export function ContractFormPage() {
       },
       special_terms: specialTerms,
     })
+    // 포털공개중(active)/매물등록중(draft) 매물은 자동으로 계약진행(contracted) 상태로 변경
+    if (selectedProperty && ['active', 'draft'].includes(selectedProperty.status)) {
+      try {
+        await updatePropertyStatus([selectedProperty.id], 'contracted')
+      } catch { /* 상태 변경 실패해도 계약 생성은 완료 */ }
+    }
     setIsSubmitting(false)
     toast.success(`계약서가 생성되었습니다. (${contract.contract_number})`)
     navigate(`/admin/contracts/${contract.id}/tracker`)
@@ -159,23 +196,32 @@ export function ContractFormPage() {
           templateType={templateType}
           onTemplateChange={setTemplateType}
           txType={txType}
-          onTxTypeChange={setTxType}
+          onTxTypeChange={(t) => {
+            setTxType(t)
+            const categoryName = findCategory(selectedProperty?.category_id)?.name ?? null
+            setTemplateType(recommendTemplate(categoryName, t))
+          }}
           property={selectedProperty}
         />
       )}
       {step === 3 && (
         <Step3ContractInfo
-          txType={txType}
-          sellerInfo={sellerInfo}
-          onSellerChange={setSellerInfo}
-          buyerInfo={buyerInfo}
-          onBuyerChange={setBuyerInfo}
-          priceInfo={priceInfo}
-          onPriceChange={setPriceInfo}
-          specialTerms={specialTerms}
-          onSpecialTermsChange={setSpecialTerms}
+          txType={txType} templateType={templateType}
+          sellerInfo={sellerInfo} onSellerChange={setSellerInfo}
+          buyerInfo={buyerInfo} onBuyerChange={setBuyerInfo}
+          priceInfo={priceInfo} onPriceChange={setPriceInfo}
+          deliveryDate={deliveryDate} onDeliveryDateChange={setDeliveryDate}
+          leasePeriodStart={leasePeriodStart} onLeasePeriodStartChange={setLeasePeriodStart}
+          leasePeriodEnd={leasePeriodEnd} onLeasePeriodEndChange={setLeasePeriodEnd}
+          leasePartDesc={leasePartDesc} onLeasePartDescChange={setLeasePartDesc}
+          leasePartArea={leasePartArea} onLeasePartAreaChange={setLeasePartArea}
+          monthlyPayDay={monthlyPayDay} onMonthlyPayDayChange={setMonthlyPayDay}
+          monthlyPayMethod={monthlyPayMethod} onMonthlyPayMethodChange={setMonthlyPayMethod}
+          specialTerms={specialTerms} onSpecialTermsChange={setSpecialTerms}
           property={selectedProperty}
           agentInfo={{ officeName: agentProfile?.office_name ?? '', representative: agentProfile?.representative ?? '', licenseNumber: agentProfile?.license_number ?? '', address: agentProfile?.address ?? '', phone: agentProfile?.phone ?? '' }}
+          isJointBrokerage={isJointBrokerage} onJointBrokerageChange={setIsJointBrokerage}
+          coAgentInfo={coAgentInfo} onCoAgentInfoChange={setCoAgentInfo}
         />
       )}
       {step === 4 && (
@@ -186,8 +232,17 @@ export function ContractFormPage() {
           sellerInfo={sellerInfo}
           buyerInfo={buyerInfo}
           priceInfo={priceInfo}
+          deliveryDate={deliveryDate}
+          leasePeriodStart={leasePeriodStart}
+          leasePeriodEnd={leasePeriodEnd}
+          leasePartDesc={leasePartDesc}
+          leasePartArea={leasePartArea}
+          monthlyPayDay={monthlyPayDay}
+          monthlyPayMethod={monthlyPayMethod}
           specialTerms={specialTerms}
           agentInfo={{ officeName: agentProfile?.office_name ?? '', representative: agentProfile?.representative ?? '', licenseNumber: agentProfile?.license_number ?? '', address: agentProfile?.address ?? '', phone: agentProfile?.phone ?? '' }}
+          isJointBrokerage={isJointBrokerage}
+          coAgentInfo={coAgentInfo}
         />
       )}
 
@@ -301,7 +356,8 @@ function Step2TemplateSelect({ templateType, onTemplateChange, txType, onTxTypeC
   txType: TransactionType; onTxTypeChange: (v: TransactionType) => void
   property: Property | null
 }) {
-  const recommended = property ? recommendTemplate(property.category_id, property.transaction_type) : null
+  const { findCategory } = useCategories()
+  const recommended = property ? recommendTemplate(findCategory(property.category_id)?.name ?? null, property.transaction_type) : null
 
   return (
     <div className="space-y-6">
@@ -316,6 +372,11 @@ function Step2TemplateSelect({ templateType, onTemplateChange, txType, onTxTypeC
             </button>
           ))}
         </div>
+        {property && txType !== property.transaction_type && (
+          <p className="mt-2 text-xs text-amber-600">
+            ※ 매물 등록 시 거래유형({transactionTypeLabel[property.transaction_type]})과 다릅니다. 계약서에는 변경된 유형({transactionTypeLabel[txType]})이 적용됩니다.
+          </p>
+        )}
       </div>
 
       {/* Template Grid */}
@@ -348,22 +409,35 @@ function Step2TemplateSelect({ templateType, onTemplateChange, txType, onTxTypeC
 // ============================================================
 // Step 3: Contract Info Input
 // ============================================================
-type AgentInfo = { officeName: string; representative: string; licenseNumber: string; address: string; phone: string }
+type PriceInfoType = {
+  salePrice: string; deposit: string; monthlyRent: string
+  downPayment: string; downPaymentDate: string
+  midPayment: string; midPaymentDate: string
+  midPayment2: string; midPaymentDate2: string
+  finalPayment: string; finalPaymentDate: string
+  loanAmount: string
+}
 
-function Step3ContractInfo({ txType, sellerInfo, onSellerChange, buyerInfo, onBuyerChange, priceInfo, onPriceChange, specialTerms, onSpecialTermsChange, property, agentInfo }: {
-  txType: TransactionType
+function Step3ContractInfo({ txType, templateType, sellerInfo, onSellerChange, buyerInfo, onBuyerChange, priceInfo, onPriceChange, deliveryDate, onDeliveryDateChange, leasePeriodStart, onLeasePeriodStartChange, leasePeriodEnd, onLeasePeriodEndChange, leasePartDesc, onLeasePartDescChange, leasePartArea, onLeasePartAreaChange, monthlyPayDay, onMonthlyPayDayChange, monthlyPayMethod, onMonthlyPayMethodChange, specialTerms, onSpecialTermsChange, property, agentInfo, isJointBrokerage, onJointBrokerageChange, coAgentInfo, onCoAgentInfoChange }: {
+  txType: TransactionType; templateType: ContractTemplateType
   sellerInfo: { name: string; phone: string; idNumber: string; address: string }
   onSellerChange: (v: typeof sellerInfo) => void
-  buyerInfo: typeof sellerInfo
-  onBuyerChange: (v: typeof sellerInfo) => void
-  priceInfo: { salePrice: string; deposit: string; monthlyRent: string; downPayment: string; downPaymentDate: string; midPayment: string; midPaymentDate: string; finalPayment: string; finalPaymentDate: string }
-  onPriceChange: (v: typeof priceInfo) => void
-  specialTerms: string
-  onSpecialTermsChange: (v: string) => void
-  property: Property | null
-  agentInfo: AgentInfo
+  buyerInfo: typeof sellerInfo; onBuyerChange: (v: typeof sellerInfo) => void
+  priceInfo: PriceInfoType; onPriceChange: (v: PriceInfoType) => void
+  deliveryDate: string; onDeliveryDateChange: (v: string) => void
+  leasePeriodStart: string; onLeasePeriodStartChange: (v: string) => void
+  leasePeriodEnd: string; onLeasePeriodEndChange: (v: string) => void
+  leasePartDesc: string; onLeasePartDescChange: (v: string) => void
+  leasePartArea: string; onLeasePartAreaChange: (v: string) => void
+  monthlyPayDay: string; onMonthlyPayDayChange: (v: string) => void
+  monthlyPayMethod: 'prepaid' | 'postpaid'; onMonthlyPayMethodChange: (v: 'prepaid' | 'postpaid') => void
+  specialTerms: string; onSpecialTermsChange: (v: string) => void
+  property: Property | null; agentInfo: AgentInfo
+  isJointBrokerage: boolean; onJointBrokerageChange: (v: boolean) => void
+  coAgentInfo: AgentInfo; onCoAgentInfoChange: (v: AgentInfo) => void
 }) {
   const formatArea = useFormatArea()
+  const { findCategory } = useCategories()
   const isSale = txType === 'sale'
   const isMonthly = txType === 'monthly'
 
@@ -377,6 +451,9 @@ function Step3ContractInfo({ txType, sellerInfo, onSellerChange, buyerInfo, onBu
             <div><span className="text-gray-500">소재지: </span><span className="font-medium">{property.address}</span></div>
             <div><span className="text-gray-500">전용면적: </span><span className="font-medium">{formatArea(property.exclusive_area_m2)}</span></div>
             <div><span className="text-gray-500">공급면적: </span><span className="font-medium">{formatArea(property.supply_area_m2)}</span></div>
+            {(property.dong || property.ho) && (
+              <div><span className="text-gray-500">동/호: </span><span className="font-medium">{[property.dong && `${property.dong}동`, property.ho && `${property.ho}호`].filter(Boolean).join(' ')}</span></div>
+            )}
             {property.floor && <div><span className="text-gray-500">층수: </span><span className="font-medium">{property.floor}/{property.total_floors}층</span></div>}
             {property.direction && <div><span className="text-gray-500">방향: </span><span className="font-medium">{property.direction}</span></div>}
             {property.built_year && <div><span className="text-gray-500">건축연도: </span><span className="font-medium">{property.built_year}년</span></div>}
@@ -384,16 +461,34 @@ function Step3ContractInfo({ txType, sellerInfo, onSellerChange, buyerInfo, onBu
         </div>
       )}
 
-      {/* Seller/Buyer Info - highlighted as manual */}
+      {/* 임대할부분 (임대차 계약 시) */}
+      {!isSale && (() => {
+        // 매물 기반 동적 placeholder
+        const cat = property ? findCategory(property.category_id)?.name || '' : ''
+        const dongHo = [property?.dong && `${property.dong}동`, property?.ho && `${property.ho}호`].filter(Boolean).join(' ')
+        const phParts = [cat, dongHo, txType === 'jeonse' ? '전세' : '월세', '전체'].filter(Boolean).join(' ')
+        return (
+        <div className="rounded-xl bg-white p-5 shadow-sm ring-2 ring-yellow-200">
+          <p className="mb-1 text-sm font-semibold">임대할 부분</p>
+          <p className="mb-3 text-[10px] font-medium text-yellow-600">수동 입력 필요</p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="sm:col-span-2">
+              <Field label="임대할 부분 설명" value={leasePartDesc} onChange={onLeasePartDescChange} placeholder={`예: ${phParts}`} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500">면적 (㎡)</label>
+              <input type="text" value={leasePartArea} onChange={(e) => onLeasePartAreaChange(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-right focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+            </div>
+          </div>
+        </div>
+        )
+      })()}
+
+      {/* Seller/Buyer Info */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <PersonInfoCard
-          title={isSale ? '매도인 (임대인)' : '임대인'}
-          info={sellerInfo} onChange={onSellerChange}
-        />
-        <PersonInfoCard
-          title={isSale ? '매수인 (임차인)' : '임차인'}
-          info={buyerInfo} onChange={onBuyerChange}
-        />
+        <PersonInfoCard title={isSale ? '매도인' : '임대인'} info={sellerInfo} onChange={onSellerChange} />
+        <PersonInfoCard title={isSale ? '매수인' : '임차인'} info={buyerInfo} onChange={onBuyerChange} />
       </div>
 
       {/* Price Info */}
@@ -402,48 +497,131 @@ function Step3ContractInfo({ txType, sellerInfo, onSellerChange, buyerInfo, onBu
         <p className="mb-4 text-[10px] font-medium text-yellow-600">수동 입력 필요</p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {isSale && (
-            <PriceField label="매매가 (만원)" value={priceInfo.salePrice} onChange={(v) => onPriceChange({ ...priceInfo, salePrice: v })} />
+            <PriceField label="매매대금 (만원)" value={priceInfo.salePrice} onChange={(v) => onPriceChange({ ...priceInfo, salePrice: v })} />
           )}
           {!isSale && (
             <PriceField label="보증금 (만원)" value={priceInfo.deposit} onChange={(v) => onPriceChange({ ...priceInfo, deposit: v })} />
           )}
           {isMonthly && (
-            <PriceField label="월세 (만원)" value={priceInfo.monthlyRent} onChange={(v) => onPriceChange({ ...priceInfo, monthlyRent: v })} />
+            <>
+              <PriceField label="차임/월세 (만원)" value={priceInfo.monthlyRent} onChange={(v) => onPriceChange({ ...priceInfo, monthlyRent: v })} />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="mb-1 block text-xs font-medium text-gray-500">지급일 (매월)</label>
+                  <div className="flex items-center gap-1">
+                    <input type="number" min="1" max="31" value={monthlyPayDay} onChange={(e) => onMonthlyPayDayChange(e.target.value)}
+                      className="w-16 rounded-lg border border-gray-200 px-2 py-2 text-sm text-center focus:border-primary-300 focus:outline-none" />
+                    <span className="text-sm text-gray-500">일</span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <label className="mb-1 block text-xs font-medium text-gray-500">지급방식</label>
+                  <div className="flex gap-1">
+                    {(['prepaid', 'postpaid'] as const).map((m) => (
+                      <button key={m} onClick={() => onMonthlyPayMethodChange(m)}
+                        className={`rounded-lg px-3 py-2 text-xs font-medium ${monthlyPayMethod === m ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                        {m === 'prepaid' ? '선불' : '후불'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </div>
 
         <hr className="my-4 border-gray-100" />
         <p className="mb-3 text-sm font-semibold">납부 일정</p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* 계약금 */}
+        <div className="mb-3 grid grid-cols-2 gap-4">
           <PriceField label="계약금 (만원)" value={priceInfo.downPayment} onChange={(v) => onPriceChange({ ...priceInfo, downPayment: v })} />
           <DateField label="계약금 지급일" value={priceInfo.downPaymentDate} onChange={(v) => onPriceChange({ ...priceInfo, downPaymentDate: v })} />
-          {isSale && (
+        </div>
+        {/* 중도금 1 */}
+        <div className="mb-3 grid grid-cols-2 gap-4">
+          <PriceField label="중도금 (만원)" value={priceInfo.midPayment} onChange={(v) => onPriceChange({ ...priceInfo, midPayment: v })} />
+          <DateField label="중도금 지급일" value={priceInfo.midPaymentDate} onChange={(v) => onPriceChange({ ...priceInfo, midPaymentDate: v })} />
+        </div>
+        {/* 중도금 2 (매매) */}
+        {isSale && (
+          <div className="mb-3 grid grid-cols-2 gap-4">
+            <PriceField label="중도금 2 (만원)" value={priceInfo.midPayment2} onChange={(v) => onPriceChange({ ...priceInfo, midPayment2: v })} />
+            <DateField label="중도금 2 지급일" value={priceInfo.midPaymentDate2} onChange={(v) => onPriceChange({ ...priceInfo, midPaymentDate2: v })} />
+          </div>
+        )}
+        {/* 잔금 */}
+        <div className="mb-3 grid grid-cols-2 gap-4">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">잔금 (만원) — 자동계산</label>
+            <input type="text" readOnly value={formatNumber(priceInfo.finalPayment)}
+              className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-right text-gray-500" />
+          </div>
+          <DateField label="잔금 지급일" value={priceInfo.finalPaymentDate} onChange={(v) => onPriceChange({ ...priceInfo, finalPaymentDate: v })} />
+        </div>
+        {/* 융자금 (매매) */}
+        {isSale && (
+          <div className="grid grid-cols-2 gap-4">
+            <PriceField label="융자금 (만원)" value={priceInfo.loanAmount} onChange={(v) => onPriceChange({ ...priceInfo, loanAmount: v })} />
+            <div />
+          </div>
+        )}
+      </div>
+
+      {/* Delivery & Lease Period */}
+      <div className="rounded-xl bg-white p-5 shadow-sm ring-2 ring-yellow-200">
+        <p className="mb-1 text-sm font-semibold">{isSale ? '소유권이전 및 인도' : '인도 및 계약기간'}</p>
+        <p className="mb-4 text-[10px] font-medium text-yellow-600">수동 입력 필요</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <DateField label={isSale ? '인도일' : '인도 예정일'} value={deliveryDate} onChange={onDeliveryDateChange} />
+          {!isSale && (
             <>
-              <PriceField label="중도금 (만원)" value={priceInfo.midPayment} onChange={(v) => onPriceChange({ ...priceInfo, midPayment: v })} />
-              <DateField label="중도금 지급일" value={priceInfo.midPaymentDate} onChange={(v) => onPriceChange({ ...priceInfo, midPaymentDate: v })} />
+              <div />
+              <DateField label="임대차 기간 시작일" value={leasePeriodStart} onChange={onLeasePeriodStartChange} />
+              <DateField label="임대차 기간 종료일" value={leasePeriodEnd} onChange={onLeasePeriodEndChange} />
             </>
           )}
-          <PriceField label="잔금 (만원)" value={priceInfo.finalPayment} onChange={(v) => onPriceChange({ ...priceInfo, finalPayment: v })} />
-          <DateField label="잔금 지급일" value={priceInfo.finalPaymentDate} onChange={(v) => onPriceChange({ ...priceInfo, finalPaymentDate: v })} />
         </div>
       </div>
 
-      {/* Agent info auto-loaded */}
+      {/* Agent info */}
       <div className="rounded-xl bg-green-50 p-4 ring-1 ring-green-200">
-        <p className="mb-2 text-xs font-bold text-green-700">중개사 정보 (자동 로드)</p>
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs font-bold text-green-700">개업공인중개사 (자동 로드)</p>
+          <label className="flex items-center gap-2 text-xs">
+            <input type="checkbox" checked={isJointBrokerage} onChange={(e) => onJointBrokerageChange(e.target.checked)}
+              className="rounded border-gray-300" />
+            <span className="font-medium text-gray-600">공동중개</span>
+          </label>
+        </div>
         <div className="grid gap-2 text-sm sm:grid-cols-2">
           <div><span className="text-gray-500">사무소: </span><span className="font-medium">{agentInfo.officeName || '-'}</span></div>
           <div><span className="text-gray-500">대표: </span><span className="font-medium">{agentInfo.representative || '-'}</span></div>
           <div><span className="text-gray-500">등록번호: </span><span className="font-medium">{agentInfo.licenseNumber || '-'}</span></div>
+          <div><span className="text-gray-500">소재지: </span><span className="font-medium">{agentInfo.address || '-'}</span></div>
           <div><span className="text-gray-500">연락처: </span><span className="font-medium">{agentInfo.phone || '-'}</span></div>
         </div>
       </div>
 
+      {/* Co-Agent info (공동중개) */}
+      {isJointBrokerage && (
+        <div className="rounded-xl bg-white p-5 shadow-sm ring-2 ring-yellow-200">
+          <p className="mb-1 text-sm font-semibold">공동중개 개업공인중개사</p>
+          <p className="mb-3 text-[10px] font-medium text-yellow-600">수동 입력 필요</p>
+          <div className="space-y-3">
+            <Field label="사무소 명칭" value={coAgentInfo.officeName} onChange={(v) => onCoAgentInfoChange({ ...coAgentInfo, officeName: v })} />
+            <Field label="대표자명" value={coAgentInfo.representative} onChange={(v) => onCoAgentInfoChange({ ...coAgentInfo, representative: v })} />
+            <Field label="등록번호" value={coAgentInfo.licenseNumber} onChange={(v) => onCoAgentInfoChange({ ...coAgentInfo, licenseNumber: v })} />
+            <Field label="사무소 소재지" value={coAgentInfo.address} onChange={(v) => onCoAgentInfoChange({ ...coAgentInfo, address: v })} />
+            <Field label="전화번호" value={coAgentInfo.phone} onChange={(v) => onCoAgentInfoChange({ ...coAgentInfo, phone: v })} />
+          </div>
+        </div>
+      )}
+
       {/* Special Terms */}
       <div className="rounded-xl bg-white p-5 shadow-sm ring-2 ring-yellow-200">
         <p className="mb-1 text-sm font-semibold">특약사항</p>
-        <p className="mb-3 text-[10px] font-medium text-yellow-600">수동 입력 필요</p>
-        <textarea value={specialTerms} onChange={(e) => onSpecialTermsChange(e.target.value)} rows={5}
+        <p className="mb-3 text-[10px] font-medium text-yellow-600">수동 입력 필요 · 내용이 많으면 별지 첨부 가능</p>
+        <textarea value={specialTerms} onChange={(e) => onSpecialTermsChange(e.target.value)} rows={6}
           placeholder="특약사항을 입력하세요..." className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
       </div>
     </div>
@@ -499,22 +677,71 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
 }
 
 // ============================================================
-// Step 4: Preview
+// Step 4: Preview — 실제 계약서 양식 기반
 // ============================================================
-function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, priceInfo, specialTerms, agentInfo }: {
+
+// 만원 → 한글 금액 변환
+function manwonToKorean(manwon: number): string {
+  if (!manwon || manwon <= 0) return ''
+  const dg = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구']
+  const u4 = ['', '십', '백', '천']
+  const chunk = (n: number) => {
+    let s = '', r = n
+    for (let i = 3; i >= 0; i--) {
+      const d = Math.floor(r / Math.pow(10, i)); r %= Math.pow(10, i)
+      if (d > 0) s += (d === 1 && i === 1 ? '' : dg[d]) + u4[i]
+    }
+    return s
+  }
+  const eok = Math.floor(manwon / 10000), man = manwon % 10000
+  let result = ''
+  if (eok > 0) result += chunk(eok) + '억'
+  if (man > 0) result += chunk(man) + '만'
+  return result
+}
+
+function fmtDate(d: string) {
+  if (!d) return '    년   월   일'
+  const [y, m, day] = d.split('-')
+  return `${y}년 ${m}월 ${day}일`
+}
+
+function fmtWon(manwon: string | number) {
+  const n = typeof manwon === 'string' ? Number(manwon) : manwon
+  if (!n) return ''
+  return (n * 10000).toLocaleString('ko-KR')
+}
+
+function getContractTitle(templateType: ContractTemplateType, txType: TransactionType) {
+  const txLabel = txType === 'sale' ? '매매' : txType === 'jeonse' ? '전세' : '월세'
+  if (templateType === 'land_sale') return '토지 매매 계약서'
+  if (templateType.startsWith('factory')) return `공장/창고 ${txLabel} 계약서`
+  if (templateType.startsWith('commercial')) return `상가 ${txLabel} 계약서`
+  return `부동산 ${txLabel} 계약서`
+}
+
+function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, priceInfo, deliveryDate, leasePeriodStart, leasePeriodEnd, leasePartDesc, leasePartArea, monthlyPayDay, monthlyPayMethod, specialTerms, agentInfo, isJointBrokerage, coAgentInfo }: {
   property: Property | null; templateType: ContractTemplateType; txType: TransactionType
   sellerInfo: { name: string; phone: string; idNumber: string; address: string }
   buyerInfo: typeof sellerInfo
-  priceInfo: { salePrice: string; deposit: string; monthlyRent: string; downPayment: string; downPaymentDate: string; midPayment: string; midPaymentDate: string; finalPayment: string; finalPaymentDate: string }
-  specialTerms: string
-  agentInfo: AgentInfo
+  priceInfo: PriceInfoType
+  deliveryDate: string; leasePeriodStart: string; leasePeriodEnd: string
+  leasePartDesc: string; leasePartArea: string
+  monthlyPayDay: string; monthlyPayMethod: 'prepaid' | 'postpaid'
+  specialTerms: string; agentInfo: AgentInfo
+  isJointBrokerage: boolean; coAgentInfo: AgentInfo
 }) {
-  const formatArea = useFormatArea()
   const { findCategory } = useCategories()
   const isSale = txType === 'sale'
   const isMonthly = txType === 'monthly'
+  const isLand = templateType === 'land_sale'
+  const isCommercial = templateType.startsWith('commercial') || templateType.startsWith('factory')
   const previewRef = useRef<HTMLDivElement>(null)
   const [isPdfLoading, setIsPdfLoading] = useState(false)
+  const sellerRole = isSale ? '매도인' : '임대인'
+  const buyerRole = isSale ? '매수인' : '임차인'
+  const td = 'border border-gray-400 px-2 py-1.5 text-sm'
+  const th = 'border border-gray-400 bg-gray-50 px-2 py-1.5 text-sm font-medium text-center whitespace-nowrap'
 
   const handleDownloadPdf = async () => {
     if (!previewRef.current) return
@@ -550,101 +777,284 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
 
   return (
     <div className="space-y-6">
-      {/* Contract Preview */}
-      <div ref={previewRef} className="mx-auto max-w-3xl rounded-xl bg-white p-8 shadow-sm ring-1 ring-gray-200 print:shadow-none print:ring-0">
-        <h2 className="mb-6 text-center text-xl font-bold">부동산 {isSale ? '매매' : '임대차'} 계약서</h2>
-        <p className="mb-4 text-center text-sm text-gray-500">({contractTemplateLabel[templateType]})</p>
+      <div ref={previewRef} className="mx-auto max-w-3xl bg-white px-8 py-8 shadow ring-1 ring-gray-200 print:shadow-none print:ring-0" style={{ fontFamily: 'serif' }}>
 
-        {/* Property Info */}
-        <section className="mb-6">
-          <h3 className="mb-3 border-b-2 border-gray-800 pb-1 text-sm font-bold">제1조 (부동산의 표시)</h3>
-          <table className="w-full text-sm">
-            <tbody>
-              <Row label="소재지" value={property?.address ?? '-'} />
-              <Row label="구조/용도" value={`${findCategory(property?.category_id)?.name ?? '-'}`} />
-              <Row label="전용면적" value={formatArea(property?.exclusive_area_m2)} />
-              <Row label="공급면적" value={formatArea(property?.supply_area_m2)} />
-              {property?.floor && <Row label="해당층/총층" value={`${property.floor}층 / ${property.total_floors}층`} />}
-              {property?.direction && <Row label="방향" value={property.direction} />}
-              {property?.built_year && <Row label="건축연도" value={`${property.built_year}년`} />}
-            </tbody>
-          </table>
-        </section>
+        {/* ── 제목 ── */}
+        <h2 className="mb-4 text-center text-2xl font-bold tracking-[0.3em]">{getContractTitle(templateType, txType)}</h2>
+        <p className="mb-6 text-sm leading-relaxed">
+          {isSale
+            ? `본 부동산에 대하여 ${sellerRole}과 ${buyerRole} 쌍방은 다음과 같이 합의하여 매매 계약을 체결한다.`
+            : `${sellerRole}과 ${buyerRole} 쌍방은 아래 표시 부동산에 관하여 다음 계약 내용과 같이 임대차계약을 체결한다.`}
+        </p>
 
-        {/* Price Info */}
-        <section className="mb-6">
-          <h3 className="mb-3 border-b-2 border-gray-800 pb-1 text-sm font-bold">제2조 ({isSale ? '매매대금' : '임대차보증금'})</h3>
-          <table className="w-full text-sm">
-            <tbody>
-              {isSale && <Row label="매매대금" value={`${formatPrice(parseCommaNumber(priceInfo.salePrice))}원`} bold />}
-              {!isSale && <Row label="보증금" value={`${formatPrice(parseCommaNumber(priceInfo.deposit))}원`} bold />}
-              {isMonthly && <Row label="월세" value={`${formatPrice(parseCommaNumber(priceInfo.monthlyRent))}원`} bold />}
-              <Row label="계약금" value={`${formatPrice(parseCommaNumber(priceInfo.downPayment))}원 (${priceInfo.downPaymentDate || '-'})`} />
-              {isSale && priceInfo.midPayment && <Row label="중도금" value={`${formatPrice(parseCommaNumber(priceInfo.midPayment))}원 (${priceInfo.midPaymentDate || '-'})`} />}
-              <Row label="잔금" value={`${formatPrice(parseCommaNumber(priceInfo.finalPayment))}원 (${priceInfo.finalPaymentDate || '-'})`} />
-            </tbody>
-          </table>
-        </section>
+        {/* ── 1. 부동산의 표시 ── */}
+        <p className="mb-1 text-sm font-bold">1. 부동산의 표시</p>
+        <table className="mb-6 w-full border-collapse">
+          <colgroup>
+            <col style={{ width: 80 }} />
+            <col style={{ width: 50 }} />
+            <col />
+            <col style={{ width: 50 }} />
+            <col />
+            <col style={{ width: 50 }} />
+            <col style={{ width: 90 }} />
+          </colgroup>
+          <tbody>
+            {/* 소재지 */}
+            <tr>
+              <td className={th}>소 재 지</td>
+              <td className={td} colSpan={6}>{property?.address || ''}</td>
+            </tr>
+            {/* 토지 */}
+            <tr>
+              <td className={th}>토 &nbsp; 지</td>
+              <td className={th}>{isLand ? '대표지목' : '지 목'}</td>
+              <td className={td}>{isLand ? '전' : '대'}</td>
+              {isLand ? (
+                <><td className={th}>거래지분</td><td className={td}></td></>
+              ) : (
+                <td className={td} colSpan={2}></td>
+              )}
+              <td className={th}>면 적</td>
+              <td className={td} style={{ textAlign: 'right' }}>{property?.supply_area_m2 ? `${property.supply_area_m2} ㎡` : ''}</td>
+            </tr>
+            {/* 건물 (토지 제외) */}
+            {!isLand && (
+              <tr>
+                <td className={th}>건 &nbsp; 물</td>
+                <td className={th}>구 조</td>
+                <td className={td}>{(property?.extra_info as Record<string, string> | null)?.structure || ''}</td>
+                <td className={th}>용 도</td>
+                <td className={td}>{findCategory(property?.category_id)?.name || ''}</td>
+                <td className={th}>면 적</td>
+                <td className={td} style={{ textAlign: 'right' }}>{property?.exclusive_area_m2 ? `${property.exclusive_area_m2} ㎡` : ''}</td>
+              </tr>
+            )}
+            {/* 임대할부분 (임대차) */}
+            {!isSale && (
+              <tr>
+                <td className={th}>임대할부분</td>
+                <td className={td} colSpan={4}>{leasePartDesc || ''}</td>
+                <td className={th}>면 적</td>
+                <td className={td} style={{ textAlign: 'right' }}>{leasePartArea ? `${leasePartArea} ㎡` : ''}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
 
-        {/* Special Terms */}
-        {specialTerms && (
-          <section className="mb-6">
-            <h3 className="mb-3 border-b-2 border-gray-800 pb-1 text-sm font-bold">특약사항</h3>
-            <p className="whitespace-pre-wrap text-sm leading-relaxed">{specialTerms}</p>
-          </section>
-        )}
+        {/* ── 2. 계약내용 ── */}
+        <p className="mb-1 text-sm font-bold">2. 계약내용</p>
 
-        {/* Parties */}
-        <section className="mb-6">
-          <h3 className="mb-3 border-b-2 border-gray-800 pb-1 text-sm font-bold">당사자</h3>
-          <div className="grid gap-6 sm:grid-cols-2">
-            <div>
-              <p className="mb-2 text-xs font-bold text-gray-500">{isSale ? '매도인 (임대인)' : '임대인'}</p>
-              <table className="w-full text-sm">
-                <tbody>
-                  <Row label="성명" value={sellerInfo.name} />
-                  <Row label="연락처" value={sellerInfo.phone || '-'} />
-                  <Row label="주소" value={sellerInfo.address || '-'} />
-                </tbody>
-              </table>
-              <div className="mt-4 border-b border-dashed border-gray-400 pb-8 text-center text-xs text-gray-400">서명/날인</div>
-            </div>
-            <div>
-              <p className="mb-2 text-xs font-bold text-gray-500">{isSale ? '매수인 (임차인)' : '임차인'}</p>
-              <table className="w-full text-sm">
-                <tbody>
-                  <Row label="성명" value={buyerInfo.name} />
-                  <Row label="연락처" value={buyerInfo.phone || '-'} />
-                  <Row label="주소" value={buyerInfo.address || '-'} />
-                </tbody>
-              </table>
-              <div className="mt-4 border-b border-dashed border-gray-400 pb-8 text-center text-xs text-gray-400">서명/날인</div>
-            </div>
+        {/* 제1조 */}
+        <p className="mb-1 indent-4 text-sm leading-relaxed">
+          {isSale
+            ? `제1조 [목 적] 위 부동산의 매매에 있어 ${buyerRole}은 매매대금을 아래와 같이 지불하기로 한다.`
+            : `제1조 [목 적] 위 부동산의 임대차에 한하여 ${sellerRole}과 ${buyerRole}은 합의에 의하여 임차보증금 및 차임을 아래와 같이 지급하기로 한다.`}
+        </p>
+
+        {/* 가격 테이블 */}
+        <table className="mb-4 w-full border-collapse">
+          <tbody>
+            {isSale ? (<>
+              <tr>
+                <td className={th} style={{ width: 80 }}>매매대금</td>
+                <td className={td}>금 {manwonToKorean(Number(priceInfo.salePrice))}원정</td>
+                <td className={td} style={{ width: 200, textAlign: 'right' }}>(￦{fmtWon(priceInfo.salePrice)})</td>
+              </tr>
+              <tr>
+                <td className={th}>계 약 금</td>
+                <td className={td}>금 {manwonToKorean(Number(priceInfo.downPayment))}원정</td>
+                <td className={td} style={{ textAlign: 'right' }}>은 계약시 지불하고 영수함. 영수인 <span className="inline-block w-12 border-b border-gray-400 text-center text-xs">(印)</span></td>
+              </tr>
+              <tr>
+                <td className={th} rowSpan={priceInfo.midPayment2 ? 2 : 1}>중 도 금</td>
+                <td className={td}>금 {manwonToKorean(Number(priceInfo.midPayment))}원정</td>
+                <td className={td} style={{ textAlign: 'right' }}>은 {priceInfo.midPaymentDate ? fmtDate(priceInfo.midPaymentDate) : '    년   월   일'}에 지불하며,</td>
+              </tr>
+              {priceInfo.midPayment2 && (
+                <tr>
+                  <td className={td}>금 {manwonToKorean(Number(priceInfo.midPayment2))}원정</td>
+                  <td className={td} style={{ textAlign: 'right' }}>은 {priceInfo.midPaymentDate2 ? fmtDate(priceInfo.midPaymentDate2) : '    년   월   일'}에 지불하며,</td>
+                </tr>
+              )}
+              <tr>
+                <td className={th}>잔 &nbsp; 금</td>
+                <td className={td}>금 {manwonToKorean(Number(priceInfo.finalPayment))}원정</td>
+                <td className={td} style={{ textAlign: 'right' }}>은 {fmtDate(priceInfo.finalPaymentDate)}에 지불한다.</td>
+              </tr>
+              <tr>
+                <td className={th}>융 자 금</td>
+                <td className={td}>금 {manwonToKorean(Number(priceInfo.loanAmount))}원정</td>
+                <td className={td} style={{ textAlign: 'right' }}>은 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 하기로 한다.</td>
+              </tr>
+            </>) : (<>
+              <tr>
+                <td className={th} style={{ width: 80 }}>보 증 금</td>
+                <td className={td}>금 {manwonToKorean(Number(priceInfo.deposit))}원정</td>
+                <td className={td} style={{ width: 200, textAlign: 'right' }}>(￦{fmtWon(priceInfo.deposit)})</td>
+              </tr>
+              <tr>
+                <td className={th}>계 약 금</td>
+                <td className={td}>금 {manwonToKorean(Number(priceInfo.downPayment))}원정</td>
+                <td className={td} style={{ textAlign: 'right' }}>은 계약시에 지급하고 영수함 ※영수자 <span className="inline-block w-12 border-b border-gray-400 text-center text-xs">(印)</span></td>
+              </tr>
+              {priceInfo.midPayment && (
+                <tr>
+                  <td className={th}>중 도 금</td>
+                  <td className={td}>금 {manwonToKorean(Number(priceInfo.midPayment))}원정</td>
+                  <td className={td} style={{ textAlign: 'right' }}>은 {fmtDate(priceInfo.midPaymentDate)}에 지급하며,</td>
+                </tr>
+              )}
+              <tr>
+                <td className={th}>잔 &nbsp; 금</td>
+                <td className={td}>금 {manwonToKorean(Number(priceInfo.finalPayment))}원정</td>
+                <td className={td} style={{ textAlign: 'right' }}>은 {fmtDate(priceInfo.finalPaymentDate)}에 지급한다</td>
+              </tr>
+              {isMonthly && (
+                <tr>
+                  <td className={th}>차 &nbsp; 임</td>
+                  <td className={td}>금 {manwonToKorean(Number(priceInfo.monthlyRent))}원정</td>
+                  <td className={td} style={{ textAlign: 'right' }}>은 매월 {monthlyPayDay}일({monthlyPayMethod === 'prepaid' ? '선불' : '후불'}) 지급한다.</td>
+                </tr>
+              )}
+            </>)}
+          </tbody>
+        </table>
+
+        {/* ── 제2조~제9조 ── */}
+        <div className="mb-6 space-y-2 text-sm leading-relaxed">
+          {isSale ? (<>
+            <p className="indent-4">제2조 [소유권이전 등] {sellerRole}은 매매대금의 잔금을 수령과 동시에 {buyerRole}에게 소유권이전등기에 필요한 모든 서류를 교부하고 등기절차에 협력하며, 위 부동산의 인도일은 <b>{fmtDate(deliveryDate)}</b>에 인도한다.</p>
+            <p className="indent-4">제3조 [제한물권 등의 소멸] {sellerRole}은 위 부동산에 설정된 저당권, 지상권, 임차권 등 소유권의 행사를 제한하는 사유가 있거나, 제세공과 기타 부담금의 미납금 등이 있을때에는 잔금 수수일까지 그 권리의 하자 및 부담 등을 제거하여 완전한 소유권을 {buyerRole}에게 이전한다. 다만, 승계하기로 합의하는 권리 및 금액은 그러하지 아니한다.</p>
+            <p className="indent-4">제4조 [지방세 등] 위 부동산에 관하여 발생한 수익의 귀속과 제세공과금 등의 부담은 위 부동산의 인도일을 기준으로 하되, 지방세의 납부의무 및 납부책임은 지방세법의 규정에 의한다.</p>
+            <p className="indent-4">제5조 [계약의 해제] {buyerRole}이 {sellerRole}에게 중도금(중도금이 없을때에는 잔금)을 지불하기 전까지 {sellerRole}은 계약금의 배액을 상환하고, {buyerRole}은 계약금을 포기하고 본 계약을 해제할 수 있다.</p>
+            <p className="indent-4">제6조 [채무불이행과 손해배상의 예정] {sellerRole} 또는 {buyerRole}가 본 계약상의 내용에 대하여 불이행이 있을 경우 그 상대방은 불이행한 자에 대하여 서면으로 최고하고 계약을 해제할 수 있다. 그리고 계약 당사자는 계약해제에 따른 손해배상을 각각 상대방에게 청구할 수 있으며, 손해배상에 대하여 별도의 약정이 없는 한 계약금을 손해배상의 기준으로 본다.</p>
+            <p className="indent-4">제7조 [중개보수] 개업공인중개사는 {sellerRole} 또는 {buyerRole}의 본 계약 불이행에 대하여 책임을 지지 않는다. 또한 중개보수는 본 계약 체결에 따라 계약당사자 쌍방이 각각 지불하며, 개업공인중개사의 고의나 과실없이 본계약이 무효, 취소 또는 해제되어도 중개보수는 지급한다. 공동 중개인 경우에 {sellerRole}과 {buyerRole}은 자신이 중개 의뢰한 개업공인중개사에게 각각 중개보수를 지급한다.</p>
+            <p className="indent-4">제8조 [중개보수 외] {sellerRole} 또는 {buyerRole}이 본 계약 이외의 업무를 의뢰한 경우 이에 관한 보수는 중개보수와는 별도로 지급하며 그 금액은 합의에 의한다.</p>
+            <p className="indent-4">제9조 [중개대상물확인설명서교부 등] 개업공인중개사는 중개대상물확인설명서를 작성하고 업무보증관계증서(공제증서등)사본을 첨부하여 계약체결과 동시에 거래당사자 쌍방에게 교부한다.</p>
+          </>) : (<>
+            <p className="indent-4">제2조 [존속기간] {sellerRole}은 위 부동산을 임대차 목적대로 사용할 수 있는 상태로 <b>{fmtDate(deliveryDate)}</b>까지 {buyerRole}에게 인도하며, 임대차 기간은 인도일로부터 <b>{fmtDate(leasePeriodEnd)}</b>까지로 한다.</p>
+            <p className="indent-4">제3조 [용도변경 및 전대 등] {buyerRole}은 {sellerRole}의 동의없이 위 부동산의 용도나 구조를 변경하거나 전대, 임차권 양도 또는 담보제공을 하지 못하며 임대차 목적 이외의 용도로 사용할 수 없다.</p>
+            <p className="indent-4">제4조 [계약의 해지] {buyerRole}의 차임 연체액이 {isCommercial ? '3기' : '2기'}의 차임액에 달하거나, 제3조를 위반하였을 때 {sellerRole}은 즉시 본 계약을 해지할 수 있다.</p>
+            <p className="indent-4">제5조 [계약의 종료] 임대차 계약이 종료된 경우 {buyerRole}은 위 부동산을 원상으로 회복하여 {sellerRole}에게 반환한다. 이러한 경우 {sellerRole}은 보증금을 {buyerRole}에게 반환하고, 연체 임대료 또는 손해배상금이 있을 때는 이들을 제하고 그 잔액을 반환한다.</p>
+            <p className="indent-4">제6조 [계약의 해제] {buyerRole}이 {sellerRole}에게 중도금(중도금이 없을때는 잔금)을 지급하기 전까지 {sellerRole}은 계약금의 배액을 상환하고, {buyerRole}은 계약금을 포기하고 이 계약을 해제할 수 있다.</p>
+            <p className="indent-4">제7조 [채무불이행과 손해배상의 예정] {sellerRole} 또는 {buyerRole}은 본 계약상의 내용에 대하여 불이행이 있을 경우 그 상대방은 불이행한 자에 대하여 서면으로 최고하고 계약을 해제할 수 있다. 이 경우 계약 당사자는 계약해제에 따른 손해배상을 각각 상대방에게 청구할 수 있으며, 손해배상에 대하여 별도의 약정이 없는 한 계약금을 손해배상의 기준으로 본다.</p>
+            <p className="indent-4">제8조 [중개보수] 개업공인중개사는 {sellerRole} 또는 {buyerRole}의 본 계약 불이행에 대하여 책임을 지지 않는다. 또한 중개보수는 본 계약 체결에 따라 계약 당사자 쌍방이 각각 지급하며, 개업공인중개사의 고의나 과실 없이 본 계약이 무효, 취소 또는 해제되어도 중개보수는 지급한다. 공동중개인 경우에 {sellerRole}과 {buyerRole}은 자신이 중개 의뢰한 개업공인중개사에게 각각 중개보수를 지급한다.</p>
+            <p className="indent-4">제9조 [중개대상물확인설명서교부 등] 개업공인중개사는 중개대상물확인설명서를 작성하고 업무보증관계증서(공제증서 등) 사본을 첨부하여 거래당사자 쌍방에게 교부한다.</p>
+          </>)}
+        </div>
+
+        {/* ── 특약사항 ── */}
+        <div className="mb-6">
+          <p className="mb-2 text-sm font-bold">[ 특약사항 ]</p>
+          <div className="min-h-[80px] border border-gray-300 p-3">
+            {specialTerms ? (
+              <p className="whitespace-pre-wrap text-sm leading-relaxed">{specialTerms}</p>
+            ) : (
+              <p className="text-sm text-gray-300">-이하여백-</p>
+            )}
           </div>
-        </section>
+        </div>
 
-        {/* Agent Info */}
-        <section>
-          <h3 className="mb-3 border-b-2 border-gray-800 pb-1 text-sm font-bold">개업공인중개사</h3>
-          <table className="w-full text-sm">
-            <tbody>
-              <Row label="사무소명" value={agentInfo.officeName || '-'} />
-              <Row label="대표" value={agentInfo.representative || '-'} />
-              <Row label="등록번호" value={agentInfo.licenseNumber || '-'} />
-              <Row label="소재지" value={agentInfo.address || '-'} />
-              <Row label="연락처" value={agentInfo.phone || '-'} />
-            </tbody>
-          </table>
-          <div className="mt-4 border-b border-dashed border-gray-400 pb-8 text-center text-xs text-gray-400">서명/날인</div>
-        </section>
+        {/* ── 계약일 + 서명 안내 ── */}
+        <p className="mb-6 text-center text-sm">
+          본 계약을 증명하기 위하여 계약 당사자가 이의 없음을 확인하고 각각 서명 또는 날인한다.
+          <span className="ml-8">{new Date().getFullYear()}년 {String(new Date().getMonth() + 1).padStart(2, '0')}월 {String(new Date().getDate()).padStart(2, '0')}일</span>
+        </p>
+
+        {/* ── 당사자 + 개업공인중개사 테이블 ── */}
+        <table className="w-full border-collapse">
+          <tbody>
+            {/* 매도인/임대인 */}
+            <tr>
+              <td className={th} rowSpan={2} style={{ width: 32, writingMode: 'vertical-rl', letterSpacing: '0.3em' }}>{sellerRole}</td>
+              <td className={th} style={{ width: 70 }}>주 &nbsp; 소</td>
+              <td className={td} colSpan={5}>{sellerInfo.address || ''}</td>
+              <td className={td} rowSpan={2} style={{ width: 36, textAlign: 'center', verticalAlign: 'middle' }}>(印)</td>
+            </tr>
+            <tr>
+              <td className={th}>주민등록번호</td>
+              <td className={td}>{sellerInfo.idNumber || ''}</td>
+              <td className={th} style={{ width: 36 }}>전화</td>
+              <td className={td}>{sellerInfo.phone || ''}</td>
+              <td className={th} style={{ width: 36 }}>성명</td>
+              <td className={td} style={{ width: 80 }}>{sellerInfo.name || ''}</td>
+            </tr>
+
+            {/* 매수인/임차인 */}
+            <tr>
+              <td className={th} rowSpan={2} style={{ writingMode: 'vertical-rl', letterSpacing: '0.3em' }}>{buyerRole}</td>
+              <td className={th}>주 &nbsp; 소</td>
+              <td className={td} colSpan={5}>{buyerInfo.address || ''}</td>
+              <td className={td} rowSpan={2} style={{ textAlign: 'center', verticalAlign: 'middle' }}>(印)</td>
+            </tr>
+            <tr>
+              <td className={th}>주민등록번호</td>
+              <td className={td}>{buyerInfo.idNumber || ''}</td>
+              <td className={th}>전화</td>
+              <td className={td}>{buyerInfo.phone || ''}</td>
+              <td className={th}>성명</td>
+              <td className={td}>{buyerInfo.name || ''}</td>
+            </tr>
+
+            {/* 개업공인중개사 1 */}
+            <tr>
+              <td className={th} rowSpan={3} style={{ writingMode: 'vertical-rl', letterSpacing: '0.15em', fontSize: '11px' }}>{isJointBrokerage ? '개업공인중개사①' : '개업공인중개사'}</td>
+              <td className={th}>사무소 소재지</td>
+              <td className={td} colSpan={6}>{agentInfo.address || ''}</td>
+            </tr>
+            <tr>
+              <td className={th}>사무소 명칭</td>
+              <td className={td} colSpan={2}>{agentInfo.officeName || ''}</td>
+              <td className={th} style={{ width: 60 }}>대 표 자</td>
+              <td className={td}>{agentInfo.representative || ''}</td>
+              <td className={th} style={{ width: 50 }}>서명날인</td>
+              <td className={td} style={{ textAlign: 'center' }}>(印)</td>
+            </tr>
+            <tr>
+              <td className={th}>전 화 번 호</td>
+              <td className={td}>{agentInfo.phone || ''}</td>
+              <td className={th}>등록번호</td>
+              <td className={td} colSpan={2}>{agentInfo.licenseNumber || ''}</td>
+              <td className={th} style={{ fontSize: '10px' }}>소속공인중개사</td>
+              <td className={td} style={{ textAlign: 'center', fontSize: '10px' }}>서명날인 (印)</td>
+            </tr>
+
+            {/* 개업공인중개사 2 (공동중개) */}
+            {isJointBrokerage && (<>
+              <tr>
+                <td className={th} rowSpan={3} style={{ writingMode: 'vertical-rl', letterSpacing: '0.15em', fontSize: '11px' }}>개업공인중개사②</td>
+                <td className={th}>사무소 소재지</td>
+                <td className={td} colSpan={6}>{coAgentInfo.address || ''}</td>
+              </tr>
+              <tr>
+                <td className={th}>사무소 명칭</td>
+                <td className={td} colSpan={2}>{coAgentInfo.officeName || ''}</td>
+                <td className={th}>대 표 자</td>
+                <td className={td}>{coAgentInfo.representative || ''}</td>
+                <td className={th}>서명날인</td>
+                <td className={td} style={{ textAlign: 'center' }}>(印)</td>
+              </tr>
+              <tr>
+                <td className={th}>전 화 번 호</td>
+                <td className={td}>{coAgentInfo.phone || ''}</td>
+                <td className={th}>등록번호</td>
+                <td className={td} colSpan={2}>{coAgentInfo.licenseNumber || ''}</td>
+                <td className={th} style={{ fontSize: '10px' }}>소속공인중개사</td>
+                <td className={td} style={{ textAlign: 'center', fontSize: '10px' }}>서명날인 (印)</td>
+              </tr>
+            </>)}
+          </tbody>
+        </table>
+
+        <p className="mt-4 text-center text-xs text-gray-400">
+          {sellerRole}과 {buyerRole} 및 개업공인중개사는 매 장마다 간인하여야 하며 각 1통씩 보관한다.
+        </p>
       </div>
 
       <div className="text-center">
-        <button
-          onClick={handleDownloadPdf}
-          disabled={isPdfLoading}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
-        >
+        <button onClick={handleDownloadPdf} disabled={isPdfLoading}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50">
           {isPdfLoading ? (
             <><svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>PDF 생성 중...</>
           ) : (
@@ -653,14 +1063,5 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
         </button>
       </div>
     </div>
-  )
-}
-
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
-  return (
-    <tr className="border-b border-gray-100">
-      <td className="w-28 py-2 text-xs text-gray-500">{label}</td>
-      <td className={`py-2 text-sm ${bold ? 'font-bold text-primary-700' : ''}`}>{value}</td>
-    </tr>
   )
 }
