@@ -130,25 +130,26 @@ export type ExtraFieldDef = {
   unit?: string            // suffix label (e.g., 'm', 'kW')
   showPriceHint?: boolean  // show formatPrice hint for price fields (만원)
   tab: 'structure' | 'detail' | 'price'  // which tab to render in
+  required?: boolean       // 계약서/확인설명서 필수 필드
 }
 
 export const EXTRA_FIELDS: Record<CategoryGroup, ExtraFieldDef[]> = {
   residential: [
-    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트', '조적조', '목조', '경량철골'], tab: 'structure' },
+    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트', '조적조', '목조', '경량철골'], tab: 'structure', required: true },
     { key: 'building_usage', label: '건물용도', type: 'text', placeholder: '예: 단독주택, 다세대주택, 아파트', tab: 'structure' },
     { key: 'land_category', label: '지목', type: 'select', options: ['대', '전', '답', '임야', '잡종지', '기타'], tab: 'structure' },
     { key: 'land_area_m2', label: '토지면적', type: 'area', tab: 'structure' },
-    { key: 'heating_type', label: '난방방식', type: 'select', options: ['개별난방', '중앙난방', '지역난방'], tab: 'structure' },
+    { key: 'heating_type', label: '난방방식', type: 'select', options: ['개별난방', '중앙난방', '지역난방'], tab: 'structure', required: true },
     { key: 'household_count', label: '세대수', type: 'number', placeholder: '예: 500', tab: 'structure' },
   ],
   presale: [
-    { key: 'heating_type', label: '난방방식', type: 'select', options: ['개별난방', '중앙난방', '지역난방'], tab: 'structure' },
+    { key: 'heating_type', label: '난방방식', type: 'select', options: ['개별난방', '중앙난방', '지역난방'], tab: 'structure', required: true },
     { key: 'builder', label: '시공사', type: 'text', placeholder: '예: 삼성물산', tab: 'structure' },
-    { key: 'expected_move_in', label: '입주예정일', type: 'text', placeholder: '예: 2027년 6월', tab: 'detail' },
+    { key: 'expected_move_in', label: '입주예정일', type: 'text', placeholder: '예: 2027년 6월', tab: 'detail', required: true },
     { key: 'premium', label: '프리미엄 (만원)', type: 'number', placeholder: '예: 5000', showPriceHint: true, tab: 'price' },
   ],
   commercial: [
-    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트', '조적조'], tab: 'structure' },
+    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트', '조적조'], tab: 'structure', required: true },
     { key: 'building_usage', label: '건물용도', type: 'text', placeholder: '예: 근린생활시설, 판매시설', tab: 'structure' },
     { key: 'land_category', label: '지목', type: 'select', options: ['대', '전', '답', '잡종지', '기타'], tab: 'structure' },
     { key: 'land_area_m2', label: '토지면적', type: 'area', tab: 'structure' },
@@ -160,20 +161,20 @@ export const EXTRA_FIELDS: Record<CategoryGroup, ExtraFieldDef[]> = {
   ],
   office: [
     { key: 'ceiling_height', label: '층고 (m)', type: 'number', step: '0.1', placeholder: '예: 2.7', tab: 'structure' },
-    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트', '조적조'], tab: 'structure' },
+    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트', '조적조'], tab: 'structure', required: true },
   ],
   knowledge_center: [
     { key: 'ceiling_height', label: '층고 (m)', type: 'number', step: '0.1', placeholder: '예: 2.7', tab: 'structure' },
-    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트'], tab: 'structure' },
+    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트'], tab: 'structure', required: true },
     { key: 'household_count', label: '총 호실수', type: 'number', placeholder: '예: 200', tab: 'structure' },
     { key: 'business_restriction', label: '입주업종', type: 'text', placeholder: '예: 제조업, IT, 연구개발', tab: 'detail' },
   ],
   industrial: [
-    { key: 'land_category', label: '지목', type: 'select', options: ['대', '전', '답', '임야', '잡종지', '기타'], tab: 'structure' },
-    { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure' },
+    { key: 'land_category', label: '지목', type: 'select', options: ['대', '전', '답', '임야', '잡종지', '기타'], tab: 'structure', required: true },
+    { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure', required: true },
     // 건물면적, 층고, 건물구조는 buildings 배열로 관리 (PropertyFormPage에서 별도 UI 렌더링)
-    { key: 'zoning', label: '용도지역', type: 'select', options: ['일반공업', '준공업', '전용공업', '계획관리', '자연녹지', '기타'], tab: 'structure' },
-    { key: 'road_frontage', label: '접도', type: 'select', options: ['~4m', '4~8m', '8~12m', '12m~', '맹지'], tab: 'structure' },
+    { key: 'zoning', label: '용도지역', type: 'select', options: ['일반공업', '준공업', '전용공업', '계획관리', '자연녹지', '기타'], tab: 'structure', required: true },
+    { key: 'road_frontage', label: '접도', type: 'select', options: ['~4m', '4~8m', '8~12m', '12m~', '맹지'], tab: 'structure', required: true },
     { key: 'power_capacity', label: '전력용량', type: 'text', placeholder: '예: 150kW', tab: 'detail' },
     { key: 'truck_25t', label: '25톤 진입 가능', type: 'checkbox', tab: 'detail' },
     { key: 'truck_wingbody', label: '윙바디 진입 가능', type: 'checkbox', tab: 'detail' },
@@ -182,25 +183,25 @@ export const EXTRA_FIELDS: Record<CategoryGroup, ExtraFieldDef[]> = {
     { key: 'cold_storage', label: '냉동/냉장시설', type: 'checkbox', tab: 'detail' },
   ],
   land: [
-    { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure' },
-    { key: 'land_category', label: '지목', type: 'select', options: ['대', '전', '답', '임야', '잡종지', '과수원', '목장용지', '기타'], tab: 'structure' },
-    { key: 'zoning', label: '용도지역', type: 'select', options: ['제1종일반주거', '제2종일반주거', '제3종일반주거', '준주거', '일반상업', '근린상업', '준공업', '일반공업', '전용공업', '계획관리', '생산관리', '보전관리', '농림', '자연녹지', '보전녹지'], tab: 'structure' },
-    { key: 'road_frontage', label: '도로접면', type: 'select', options: ['~4m', '4~8m', '8~12m', '12m~', '맹지'], tab: 'structure' },
+    { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure', required: true },
+    { key: 'land_category', label: '지목', type: 'select', options: ['대', '전', '답', '임야', '잡종지', '과수원', '목장용지', '기타'], tab: 'structure', required: true },
+    { key: 'zoning', label: '용도지역', type: 'select', options: ['제1종일반주거', '제2종일반주거', '제3종일반주거', '준주거', '일반상업', '근린상업', '준공업', '일반공업', '전용공업', '계획관리', '생산관리', '보전관리', '농림', '자연녹지', '보전녹지'], tab: 'structure', required: true },
+    { key: 'road_frontage', label: '도로접면', type: 'select', options: ['~4m', '4~8m', '8~12m', '12m~', '맹지'], tab: 'structure', required: true },
     { key: 'bcr_far', label: '건폐율/용적률', type: 'text', placeholder: '예: 60%/200%', tab: 'structure' },
     { key: 'slope_terrain', label: '경사/지형', type: 'select', options: ['평지', '완경사(5%이내)', '경사(5~15%)', '급경사(15%이상)'], tab: 'structure' },
   ],
   redevelopment: [
-    { key: 'project_phase', label: '사업단계', type: 'select', options: ['정비구역지정', '조합설립인가', '사업시행인가', '관리처분인가', '이주/철거', '착공', '일반분양', '입주'], tab: 'detail' },
+    { key: 'project_phase', label: '사업단계', type: 'select', options: ['정비구역지정', '조합설립인가', '사업시행인가', '관리처분인가', '이주/철거', '착공', '일반분양', '입주'], tab: 'detail', required: true },
     { key: 'member_price', label: '조합원분양가 (만원)', type: 'number', placeholder: '예: 50000', showPriceHint: true, tab: 'price' },
     { key: 'expected_households', label: '예상세대수', type: 'number', placeholder: '예: 3000', tab: 'structure' },
-    { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure' },
-    { key: 'zoning', label: '용도지역', type: 'select', options: ['제1종일반주거', '제2종일반주거', '제3종일반주거', '준주거', '일반상업', '근린상업', '기타'], tab: 'structure' },
+    { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure', required: true },
+    { key: 'zoning', label: '용도지역', type: 'select', options: ['제1종일반주거', '제2종일반주거', '제3종일반주거', '준주거', '일반상업', '근린상업', '기타'], tab: 'structure', required: true },
   ],
   pension: [
-    { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure' },
-    { key: 'building_area_m2', label: '건물면적', type: 'area', tab: 'structure' },
-    { key: 'room_count', label: '객실수', type: 'number', placeholder: '예: 10', tab: 'structure' },
-    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '경량철골', '목조', '조적조', '한옥'], tab: 'structure' },
+    { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure', required: true },
+    { key: 'building_area_m2', label: '건물면적', type: 'area', tab: 'structure', required: true },
+    { key: 'room_count', label: '객실수', type: 'number', placeholder: '예: 10', tab: 'structure', required: true },
+    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '경량철골', '목조', '조적조', '한옥'], tab: 'structure', required: true },
     { key: 'monthly_avg_revenue', label: '월평균매출 (만원)', type: 'number', placeholder: '예: 3000', showPriceHint: true, tab: 'detail' },
     { key: 'business_license', label: '인허가', type: 'select', options: ['숙박업', '관광펜션업', '농어촌민박', '기타'], tab: 'detail' },
   ],

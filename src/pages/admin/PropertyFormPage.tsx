@@ -167,7 +167,11 @@ export function PropertyFormPage() {
           is_co_brokerage: p.is_co_brokerage,
           co_brokerage_fee_ratio: p.co_brokerage_fee_ratio != null ? String(p.co_brokerage_fee_ratio) : '',
           internal_memo: p.internal_memo || '',
-          built_year: p.built_year != null ? String(p.built_year) : '',
+          built_year: (() => {
+            const v = p.built_year != null ? String(p.built_year) : ''
+            // 기존 정수 데이터(예: "2026")를 YYYY-MM 형식으로 정규화
+            return v && !v.includes('-') ? `${v}-01` : v
+          })(),
           tags: freeText.join(', '),
           predefinedTags: predefined,
           photos: p.photos || [],
@@ -278,22 +282,14 @@ export function PropertyFormPage() {
 
   const handleSubmit = async () => {
     console.log('[Submit] handleSubmit called, activeTab:', activeTab)
-    if (!form.title || !form.address) { toast.error('제목과 주소는 필수입니다.'); return }
-    // 카테고리별 필수 필드 검증
-    const submitCatName = categories.find((c) => c.id === form.category_id)?.name || ''
-    const submitGroup = getCategoryGroup(submitCatName)
-    if (submitGroup === 'land') {
-      if (!form.extra_info.land_category) { toast.error('지목을 선택해주세요.'); return }
-      if (!form.extra_info.land_area_m2) { toast.error('대지면적을 입력해주세요.'); return }
-    } else if (submitGroup === 'industrial') {
-      if (!form.extra_info.land_category) { toast.error('지목을 선택해주세요.'); return }
-      if (!form.extra_info.land_area_m2) { toast.error('대지면적을 입력해주세요.'); return }
-      if (form.buildings.length === 0 || !form.buildings[0].building_area_m2) { toast.error('건물 면적을 입력해주세요.'); return }
-    } else {
-      const submitSv = submitGroup ? STRUCTURE_VISIBILITY[submitGroup] : null
-      if (submitSv?.exclusive_area && !form.exclusive_area_m2) { toast.error('전용면적을 입력해주세요.'); return }
-      if (submitSv?.supply_area && !form.supply_area_m2) { toast.error('공급면적을 입력해주세요.'); return }
-      if (submitSv?.built_year && !form.built_year) { toast.error('준공연도를 입력해주세요.'); return }
+    // 모든 탭의 필수 필드 검증 (수정 모드에서도 탭별 검증이 빠지지 않도록)
+    for (const tab of tabs) {
+      const error = validateTab(tab.id as TabId)
+      if (error) {
+        setActiveTab(tab.id)
+        toast.error(error)
+        return
+      }
     }
     setIsLoading(true)
     try {
@@ -380,7 +376,7 @@ export function PropertyFormPage() {
         is_co_brokerage: form.is_co_brokerage,
         co_brokerage_fee_ratio: form.co_brokerage_fee_ratio ? parseFloat(form.co_brokerage_fee_ratio) : null,
         internal_memo: form.internal_memo || null,
-        built_year: form.built_year ? parseInt(form.built_year) : null,
+        built_year: form.built_year || null,
         tags: (() => {
           const freeText = form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : []
           const merged = [...form.predefinedTags, ...freeText]
@@ -597,8 +593,7 @@ ${categoryGuide}
   }, [form, categories])
 
   const validateTab = (tabId: TabId): string | null => {
-    const catName = categories.find((c) => c.id === form.category_id)?.name || ''
-    const group = getCategoryGroup(catName)
+    // 렌더링에 사용하는 것과 동일한 catGroup/structVis 참조
     switch (tabId) {
       case 'basic':
         if (!form.category_id) return '매물유형을 선택해주세요.'
@@ -606,7 +601,7 @@ ${categoryGuide}
         return null
       case 'location': {
         if (!form.address) return '주소를 입력해주세요.'
-        if (['아파트', '오피스텔', '빌라'].includes(catName)) {
+        if (['아파트', '오피스텔', '빌라'].includes(selectedCategoryName)) {
           if (!form.dong) return '동을 입력해주세요.'
           if (!form.ho) return '호를 입력해주세요.'
         }
@@ -619,25 +614,41 @@ ${categoryGuide}
         if (form.transaction_type === 'monthly' && !form.monthly_rent) return '월세를 입력해주세요.'
         return null
       case 'structure': {
-        if (group === 'land') {
-          // 토지: 지목, 토지면적 필수
-          if (!form.extra_info.land_category) return '지목을 선택해주세요.'
-          if (!form.extra_info.land_area_m2) return '대지면적을 입력해주세요.'
-        } else if (group === 'industrial') {
-          // 공장/창고: 지목, 토지면적 필수 + 건물 1개 이상 면적/구조 필수
-          if (!form.extra_info.land_category) return '지목을 선택해주세요.'
-          if (!form.extra_info.land_area_m2) return '대지면적을 입력해주세요.'
+        // 계약서/확인설명서에 포함되는 필드는 모두 필수
+        if (catGroup !== 'land' && catGroup !== 'industrial') {
+          // structVis 기반: UI에 보이는 필드만 검증
+          if (structVis?.exclusive_area && !form.exclusive_area_m2) return '전용면적을 입력해주세요.'
+          if (structVis?.supply_area && !form.supply_area_m2) return '공급면적을 입력해주세요.'
+          if (structVis?.rooms && !form.rooms) return '방 수를 입력해주세요.'
+          if (structVis?.bathrooms && !form.bathrooms) return '욕실 수를 입력해주세요.'
+          if (structVis?.floor && !form.floor) return '해당층을 입력해주세요.'
+          if (structVis?.total_floors && !form.total_floors) return '총층수를 입력해주세요.'
+          if (structVis?.direction && !form.direction) return '방향을 선택해주세요.'
+          if (structVis?.built_year && (!form.built_year || !/^\d{4}-\d{2}$/.test(form.built_year))) return '준공연도를 입력해주세요.'
+        }
+        if (catGroup === 'industrial') {
           if (form.buildings.length === 0) return '건물을 1개 이상 추가해주세요.'
           const b = form.buildings[0]
           if (!b.building_area_m2) return '첫 번째 건물의 면적을 입력해주세요.'
           if (!b.building_structure) return '첫 번째 건물의 구조를 선택해주세요.'
           if (!b.usage) return '첫 번째 건물의 용도를 선택해주세요.'
-        } else {
-          // 주거/상가/사무실 등: 전용면적, 공급면적, 준공연도 필수
-          const sv = group ? STRUCTURE_VISIBILITY[group] : null
-          if (sv?.exclusive_area && !form.exclusive_area_m2) return '전용면적을 입력해주세요.'
-          if (sv?.supply_area && !form.supply_area_m2) return '공급면적을 입력해주세요.'
-          if (sv?.built_year && !form.built_year) return '준공연도를 입력해주세요.'
+        }
+        // extra fields 중 required인 것 검증 (모든 카테고리 공통)
+        if (catGroup) {
+          const requiredExtras = (EXTRA_FIELDS[catGroup] || []).filter((f) => f.required && f.tab === 'structure')
+          for (const fd of requiredExtras) {
+            if (!form.extra_info[fd.key as keyof ExtraInfoForm]) return `${fd.label}을(를) 입력해주세요.`
+          }
+        }
+        return null
+      }
+      case 'detail': {
+        // extra fields 중 required인 것 검증
+        if (catGroup) {
+          const requiredExtras = (EXTRA_FIELDS[catGroup] || []).filter((f) => f.required && f.tab === 'detail')
+          for (const fd of requiredExtras) {
+            if (!form.extra_info[fd.key as keyof ExtraInfoForm]) return `${fd.label}을(를) 입력해주세요.`
+          }
         }
         return null
       }
@@ -723,11 +734,13 @@ ${categoryGuide}
       )
     }
 
+    const reqMark = fd.required ? <span className="text-red-500"> *</span> : null
+
     if (fd.type === 'area') {
       const converted = getExtraAreaConverted(fd.key)
       return (
         <div key={fd.key}>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{fd.label} ({areaLabel})</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{fd.label} ({areaLabel}){reqMark}</label>
           <input type="number" step="0.01" min="0" value={getExtraAreaDisplay(fd.key)}
             onChange={(e) => setExtraAreaFromDisplay(fd.key, e.target.value)}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
@@ -739,7 +752,7 @@ ${categoryGuide}
     if (fd.type === 'select') {
       return (
         <div key={fd.key}>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{fd.label}</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{fd.label}{reqMark}</label>
           <select value={form.extra_info[key] as string} onChange={(e) => setExtra(fd.key, e.target.value)}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
             <option value="">선택</option>
@@ -753,7 +766,7 @@ ${categoryGuide}
       const val = form.extra_info[key] as string
       return (
         <div key={fd.key}>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{fd.label}</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{fd.label}{reqMark}</label>
           <input type="number" step={fd.step || '1'} min="0" value={val} placeholder={fd.placeholder}
             onChange={(e) => setExtra(fd.key, e.target.value)}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
@@ -765,7 +778,7 @@ ${categoryGuide}
     // text
     return (
       <div key={fd.key}>
-        <label className="mb-1 block text-sm font-medium text-gray-700">{fd.label}</label>
+        <label className="mb-1 block text-sm font-medium text-gray-700">{fd.label}{reqMark}</label>
         <input type="text" value={form.extra_info[key] as string} placeholder={fd.placeholder}
           onChange={(e) => setExtra(fd.key, e.target.value)}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
@@ -1016,10 +1029,10 @@ ${categoryGuide}
             {/* Rooms / Bathrooms / Floor / Total Floors */}
             {(structVis?.rooms !== false || structVis?.bathrooms !== false || structVis?.floor !== false || structVis?.total_floors !== false) && (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                {structVis?.rooms !== false && <Input id="rooms" label="방" type="number" value={form.rooms} onChange={(e) => set('rooms', e.target.value)} />}
-                {structVis?.bathrooms !== false && <Input id="bathrooms" label="욕실" type="number" value={form.bathrooms} onChange={(e) => set('bathrooms', e.target.value)} />}
-                {structVis?.floor !== false && <Input id="floor" label="해당층" type="number" value={form.floor} onChange={(e) => set('floor', e.target.value)} />}
-                {structVis?.total_floors !== false && <Input id="total_floors" label="총층수" type="number" value={form.total_floors} onChange={(e) => set('total_floors', e.target.value)} />}
+                {structVis?.rooms !== false && <Input id="rooms" label="방" type="number" required value={form.rooms} onChange={(e) => set('rooms', e.target.value)} />}
+                {structVis?.bathrooms !== false && <Input id="bathrooms" label="욕실" type="number" required value={form.bathrooms} onChange={(e) => set('bathrooms', e.target.value)} />}
+                {structVis?.floor !== false && <Input id="floor" label="해당층" type="number" required value={form.floor} onChange={(e) => set('floor', e.target.value)} />}
+                {structVis?.total_floors !== false && <Input id="total_floors" label="총층수" type="number" required value={form.total_floors} onChange={(e) => set('total_floors', e.target.value)} />}
               </div>
             )}
 
@@ -1028,8 +1041,8 @@ ${categoryGuide}
               <div className="grid gap-4 sm:grid-cols-2">
                 {structVis?.direction !== false && (
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">방향</label>
-                    <select value={form.direction} onChange={(e) => set('direction', e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                    <label className="mb-1 block text-sm font-medium text-gray-700">방향 <span className="text-red-500">*</span></label>
+                    <select value={form.direction} onChange={(e) => set('direction', e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" required>
                       <option value="">선택</option>
                       {directionOptions.map((d) => <option key={d} value={d}>{d}</option>)}
                     </select>
@@ -1354,11 +1367,18 @@ ${categoryGuide}
             {activeTab !== tabs[tabs.length - 1].id && (
               <Button type="button" onClick={handleNext}>다음 →</Button>
             )}
-            {(activeTab === tabs[tabs.length - 1].id || isEdit) && (
-              <Button type="button" isLoading={isLoading} onClick={handleSubmit}>{isEdit ? '수정 완료' : '매물 등록'}</Button>
+            {!isEdit && activeTab === tabs[tabs.length - 1].id && (
+              <Button type="button" isLoading={isLoading} onClick={handleSubmit}>매물 등록</Button>
             )}
           </div>
         </div>
+
+        {/* 수정 모드: 하단 수정 완료 버튼 */}
+        {isEdit && (
+          <div className="mt-4 flex justify-end border-t border-gray-200 pt-4">
+            <Button type="button" isLoading={isLoading} onClick={handleSubmit} className="px-6 py-2.5 text-base">수정 완료</Button>
+          </div>
+        )}
       </form>
     </div>
   )

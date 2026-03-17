@@ -48,7 +48,11 @@ const PETS: InfoFieldDef = {
 }
 const BUILT_YEAR: InfoFieldDef = {
   key: 'built_year', label: '준공연도',
-  getValue: (p) => p.built_year ? `${p.built_year}년` : '-',
+  getValue: (p) => {
+    if (!p.built_year) return '-'
+    const [y, m] = p.built_year.split('-')
+    return m ? `${y}년 ${parseInt(m)}월` : `${y}년`
+  },
 }
 
 // ── 확장 필드 ──

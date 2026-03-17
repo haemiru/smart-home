@@ -83,7 +83,7 @@ export async function fetchProperties(
     if (filters.petsAllowed) query = query.eq('pets_allowed', true)
     if (filters.isUrgent) query = query.eq('is_urgent', true)
     if (filters.tags && filters.tags.length > 0) query = query.contains('tags', filters.tags)
-    if (filters.minBuiltYear != null) query = query.gte('built_year', filters.minBuiltYear)
+    if (filters.minBuiltYear != null) query = query.gte('built_year', `${filters.minBuiltYear}-01`)
     if (filters.minParkingPerUnit != null) query = query.gte('parking_per_unit', filters.minParkingPerUnit)
     if (filters.maxMaintenanceFee != null) query = query.lte('maintenance_fee', filters.maxMaintenanceFee)
 

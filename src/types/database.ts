@@ -195,7 +195,7 @@ export type Property = {
   view_count: number
   inquiry_count: number
   favorite_count: number
-  built_year: number | null
+  built_year: string | null
   tags: string[] | null
   photos: string[] | null
   extra_info: PropertyExtraInfo | null
@@ -613,7 +613,7 @@ export type Database = {
           view_count?: number
           inquiry_count?: number
           favorite_count?: number
-          built_year?: number | null
+          built_year?: string | null
           tags?: string[] | null
           photos?: string[] | null
           extra_info?: PropertyExtraInfo | null
@@ -657,7 +657,7 @@ export type Database = {
           view_count?: number
           inquiry_count?: number
           favorite_count?: number
-          built_year?: number | null
+          built_year?: string | null
           tags?: string[] | null
           photos?: string[] | null
           extra_info?: PropertyExtraInfo | null

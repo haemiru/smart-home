@@ -33,7 +33,7 @@ function countByCondition(conditions: Record<string, unknown>, props: Property[]
     for (const [key, val] of Object.entries(conditions)) {
       switch (key) {
         case 'built_within_years':
-          if (!p.built_year || currentYear - p.built_year > (val as number)) return false
+          if (!p.built_year || currentYear - parseInt(p.built_year) > (val as number)) return false
           break
         case 'pets_allowed':
           if (!p.pets_allowed) return false

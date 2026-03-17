@@ -493,7 +493,7 @@ function Step3ContractInfo({ txType, templateType: _templateType, sellerInfo, on
             )}
             {property.floor && <div><span className="text-gray-500">층수: </span><span className="font-medium">{property.floor}/{property.total_floors}층</span></div>}
             {property.direction && <div><span className="text-gray-500">방향: </span><span className="font-medium">{property.direction}</span></div>}
-            {property.built_year && <div><span className="text-gray-500">건축연도: </span><span className="font-medium">{property.built_year}년</span></div>}
+            {property.built_year && <div><span className="text-gray-500">건축연도: </span><span className="font-medium">{(() => { const [y, m] = property.built_year.split('-'); return m ? `${y}년 ${parseInt(m)}월` : `${y}년` })()}</span></div>}
           </div>
         </div>
       )}
