@@ -1,6 +1,6 @@
 import { supabase } from '@/api/supabase'
 import { getAgentProfileId } from '@/api/helpers'
-import type { Contract, ContractProcess, ContractStatus, ContractTemplateType, ContractStepType, TransactionType } from '@/types/database'
+import type { Contract, ContractProcess, ContractStatus, ContractTemplateType, ContractStepType, TransactionType, Property } from '@/types/database'
 
 // Template recommendation based on property category name — pure function
 export function recommendTemplate(categoryName: string | null, txType: TransactionType): ContractTemplateType {
@@ -10,18 +10,15 @@ export function recommendTemplate(categoryName: string | null, txType: Transacti
     case '아파트':
     case '빌라':
     case '주택':
-    case '분양권':
-    case '재개발':
       return isSale ? 'apartment_sale' : 'apartment_lease'
     case '오피스텔':
     case '원룸':
       return isSale ? 'officetel_sale' : 'officetel_lease'
     case '상가':
     case '사무실':
-    case '숙박/펜션':
       return isSale ? 'commercial_sale' : 'commercial_lease'
     case '토지':
-      return 'land_sale'
+      return isSale ? 'land_sale' : 'land_lease'
     case '공장/창고':
       return isSale ? 'factory_sale' : 'factory_lease'
     default:
@@ -88,6 +85,29 @@ export async function fetchContracts(filters: { status?: ContractStatus | 'all';
   const { data, error } = await query
   if (error) throw error
   return data ?? []
+}
+
+/** 매물 상태가 '계약진행'이지만 contracts 레코드가 없는 매물 조회 */
+export async function fetchContractedPropertiesWithoutContract(): Promise<Property[]> {
+  // 1) 계약진행 상태 매물
+  const { data: contracted, error: e1 } = await supabase
+    .from('properties')
+    .select('*')
+    .eq('status', 'contracted')
+    .order('updated_at', { ascending: false })
+  if (e1 || !contracted) return []
+
+  if (contracted.length === 0) return []
+
+  // 2) contracts 테이블에서 이미 연결된 property_id 목록
+  const { data: existing } = await supabase
+    .from('contracts')
+    .select('property_id')
+    .in('property_id', contracted.map((p) => p.id))
+  const linkedIds = new Set((existing ?? []).map((c) => c.property_id))
+
+  // 3) contracts에 없는 매물만 반환
+  return contracted.filter((p) => !linkedIds.has(p.id))
 }
 
 export async function fetchContractById(id: string): Promise<Contract | null> {

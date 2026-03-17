@@ -219,6 +219,7 @@ export const contractTemplateLabel: Record<string, string> = {
   commercial_lease: '상가 임대차',
   building_sale: '건물 매매',
   land_sale: '토지 매매',
+  land_lease: '토지 임대차',
   factory_sale: '공장/창고 매매',
   factory_lease: '공장/창고 임대차',
   knowledge_center_sale: '지식산업센터 매매',

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { Property, ContractTemplateType, TransactionType } from '@/types/database'
-import { fetchAdminProperties, updatePropertyStatus } from '@/api/properties'
+import { fetchAdminProperties, fetchPropertyById, updatePropertyStatus } from '@/api/properties'
 import { createContract, recommendTemplate } from '@/api/contracts'
 import { Button } from '@/components/common'
 import { formatPropertyPrice, transactionTypeLabel, contractTemplateLabel, formatNumber, parseCommaNumber } from '@/utils/format'
@@ -16,12 +16,13 @@ const stepLabels = ['매물 선택', '양식 선택', '계약 정보 입력', '�
 
 const allTemplates: ContractTemplateType[] = [
   'apartment_sale', 'apartment_lease', 'officetel_sale', 'officetel_lease',
-  'commercial_sale', 'commercial_lease', 'building_sale', 'land_sale',
+  'commercial_sale', 'commercial_lease', 'building_sale', 'land_sale', 'land_lease',
   'factory_sale', 'factory_lease', 'knowledge_center_sale', 'knowledge_center_lease',
 ]
 
 export function ContractFormPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const agentProfile = useAuthStore((s) => s.agentProfile)
   const { findCategory } = useCategories()
   const [step, setStep] = useState<Step>(1)
@@ -89,6 +90,20 @@ export function ContractFormPage() {
     return () => { cancelled = true }
   }, [propSearch, propCategoryId])
 
+  // URL 쿼리 파라미터로 매물이 지정된 경우 자동 선택 → Step 2로 이동
+  const preselectedRef = useRef(false)
+  useEffect(() => {
+    const pid = searchParams.get('propertyId')
+    if (!pid || preselectedRef.current) return
+    fetchPropertyById(pid).then((p) => {
+      if (!p) return
+      preselectedRef.current = true
+      handleSelectProperty(p)
+      setStep(2)
+    }).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
   // Auto-recommend template when property is selected
   const handleSelectProperty = (p: Property) => {
     setSelectedProperty(p)
@@ -111,35 +126,41 @@ export function ContractFormPage() {
 
   const handleSubmit = async () => {
     setIsSubmitting(true)
-    const contract = await createContract({
-      property_id: selectedProperty?.id ?? null,
-      transaction_type: txType,
-      template_type: templateType,
-      seller_info: sellerInfo,
-      buyer_info: buyerInfo,
-      agent_info: {
-        officeName: agentProfile?.office_name ?? '',
-        representative: agentProfile?.representative ?? '',
-        licenseNumber: agentProfile?.license_number ?? '',
-        address: agentProfile?.address ?? '',
-        phone: agentProfile?.phone ?? '',
-      },
-      price_info: {
-        salePrice: parseCommaNumber(priceInfo.salePrice),
-        deposit: parseCommaNumber(priceInfo.deposit),
-        monthlyRent: parseCommaNumber(priceInfo.monthlyRent),
-        downPayment: parseCommaNumber(priceInfo.downPayment),
-        downPaymentDate: priceInfo.downPaymentDate,
-        midPayment: parseCommaNumber(priceInfo.midPayment),
-        midPaymentDate: priceInfo.midPaymentDate,
-        finalPayment: parseCommaNumber(priceInfo.finalPayment),
-        finalPaymentDate: priceInfo.finalPaymentDate,
-      },
-      special_terms: specialTerms,
-    })
-    setIsSubmitting(false)
-    toast.success(`계약서가 생성되었습니다. (${contract.contract_number})`)
-    navigate(`/admin/contracts/${contract.id}/tracker`)
+    try {
+      const contract = await createContract({
+        property_id: selectedProperty?.id ?? null,
+        transaction_type: txType,
+        template_type: templateType,
+        seller_info: sellerInfo,
+        buyer_info: buyerInfo,
+        agent_info: {
+          officeName: agentProfile?.office_name ?? '',
+          representative: agentProfile?.representative ?? '',
+          licenseNumber: agentProfile?.license_number ?? '',
+          address: agentProfile?.address ?? '',
+          phone: agentProfile?.phone ?? '',
+        },
+        price_info: {
+          salePrice: parseCommaNumber(priceInfo.salePrice),
+          deposit: parseCommaNumber(priceInfo.deposit),
+          monthlyRent: parseCommaNumber(priceInfo.monthlyRent),
+          downPayment: parseCommaNumber(priceInfo.downPayment),
+          downPaymentDate: priceInfo.downPaymentDate,
+          midPayment: parseCommaNumber(priceInfo.midPayment),
+          midPaymentDate: priceInfo.midPaymentDate,
+          finalPayment: parseCommaNumber(priceInfo.finalPayment),
+          finalPaymentDate: priceInfo.finalPaymentDate,
+        },
+        special_terms: specialTerms,
+      })
+      toast.success(`계약서가 생성되었습니다. (${contract.contract_number})`)
+      navigate(`/admin/contracts/${contract.id}/tracker`)
+    } catch (err) {
+      console.error('[Contract] 계약서 저장 실패:', err)
+      toast.error(`계약서 저장에 실패했습니다. ${err instanceof Error ? err.message : ''}`)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const canNext = () => {
@@ -188,7 +209,11 @@ export function ContractFormPage() {
       {step === 2 && (
         <Step2TemplateSelect
           templateType={templateType}
-          onTemplateChange={setTemplateType}
+          onTemplateChange={(t) => {
+            setTemplateType(t)
+            // 양식 변경 시 거래유형 동기화
+            setTxType(txTypeFromTemplate(t))
+          }}
           txType={txType}
           onTxTypeChange={(t) => {
             setTxType(t)
@@ -277,7 +302,10 @@ export function ContractFormPage() {
                     special_terms: specialTerms,
                   })
                   toast.success('임시저장되었습니다.')
-                } catch { toast.error('임시저장에 실패했습니다.') }
+                } catch (err) {
+                  console.error('[Contract] 임시저장 실패:', err)
+                  toast.error(`임시저장에 실패했습니다. ${err instanceof Error ? err.message : ''}`)
+                }
               }}>임시저장</Button>
             )}
             <Button onClick={async () => {
@@ -388,13 +416,45 @@ function Step1PropertySelect({ properties, search, onSearchChange, categoryId, o
 // ============================================================
 // Step 2: Template Selection
 // ============================================================
+/** 카테고리명에 맞는 계약서 양식만 반환 */
+function getTemplatesForCategory(categoryName: string | null): ContractTemplateType[] {
+  const name = (categoryName ?? '').trim()
+  switch (name) {
+    case '아파트': case '빌라': case '주택':
+      return ['apartment_sale', 'apartment_lease']
+    case '오피스텔': case '원룸':
+      return ['officetel_sale', 'officetel_lease']
+    case '상가': case '사무실':
+      return ['commercial_sale', 'commercial_lease']
+    case '토지':
+      return ['land_sale', 'land_lease']
+    case '공장/창고':
+      return ['factory_sale', 'factory_lease']
+    case '지식산업센터':
+      return ['knowledge_center_sale', 'knowledge_center_lease']
+    default:
+      return allTemplates
+  }
+}
+
+/** 양식명에서 거래유형 추출 */
+function txTypeFromTemplate(t: ContractTemplateType): TransactionType {
+  return t.endsWith('_sale') ? 'sale' : 'jeonse'
+}
+
 function Step2TemplateSelect({ templateType, onTemplateChange, txType, onTxTypeChange, property }: {
   templateType: ContractTemplateType; onTemplateChange: (v: ContractTemplateType) => void
   txType: TransactionType; onTxTypeChange: (v: TransactionType) => void
   property: Property | null
 }) {
   const { findCategory } = useCategories()
-  const recommended = property ? recommendTemplate(findCategory(property.category_id)?.name ?? null, property.transaction_type) : null
+  const categoryName = property ? (findCategory(property.category_id)?.name ?? null) : null
+  const recommended = property ? recommendTemplate(categoryName, property.transaction_type) : null
+  const availableTemplates = getTemplatesForCategory(categoryName)
+
+  const handleTemplateSelect = (t: ContractTemplateType) => {
+    onTemplateChange(t)
+  }
 
   return (
     <div className="space-y-6">
@@ -402,7 +462,13 @@ function Step2TemplateSelect({ templateType, onTemplateChange, txType, onTxTypeC
       <div>
         <label className="mb-2 block text-sm font-semibold">거래 유형</label>
         <div className="flex gap-2">
-          {(['sale', 'jeonse', 'monthly'] as TransactionType[]).map((t) => (
+          {(['sale', 'jeonse', 'monthly'] as TransactionType[])
+            .filter((t) => {
+              // 토지/공장/지식산업센터는 전세 불가
+              if (t === 'jeonse' && ['토지', '공장/창고', '지식산업센터'].includes(categoryName ?? '')) return false
+              return true
+            })
+            .map((t) => (
             <button key={t} onClick={() => onTxTypeChange(t)}
               className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${txType === t ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50'}`}>
               {transactionTypeLabel[t]}
@@ -420,8 +486,8 @@ function Step2TemplateSelect({ templateType, onTemplateChange, txType, onTxTypeC
       <div>
         <label className="mb-2 block text-sm font-semibold">계약서 양식</label>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {allTemplates.map((t) => (
-            <button key={t} onClick={() => onTemplateChange(t)}
+          {availableTemplates.map((t) => (
+            <button key={t} onClick={() => handleTemplateSelect(t)}
               className={`rounded-xl border-2 p-4 text-left transition-all ${templateType === t ? 'border-primary-500 bg-primary-50' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
               <p className="text-sm font-semibold text-gray-800">{contractTemplateLabel[t]}</p>
               {t === recommended && (
@@ -751,7 +817,7 @@ function fmtWon(manwon: string | number) {
 
 function getContractTitle(templateType: ContractTemplateType, txType: TransactionType) {
   const txLabel = txType === 'sale' ? '매매' : txType === 'jeonse' ? '전세' : '월세'
-  if (templateType === 'land_sale') return '토지 매매 계약서'
+  if (templateType.startsWith('land')) return `토지 ${txLabel} 계약서`
   if (templateType.startsWith('factory')) return `공장/창고 ${txLabel} 계약서`
   if (templateType.startsWith('commercial')) return `상가 ${txLabel} 계약서`
   return `부동산 ${txLabel} 계약서`
@@ -771,7 +837,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
   const { findCategory } = useCategories()
   const isSale = txType === 'sale'
   const isMonthly = txType === 'monthly'
-  const isLand = templateType === 'land_sale'
+  const isLand = templateType.startsWith('land')
   const isCommercial = templateType.startsWith('commercial') || templateType.startsWith('factory')
   const previewRef = useRef<HTMLDivElement>(null)
   const [isPdfLoading, setIsPdfLoading] = useState(false)

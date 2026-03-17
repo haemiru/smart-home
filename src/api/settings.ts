@@ -521,7 +521,7 @@ export type SearchSettings = {
   map_zoom: number
 }
 
-const RESIDENTIAL = ['아파트', '오피스텔', '분양권', '빌라', '주택', '원룸']
+const RESIDENTIAL = ['아파트', '오피스텔', '빌라', '주택', '원룸']
 const COMMERCIAL = ['상가', '사무실']
 
 export const defaultSearchSettings: SearchSettings = {
@@ -542,9 +542,9 @@ export const defaultSearchSettings: SearchSettings = {
   ],
   quick_cards: [
     { key: 'new_built', label: '신축 매물', icon: '🆕', is_enabled: true, sort_order: 1, conditions: { built_within_years: 3 }, categories: [...RESIDENTIAL, ...COMMERCIAL] },
-    { key: 'station_near', label: '역세권', icon: '🚇', is_enabled: true, sort_order: 2, conditions: { walk_minutes: 10 }, categories: [...RESIDENTIAL, ...COMMERCIAL, '토지', '재개발', '숙박/펜션'] },
+    { key: 'station_near', label: '역세권', icon: '🚇', is_enabled: true, sort_order: 2, conditions: { walk_minutes: 10 }, categories: [...RESIDENTIAL, ...COMMERCIAL, '토지'] },
     { key: 'school_near', label: '학세권', icon: '🏫', is_enabled: true, sort_order: 3, conditions: { school_walk_minutes: 10 }, categories: RESIDENTIAL },
-    { key: 'park_near', label: '공세권', icon: '🌳', is_enabled: true, sort_order: 4, conditions: { park_walk_minutes: 10 }, categories: [...RESIDENTIAL, ...COMMERCIAL, '토지', '재개발', '숙박/펜션'] },
+    { key: 'park_near', label: '공세권', icon: '🌳', is_enabled: true, sort_order: 4, conditions: { park_walk_minutes: 10 }, categories: [...RESIDENTIAL, ...COMMERCIAL, '토지'] },
     { key: 'pet_friendly', label: '반려동물', icon: '🐕', is_enabled: true, sort_order: 5, conditions: { pets_allowed: true }, categories: RESIDENTIAL },
     { key: 'parking', label: '주차 편리', icon: '🅿️', is_enabled: true, sort_order: 6, conditions: { parking_per_unit: 1 }, categories: [...RESIDENTIAL, ...COMMERCIAL] },
     { key: 'low_maintenance', label: '관리비 저렴', icon: '💰', is_enabled: true, sort_order: 7, conditions: { max_maintenance: 15 }, categories: [...RESIDENTIAL, ...COMMERCIAL] },

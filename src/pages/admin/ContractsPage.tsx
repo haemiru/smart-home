@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import type { Contract, ContractStatus, Property } from '@/types/database'
-import { fetchContracts } from '@/api/contracts'
+import { fetchContracts, fetchContractedPropertiesWithoutContract } from '@/api/contracts'
 import { fetchPropertyById } from '@/api/properties'
 import { Button } from '@/components/common'
 import { contractStatusLabel, contractStatusColor, contractTemplateLabel, transactionTypeLabel, formatPrice, formatRelativeTime } from '@/utils/format'
@@ -20,6 +20,14 @@ export function ContractsPage() {
   const [statusFilter, setStatusFilter] = useState<ContractStatus | 'all'>('all')
   const [search, setSearch] = useState('')
   const [propertyCache, setPropertyCache] = useState<Record<string, Property>>({})
+  const [pendingProperties, setPendingProperties] = useState<Property[]>([])
+
+  // 계약서 미작성 매물 조회
+  useEffect(() => {
+    fetchContractedPropertiesWithoutContract()
+      .then(setPendingProperties)
+      .catch(() => setPendingProperties([]))
+  }, [contracts]) // contracts 변경 시 재조회
 
   useEffect(() => {
     let cancelled = false
@@ -73,6 +81,27 @@ export function ContractsPage() {
           placeholder="계약번호, 매도인/매수인 검색"
           className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-4 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
       </div>
+
+      {/* 계약서 작성중 매물 안내 — '전체' 또는 '작성중' 탭에서만 표시 */}
+      {pendingProperties.length > 0 && (statusFilter === 'all' || statusFilter === 'drafting') && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="mb-2 text-sm font-semibold text-amber-800">📋 계약서 작성중 매물 {pendingProperties.length}건</p>
+          <p className="mb-3 text-xs text-amber-600">매물 상태가 '계약진행'이며 계약서 작성이 필요합니다.</p>
+          <div className="space-y-2">
+            {pendingProperties.map((p) => (
+              <div key={p.id} className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm ring-1 ring-amber-100">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-gray-800">{p.title}</p>
+                  <p className="text-xs text-gray-400">{p.address}</p>
+                </div>
+                <Link to={`/admin/contracts/new?propertyId=${p.id}`}>
+                  <Button className="shrink-0 px-3 py-1.5 text-xs">계약서 작성</Button>
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       {isLoading ? (

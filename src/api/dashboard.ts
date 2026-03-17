@@ -84,10 +84,10 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
     safe(supabase.from('customers').select('*', { count: 'exact', head: true })),
   ])
 
-  // 진행중 계약: contracts 테이블 또는 매물 상태 contracted 중 큰 값
-  const activeContracts = Math.max(contractCount, contractedProperties)
-  // 완료 계약: contracts 테이블 또는 매물 상태 completed 중 큰 값
-  const completedContracts = Math.max(completedContractCount, completedProperties)
+  // 진행중 계약: contracts 진행중 + 계약서 미작성 매물 (중복 제외를 위해 합산)
+  const activeContracts = contractCount + Math.max(0, contractedProperties - contractCount)
+  // 완료 계약: contracts 완료 + 거래완료 매물 (중복 제외)
+  const completedContracts = completedContractCount + Math.max(0, completedProperties - completedContractCount)
 
   return {
     newInquiries,

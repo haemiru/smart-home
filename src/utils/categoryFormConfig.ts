@@ -5,14 +5,11 @@
 
 export type CategoryGroup =
   | 'residential'        // 아파트, 오피스텔, 빌라, 주택, 원룸
-  | 'presale'            // 분양권
   | 'commercial'         // 상가
   | 'office'             // 사무실
   | 'knowledge_center'   // 지식산업센터
   | 'industrial'         // 공장/창고
   | 'land'               // 토지
-  | 'redevelopment'      // 재개발
-  | 'pension'            // 숙박/펜션
 
 const GROUP_MAP: Record<string, CategoryGroup> = {
   '아파트': 'residential',
@@ -20,14 +17,11 @@ const GROUP_MAP: Record<string, CategoryGroup> = {
   '빌라': 'residential',
   '주택': 'residential',
   '원룸': 'residential',
-  '분양권': 'presale',
   '상가': 'commercial',
   '사무실': 'office',
   '지식산업센터': 'knowledge_center',
   '공장/창고': 'industrial',
   '토지': 'land',
-  '재개발': 'redevelopment',
-  '숙박/펜션': 'pension',
 }
 
 export function getCategoryGroup(categoryName: string): CategoryGroup | null {
@@ -64,58 +58,44 @@ const defaultStructure: StructureFields = { supply_area: true, exclusive_area: t
 const defaultDetail: DetailFields = { move_in_date: true, parking: true, elevator: true, pets: true, options: true }
 
 export const STRUCTURE_VISIBILITY: Record<CategoryGroup, StructureFields> = {
-  residential:   { ...defaultStructure },
-  presale:       { ...defaultStructure, built_year: false },
-  commercial:    { supply_area: false, exclusive_area: true, rooms: false, bathrooms: false, floor: true, total_floors: true, direction: false, built_year: true },
+  residential:       { ...defaultStructure },
+  commercial:        { supply_area: false, exclusive_area: true, rooms: false, bathrooms: false, floor: true, total_floors: true, direction: false, built_year: true },
   office:            { supply_area: false, exclusive_area: true, rooms: false, bathrooms: false, floor: true, total_floors: true, direction: false, built_year: true },
   knowledge_center:  { supply_area: false, exclusive_area: true, rooms: false, bathrooms: false, floor: true, total_floors: true, direction: false, built_year: true },
-  industrial:    { supply_area: false, exclusive_area: false, rooms: false, bathrooms: false, floor: false, total_floors: false, direction: false, built_year: false },
-  land:          { supply_area: false, exclusive_area: false, rooms: false, bathrooms: false, floor: false, total_floors: false, direction: false, built_year: false },
-  redevelopment: { supply_area: true, exclusive_area: true, rooms: true, bathrooms: true, floor: true, total_floors: true, direction: false, built_year: false },
-  pension:       { supply_area: false, exclusive_area: false, rooms: true, bathrooms: true, floor: false, total_floors: false, direction: false, built_year: true },
+  industrial:        { supply_area: false, exclusive_area: false, rooms: false, bathrooms: false, floor: false, total_floors: false, direction: false, built_year: false },
+  land:              { supply_area: false, exclusive_area: false, rooms: false, bathrooms: false, floor: false, total_floors: false, direction: false, built_year: false },
 }
 
 export const DETAIL_VISIBILITY: Record<CategoryGroup, DetailFields> = {
-  residential:   { ...defaultDetail },
-  presale:       { move_in_date: false, parking: true, elevator: true, pets: false, options: true },
-  commercial:    { move_in_date: true, parking: true, elevator: true, pets: false, options: true },
+  residential:       { ...defaultDetail },
+  commercial:        { move_in_date: true, parking: true, elevator: true, pets: false, options: true },
   office:            { move_in_date: true, parking: true, elevator: true, pets: false, options: true },
   knowledge_center:  { move_in_date: true, parking: true, elevator: true, pets: false, options: true },
-  industrial:    { move_in_date: true, parking: false, elevator: false, pets: false, options: false },
-  land:          { move_in_date: false, parking: false, elevator: false, pets: false, options: false },
-  redevelopment: { move_in_date: true, parking: false, elevator: false, pets: false, options: false },
-  pension:       { move_in_date: false, parking: true, elevator: false, pets: true, options: true },
+  industrial:        { move_in_date: true, parking: false, elevator: false, pets: false, options: false },
+  land:              { move_in_date: false, parking: false, elevator: false, pets: false, options: false },
 }
 
 export const PRICE_OVERRIDES: Record<CategoryGroup, PriceOverrides> = {
-  residential:   { maintenance_fee: true },
-  presale:       { maintenance_fee: true, sale_label: '분양가 (만원)' },
-  commercial:    { maintenance_fee: true },
+  residential:       { maintenance_fee: true },
+  commercial:        { maintenance_fee: true },
   office:            { maintenance_fee: true },
   knowledge_center:  { maintenance_fee: true },
-  industrial:    { maintenance_fee: true },
-  land:          { maintenance_fee: false },
-  redevelopment: { maintenance_fee: false },
-  pension:       { maintenance_fee: true },
+  industrial:        { maintenance_fee: true },
+  land:              { maintenance_fee: false },
 }
 
 // ─── Options (appliances) per group ───
 
 const RESIDENTIAL_OPTIONS = ['에어컨', '냉장고', '세탁기', '가스레인지', '인덕션', '전자레인지', '옷장', '신발장', '침대', '책상', 'TV', '인터넷', 'CCTV', '현관보안', '비디오폰']
-const PRESALE_OPTIONS = ['에어컨', '냉장고', '세탁기', '가스레인지', '인덕션', '전자레인지', '옷장', '신발장']
 const COMMERCIAL_OPTIONS = ['에어컨', '인터넷', 'CCTV', '현관보안', '비디오폰']
-const PENSION_OPTIONS = ['에어컨', '냉장고', 'TV', '인터넷', 'CCTV', '세탁기']
 
 export const OPTIONS_PER_GROUP: Record<CategoryGroup, string[]> = {
-  residential:   RESIDENTIAL_OPTIONS,
-  presale:       PRESALE_OPTIONS,
-  commercial:    COMMERCIAL_OPTIONS,
+  residential:       RESIDENTIAL_OPTIONS,
+  commercial:        COMMERCIAL_OPTIONS,
   office:            COMMERCIAL_OPTIONS,
   knowledge_center:  COMMERCIAL_OPTIONS,
-  industrial:    [],
-  land:          [],
-  redevelopment: [],
-  pension:       PENSION_OPTIONS,
+  industrial:        [],
+  land:              [],
 }
 
 // ─── Extra info fields per group ───
@@ -141,12 +121,6 @@ export const EXTRA_FIELDS: Record<CategoryGroup, ExtraFieldDef[]> = {
     { key: 'land_area_m2', label: '토지면적', type: 'area', tab: 'structure' },
     { key: 'heating_type', label: '난방방식', type: 'select', options: ['개별난방', '중앙난방', '지역난방'], tab: 'structure', required: true },
     { key: 'household_count', label: '세대수', type: 'number', placeholder: '예: 500', tab: 'structure' },
-  ],
-  presale: [
-    { key: 'heating_type', label: '난방방식', type: 'select', options: ['개별난방', '중앙난방', '지역난방'], tab: 'structure', required: true },
-    { key: 'builder', label: '시공사', type: 'text', placeholder: '예: 삼성물산', tab: 'structure' },
-    { key: 'expected_move_in', label: '입주예정일', type: 'text', placeholder: '예: 2027년 6월', tab: 'detail', required: true },
-    { key: 'premium', label: '프리미엄 (만원)', type: 'number', placeholder: '예: 5000', showPriceHint: true, tab: 'price' },
   ],
   commercial: [
     { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트', '조적조'], tab: 'structure', required: true },
@@ -189,21 +163,6 @@ export const EXTRA_FIELDS: Record<CategoryGroup, ExtraFieldDef[]> = {
     { key: 'road_frontage', label: '도로접면', type: 'select', options: ['~4m', '4~8m', '8~12m', '12m~', '맹지'], tab: 'structure', required: true },
     { key: 'bcr_far', label: '건폐율/용적률', type: 'text', placeholder: '예: 60%/200%', tab: 'structure' },
     { key: 'slope_terrain', label: '경사/지형', type: 'select', options: ['평지', '완경사(5%이내)', '경사(5~15%)', '급경사(15%이상)'], tab: 'structure' },
-  ],
-  redevelopment: [
-    { key: 'project_phase', label: '사업단계', type: 'select', options: ['정비구역지정', '조합설립인가', '사업시행인가', '관리처분인가', '이주/철거', '착공', '일반분양', '입주'], tab: 'detail', required: true },
-    { key: 'member_price', label: '조합원분양가 (만원)', type: 'number', placeholder: '예: 50000', showPriceHint: true, tab: 'price' },
-    { key: 'expected_households', label: '예상세대수', type: 'number', placeholder: '예: 3000', tab: 'structure' },
-    { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure', required: true },
-    { key: 'zoning', label: '용도지역', type: 'select', options: ['제1종일반주거', '제2종일반주거', '제3종일반주거', '준주거', '일반상업', '근린상업', '기타'], tab: 'structure', required: true },
-  ],
-  pension: [
-    { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure', required: true },
-    { key: 'building_area_m2', label: '건물면적', type: 'area', tab: 'structure', required: true },
-    { key: 'room_count', label: '객실수', type: 'number', placeholder: '예: 10', tab: 'structure', required: true },
-    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '경량철골', '목조', '조적조', '한옥'], tab: 'structure', required: true },
-    { key: 'monthly_avg_revenue', label: '월평균매출 (만원)', type: 'number', placeholder: '예: 3000', showPriceHint: true, tab: 'detail' },
-    { key: 'business_license', label: '인허가', type: 'select', options: ['숙박업', '관광펜션업', '농어촌민박', '기타'], tab: 'detail' },
   ],
 }
 

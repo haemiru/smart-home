@@ -15,7 +15,7 @@ export type ContractTemplateType =
   | 'officetel_sale' | 'officetel_lease'
   | 'commercial_sale' | 'commercial_lease'
   | 'building_sale'
-  | 'land_sale'
+  | 'land_sale' | 'land_lease'
   | 'factory_sale' | 'factory_lease'
   | 'knowledge_center_sale' | 'knowledge_center_lease'
 
