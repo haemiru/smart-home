@@ -205,20 +205,24 @@ function molitProxy(): PluginOption {
 
           while ((match = itemRegex.exec(xml)) !== null) {
             const it = match[1]
-            const year = tag(it, '년'), month = tag(it, '월'), day = tag(it, '일')
+            // 영문 태그: dealYear, dealMonth, dealDay
+            const year = tag(it, 'dealYear') || tag(it, '년')
+            const month = tag(it, 'dealMonth') || tag(it, '월')
+            const day = tag(it, 'dealDay') || tag(it, '일')
             const dealDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
-            const name = tag(it, '아파트') || tag(it, '단지') || tag(it, '연립다세대') || tag(it, '건물명') || ''
-            const dong = tag(it, '법정동')
-            const exclusiveArea = parseFloat(tag(it, '전용면적') || tag(it, '대지면적') || '0')
-            const floor = parseInt(tag(it, '층')) || null
-            const builtYear = parseInt(tag(it, '건축년도')) || null
+            // 이름: aptNm(아파트), mhouseNm(연립다세대), offiNm(오피스텔) 등
+            const name = tag(it, 'aptNm') || tag(it, 'mhouseNm') || tag(it, 'offiNm') || tag(it, 'houseNm') || tag(it, '아파트') || tag(it, '연립다세대') || ''
+            const dong = tag(it, 'umdNm') || tag(it, 'sggNm') || tag(it, '법정동')
+            const exclusiveArea = parseFloat(tag(it, 'excluUseAr') || tag(it, 'buildingAr') || tag(it, 'plottageAr') || tag(it, '전용면적') || '0')
+            const floor = parseInt(tag(it, 'floor') || tag(it, '층')) || null
+            const builtYear = parseInt(tag(it, 'buildYear') || tag(it, '건축년도')) || null
 
             if (isRent) {
-              const deposit = parseInt(tag(it, '보증금액')?.replace(/,/g, '')) || 0
-              const monthly = parseInt(tag(it, '월세금액')?.replace(/,/g, '')) || 0
+              const deposit = parseInt((tag(it, 'deposit') || tag(it, '보증금액'))?.replace(/,/g, '')) || 0
+              const monthly = parseInt((tag(it, 'monthlyRent') || tag(it, '월세금액'))?.replace(/,/g, '')) || 0
               items.push({ dealDate, name, dong, exclusiveArea, floor, builtYear, dealAmount: deposit, dealType: 'rent', deposit, monthlyRent: monthly || null })
             } else {
-              const amount = parseInt(tag(it, '거래금액')?.replace(/,/g, '').trim()) || 0
+              const amount = parseInt((tag(it, 'dealAmount') || tag(it, '거래금액'))?.replace(/,/g, '').trim()) || 0
               items.push({ dealDate, name, dong, exclusiveArea, floor, builtYear, dealAmount: amount, dealType: 'trade', deposit: null, monthlyRent: null })
             }
           }

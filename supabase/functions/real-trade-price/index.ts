@@ -41,6 +41,15 @@ function xmlTag(xml: string, tag: string): string {
   return m ? m[1].trim() : ''
 }
 
+/** Try multiple tag names, return first match */
+function xmlTagAny(xml: string, ...tags: string[]): string {
+  for (const t of tags) {
+    const v = xmlTag(xml, t)
+    if (v) return v
+  }
+  return ''
+}
+
 /** Parse XML items into TradeRecord array */
 function parseItems(xml: string, apiType: string): TradeRecord[] {
   const items: TradeRecord[] = []
@@ -51,21 +60,20 @@ function parseItems(xml: string, apiType: string): TradeRecord[] {
 
   while ((match = itemRegex.exec(xml)) !== null) {
     const item = match[1]
-    const year = xmlTag(item, '년')
-    const month = xmlTag(item, '월')
-    const day = xmlTag(item, '일')
+    const year = xmlTagAny(item, 'dealYear', '년')
+    const month = xmlTagAny(item, 'dealMonth', '월')
+    const day = xmlTagAny(item, 'dealDay', '일')
     const dealDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
 
-    // Name: different tag names per API
-    const name = xmlTag(item, '아파트') || xmlTag(item, '단지') || xmlTag(item, '연립다세대') || xmlTag(item, '건물명') || ''
-    const dong = xmlTag(item, '법정동')
-    const exclusiveArea = parseFloat(xmlTag(item, '전용면적') || xmlTag(item, '대지면적') || '0')
-    const floor = parseInt(xmlTag(item, '층')) || null
-    const builtYear = parseInt(xmlTag(item, '건축년도')) || null
+    const name = xmlTagAny(item, 'aptNm', 'mhouseNm', 'offiNm', 'houseNm', '아파트', '연립다세대')
+    const dong = xmlTagAny(item, 'umdNm', 'sggNm', '법정동')
+    const exclusiveArea = parseFloat(xmlTagAny(item, 'excluUseAr', 'buildingAr', 'plottageAr', '전용면적') || '0')
+    const floor = parseInt(xmlTagAny(item, 'floor', '층')) || null
+    const builtYear = parseInt(xmlTagAny(item, 'buildYear', '건축년도')) || null
 
     if (isRent) {
-      const deposit = parseInt(xmlTag(item, '보증금액')?.replace(/,/g, '')) || 0
-      const monthly = parseInt(xmlTag(item, '월세금액')?.replace(/,/g, '')) || 0
+      const deposit = parseInt(xmlTagAny(item, 'deposit', '보증금액')?.replace(/,/g, '')) || 0
+      const monthly = parseInt(xmlTagAny(item, 'monthlyRent', '월세금액')?.replace(/,/g, '')) || 0
       items.push({
         dealDate, name, dong, exclusiveArea, floor, builtYear,
         dealAmount: deposit,
@@ -74,7 +82,7 @@ function parseItems(xml: string, apiType: string): TradeRecord[] {
         monthlyRent: monthly || null,
       })
     } else {
-      const amount = parseInt(xmlTag(item, '거래금액')?.replace(/,/g, '').trim()) || 0
+      const amount = parseInt(xmlTagAny(item, 'dealAmount', '거래금액')?.replace(/,/g, '').trim()) || 0
       items.push({
         dealDate, name, dong, exclusiveArea, floor, builtYear,
         dealAmount: amount,
