@@ -18,7 +18,7 @@ type ApiType =
   | 'officetel_trade' | 'officetel_rent'
   | 'row_house_trade' | 'row_house_rent'
   | 'house_trade' | 'house_rent'
-  | 'land_trade' | 'commercial_trade'
+  | 'land_trade' | 'commercial_trade' | 'factory_trade'
 
 async function callApi(lawdCd: string, dealYmd: string, apiType: ApiType): Promise<TradeRecord[]> {
   const body = { lawdCd, dealYmd, apiType }
@@ -81,7 +81,7 @@ export function getApiTypes(categoryName: string | undefined, transactionType: s
     case '상가': case '사무실': case '지식산업센터':
       return ['commercial_trade']
     case '공장/창고':
-      return ['commercial_trade']
+      return ['factory_trade']
     default:
       return isSale ? ['apt_trade'] : ['apt_rent']
   }

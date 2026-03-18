@@ -10,7 +10,7 @@ interface Props {
   categoryName?: string
 }
 
-const UNSUPPORTED_CATEGORIES = ['공장/창고']
+const UNSUPPORTED_CATEGORIES: string[] = []
 
 export function NearbyTradePrice({ property, categoryName }: Props) {
   const [trades, setTrades] = useState<TradeRecord[]>([])
