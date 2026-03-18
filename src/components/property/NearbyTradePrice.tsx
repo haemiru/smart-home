@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import type { Property } from '@/types/database'
 import { getBjdCodeFromAddress } from '@/utils/bjdCode'
-import { fetchRecentTrades, getApiTypes, type TradeRecord } from '@/api/realTradePrice'
+import { fetchRecentTrades, getApiTypes, getDataSourceLabel, type TradeRecord } from '@/api/realTradePrice'
 import { formatPrice } from '@/utils/format'
 
 interface Props {
@@ -81,7 +81,9 @@ export function NearbyTradePrice({ property, categoryName }: Props) {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-sm font-semibold">주변 시세 (국토부 실거래가)</h2>
-          {regionName && <p className="mt-0.5 text-xs text-gray-400">{regionName}</p>}
+          <p className="mt-0.5 text-xs text-gray-400">
+            {regionName} · {getDataSourceLabel(categoryName, property.transaction_type)}
+          </p>
         </div>
         <div className="flex gap-1">
           {([3, 6, 12] as const).map((m) => (

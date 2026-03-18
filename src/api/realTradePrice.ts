@@ -62,6 +62,23 @@ export async function fetchRecentTrades(params: {
   return results.flat().sort((a, b) => b.dealDate.localeCompare(a.dealDate))
 }
 
+/** 매물 카테고리 → 데이터 출처 라벨 */
+export function getDataSourceLabel(categoryName: string | undefined, transactionType: string): string {
+  const isSale = transactionType === 'sale'
+  const suffix = isSale ? '매매' : '전월세'
+  const name = categoryName ?? ''
+  switch (name) {
+    case '아파트': return `아파트 ${suffix} 실거래가`
+    case '오피스텔': return `오피스텔 ${suffix} 실거래가`
+    case '빌라': case '원룸': return `연립다세대 ${suffix} 실거래가`
+    case '주택': return `단독/다가구 ${suffix} 실거래가`
+    case '토지': return '토지 매매 실거래가'
+    case '상가': case '사무실': case '지식산업센터': return `상업업무용 ${suffix} 실거래가`
+    case '공장/창고': return `공장/창고 ${suffix} 실거래가`
+    default: return `${suffix} 실거래가`
+  }
+}
+
 /** 매물 카테고리 → API 유형 매핑 */
 export function getApiTypes(categoryName: string | undefined, transactionType: string): ApiType[] {
   const isSale = transactionType === 'sale'

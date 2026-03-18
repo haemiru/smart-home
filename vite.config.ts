@@ -156,6 +156,9 @@ function resendEmailProxy(): PluginOption {
 
 /** Vite dev server plugin: proxies /api/real-trade-price → 국토부 실거래가 API */
 function molitProxy(): PluginOption {
+  // 인메모리 캐시 (dev 전용): key = "lawdCd|dealYmd|apiType", value = { data, cachedAt }
+  const cache = new Map<string, { data: Record<string, unknown>[]; cachedAt: number }>()
+
   return {
     name: 'molit-proxy',
     configureServer(server) {
@@ -188,6 +191,18 @@ function molitProxy(): PluginOption {
 
         const endpoint = endpoints[apiType]
         if (!endpoint) { res.writeHead(400); res.end(JSON.stringify({ error: `Unknown apiType: ${apiType}` })); return }
+
+        // 캐시 확인 (당월 24h, 과거 월 7일)
+        const cacheKey = `${lawdCd}|${dealYmd}|${apiType}`
+        const now = new Date()
+        const currentYm = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
+        const cacheTtlMs = (dealYmd === currentYm ? 24 : 168) * 60 * 60 * 1000
+        const hit = cache.get(cacheKey)
+        if (hit && (Date.now() - hit.cachedAt) < cacheTtlMs) {
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ items: hit.data, totalCount: hit.data.length, cached: true }))
+          return
+        }
 
         const params = new URLSearchParams({ serviceKey: apiKey, LAWD_CD: lawdCd, DEAL_YMD: dealYmd, pageNo: '1', numOfRows: '100' })
 
@@ -227,8 +242,11 @@ function molitProxy(): PluginOption {
             }
           }
 
+          // 캐시 저장
+          cache.set(cacheKey, { data: items, cachedAt: Date.now() })
+
           res.writeHead(200, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ items, totalCount: items.length }))
+          res.end(JSON.stringify({ items, totalCount: items.length, cached: false }))
         } catch (e) {
           res.writeHead(502)
           res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'proxy error' }))

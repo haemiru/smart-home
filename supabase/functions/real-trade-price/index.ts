@@ -1,4 +1,5 @@
 import { corsHeaders } from '../_shared/cors.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // 국토부 실거래가 API 엔드포인트
 const API_ENDPOINTS: Record<string, string> = {
@@ -127,6 +128,37 @@ Deno.serve(async (req) => {
       )
     }
 
+    // ── 캐시 확인 ──
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const sb = createClient(supabaseUrl, supabaseKey)
+
+    // 당월은 24시간, 과거 월은 7일 캐시
+    const now = new Date()
+    const currentYm = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
+    const isCurrentMonth = dealYmd === currentYm
+    const cacheTtlHours = isCurrentMonth ? 24 : 168 // 24h vs 7days
+
+    const { data: cached } = await sb
+      .from('real_trade_cache')
+      .select('data, cached_at')
+      .eq('lawd_cd', lawdCd)
+      .eq('deal_ymd', dealYmd)
+      .eq('api_type', apiType)
+      .maybeSingle()
+
+    if (cached) {
+      const cachedAge = (Date.now() - new Date(cached.cached_at).getTime()) / (1000 * 60 * 60)
+      if (cachedAge < cacheTtlHours) {
+        const items = cached.data as TradeRecord[]
+        return new Response(
+          JSON.stringify({ items, totalCount: items.length, cached: true }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+    }
+
+    // ── API 호출 ──
     const params = new URLSearchParams({
       serviceKey: apiKey,
       LAWD_CD: lawdCd,
@@ -138,7 +170,6 @@ Deno.serve(async (req) => {
     const res = await fetch(`${endpoint}?${params}`)
     const xml = await res.text()
 
-    // Check for API error
     const resultCode = xmlTag(xml, 'resultCode')
     if (resultCode && resultCode !== '00') {
       const resultMsg = xmlTag(xml, 'resultMsg')
@@ -150,8 +181,16 @@ Deno.serve(async (req) => {
 
     const items = parseItems(xml, apiType)
 
+    // ── 캐시 저장 ──
+    await sb
+      .from('real_trade_cache')
+      .upsert(
+        { lawd_cd: lawdCd, deal_ymd: dealYmd, api_type: apiType, data: items, cached_at: new Date().toISOString() },
+        { onConflict: 'lawd_cd,deal_ymd,api_type' },
+      )
+
     return new Response(
-      JSON.stringify({ items, totalCount: items.length }),
+      JSON.stringify({ items, totalCount: items.length, cached: false }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   } catch (err) {
