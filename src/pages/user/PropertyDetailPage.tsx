@@ -16,6 +16,7 @@ import { createInquiry } from '@/api/inquiries'
 import { addFavorite, removeFavorite, checkIsFavorite } from '@/api/favorites'
 import { useAuthStore } from '@/stores/authStore'
 import { isFeatureInPlan } from '@/config/planFeatures'
+import { NearbyTradePrice } from '@/components/property/NearbyTradePrice'
 import type { InquiryType } from '@/types/database'
 import toast from 'react-hot-toast'
 
@@ -183,13 +184,8 @@ export function PropertyDetailPage() {
             )}
           </div>
 
-          {/* Market price placeholder */}
-          <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
-            <h2 className="mb-3 text-sm font-semibold">주변 시세</h2>
-            <div className="flex h-48 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50">
-              <p className="text-sm text-gray-400">시세 차트 영역 (추후 구현 예정)</p>
-            </div>
-          </div>
+          {/* 주변 시세 (국토부 실거래가) */}
+          <NearbyTradePrice property={p} categoryName={cat?.name} />
         </div>
 
         {/* Right: Agent Card + Actions (sticky) */}

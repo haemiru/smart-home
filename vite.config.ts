@@ -154,8 +154,87 @@ function resendEmailProxy(): PluginOption {
   }
 }
 
+/** Vite dev server plugin: proxies /api/real-trade-price → 국토부 실거래가 API */
+function molitProxy(): PluginOption {
+  return {
+    name: 'molit-proxy',
+    configureServer(server) {
+      server.middlewares.use('/api/real-trade-price', async (req, res) => {
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST', 'Access-Control-Allow-Headers': 'Content-Type' })
+          res.end()
+          return
+        }
+        const apiKey = env.MOLIT_API_KEY
+        if (!apiKey) { res.writeHead(500); res.end(JSON.stringify({ error: 'MOLIT_API_KEY not set' })); return }
+
+        let rawBody = ''
+        for await (const chunk of req) rawBody += chunk
+        const { lawdCd, dealYmd, apiType } = JSON.parse(rawBody)
+
+        const endpoints: Record<string, string> = {
+          apt_trade: 'http://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev',
+          apt_rent: 'http://apis.data.go.kr/1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent',
+          officetel_trade: 'http://apis.data.go.kr/1613000/RTMSDataSvcOffiTrade/getRTMSDataSvcOffiTrade',
+          officetel_rent: 'http://apis.data.go.kr/1613000/RTMSDataSvcOffiRent/getRTMSDataSvcOffiRent',
+          row_house_trade: 'http://apis.data.go.kr/1613000/RTMSDataSvcRHTrade/getRTMSDataSvcRHTrade',
+          row_house_rent: 'http://apis.data.go.kr/1613000/RTMSDataSvcRHRent/getRTMSDataSvcRHRent',
+          house_trade: 'http://apis.data.go.kr/1613000/RTMSDataSvcSHTrade/getRTMSDataSvcSHTrade',
+          house_rent: 'http://apis.data.go.kr/1613000/RTMSDataSvcSHRent/getRTMSDataSvcSHRent',
+          land_trade: 'http://apis.data.go.kr/1613000/RTMSDataSvcLandTrade/getRTMSDataSvcLandTrade',
+          commercial_trade: 'http://apis.data.go.kr/1613000/RTMSDataSvcNrgTrade/getRTMSDataSvcNrgTrade',
+        }
+
+        const endpoint = endpoints[apiType]
+        if (!endpoint) { res.writeHead(400); res.end(JSON.stringify({ error: `Unknown apiType: ${apiType}` })); return }
+
+        const params = new URLSearchParams({ serviceKey: apiKey, LAWD_CD: lawdCd, DEAL_YMD: dealYmd, pageNo: '1', numOfRows: '100' })
+
+        try {
+          const resp = await fetch(`${endpoint}?${params}`)
+          const xml = await resp.text()
+
+          // Parse XML items
+          const items: Record<string, unknown>[] = []
+          const itemRegex = /<item>([\s\S]*?)<\/item>/g
+          let match: RegExpExecArray | null
+          const isRent = apiType.includes('rent')
+
+          const tag = (src: string, t: string) => { const m = src.match(new RegExp(`<${t}>([\\s\\S]*?)</${t}>`)); return m ? m[1].trim() : '' }
+
+          while ((match = itemRegex.exec(xml)) !== null) {
+            const it = match[1]
+            const year = tag(it, '년'), month = tag(it, '월'), day = tag(it, '일')
+            const dealDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+            const name = tag(it, '아파트') || tag(it, '단지') || tag(it, '연립다세대') || tag(it, '건물명') || ''
+            const dong = tag(it, '법정동')
+            const exclusiveArea = parseFloat(tag(it, '전용면적') || tag(it, '대지면적') || '0')
+            const floor = parseInt(tag(it, '층')) || null
+            const builtYear = parseInt(tag(it, '건축년도')) || null
+
+            if (isRent) {
+              const deposit = parseInt(tag(it, '보증금액')?.replace(/,/g, '')) || 0
+              const monthly = parseInt(tag(it, '월세금액')?.replace(/,/g, '')) || 0
+              items.push({ dealDate, name, dong, exclusiveArea, floor, builtYear, dealAmount: deposit, dealType: 'rent', deposit, monthlyRent: monthly || null })
+            } else {
+              const amount = parseInt(tag(it, '거래금액')?.replace(/,/g, '').trim()) || 0
+              items.push({ dealDate, name, dong, exclusiveArea, floor, builtYear, dealAmount: amount, dealType: 'trade', deposit: null, monthlyRent: null })
+            }
+          }
+
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ items, totalCount: items.length }))
+        } catch (e) {
+          res.writeHead(502)
+          res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'proxy error' }))
+        }
+      })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), geminiProxy(), kakaoGeoProxy(), resendEmailProxy()],
+  plugins: [react(), tailwindcss(), geminiProxy(), kakaoGeoProxy(), resendEmailProxy(), molitProxy()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
