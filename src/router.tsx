@@ -24,6 +24,7 @@ const MyContractsPage = lazy(() => import('@/pages/user/MyContractsPage').then((
 const MyContractDetailPage = lazy(() => import('@/pages/user/MyContractsPage').then((m) => ({ default: m.MyContractDetailPage })))
 const MoveInGuidePage = lazy(() => import('@/pages/user/MoveInGuidePage').then((m) => ({ default: m.MoveInGuidePage })))
 const MarketInfoPage = lazy(() => import('@/pages/user/MarketInfoPage').then((m) => ({ default: m.MarketInfoPage })))
+const FavoritesPage = lazy(() => import('@/pages/user/FavoritesPage').then((m) => ({ default: m.FavoritesPage })))
 
 // Admin
 const DashboardPage = lazy(() => import('@/pages/admin/DashboardPage').then((m) => ({ default: m.DashboardPage })))
@@ -108,6 +109,7 @@ export const router = createBrowserRouter([
       { path: 'my/contracts', element: <S><MyContractsPage /></S> },
       { path: 'my/contracts/:id', element: <S><MyContractDetailPage /></S> },
       { path: 'my/move-in-guide/:contractId', element: <S><MoveInGuidePage /></S> },
+      { path: 'favorites', element: <S><FavoritesPage /></S> },
       { path: 'market-info', element: <S><MarketInfoPage /></S> },
     ],
   },

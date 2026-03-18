@@ -141,7 +141,7 @@ export function KakaoMap({ latitude, longitude, onLocationChange, readOnly = fal
     }
   }, [latitude, longitude])
 
-  return <div ref={containerRef} className="w-full rounded-lg border border-gray-200" style={{ height: '42vw', maxHeight: '400px' }} />
+  return <div ref={containerRef} className="relative z-0 w-full rounded-lg border border-gray-200" style={{ height: '42vw', maxHeight: '400px' }} />
 }
 
 export { geocodeAddress }

@@ -4,14 +4,12 @@ import { useAuthStore } from '@/stores/authStore'
 import { useTenantStore } from '@/stores/tenantStore'
 import { signOut } from '@/api/auth'
 import { gnbMenuItems } from '@/utils/mockData'
-import { AreaCalculatorModal } from '@/components/common/AreaCalculatorModal'
 import { useSessionTimeout } from '@/hooks/useSessionTimeout'
 
 export function UserGNB() {
   const { session, user } = useAuthStore()
   const tenant = useTenantStore((s) => s.tenant)
   const { formatted: sessionTimer, remainingMs } = useSessionTimeout()
-  const [isCalcOpen, setIsCalcOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const handleSignOut = async () => {
@@ -52,16 +50,11 @@ export function UserGNB() {
 
             {/* Right Actions */}
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setIsCalcOpen(true)}
-                className="hidden rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 sm:inline-flex sm:items-center sm:gap-1"
-              >
-                <span>📐</span>
-                <span>면적계산기</span>
-              </button>
-
               {session ? (
                 <div className="hidden items-center gap-2 sm:flex">
+                  <Link to="/favorites" className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50">
+                    💗 관심매물 보기
+                  </Link>
                   <span className="text-sm text-gray-600">{user?.display_name}</span>
                   {(user?.role === 'agent' || user?.role === 'staff') && (
                     <Link
@@ -135,15 +128,6 @@ export function UserGNB() {
                   {item.label}
                 </NavLink>
               ))}
-              <button
-                onClick={() => {
-                  setIsCalcOpen(true)
-                  setIsMobileMenuOpen(false)
-                }}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600"
-              >
-                📐 면적계산기
-              </button>
               <div className="border-t border-gray-100 pt-2">
                 {session ? (
                   <>
@@ -193,7 +177,6 @@ export function UserGNB() {
         )}
       </header>
 
-      <AreaCalculatorModal isOpen={isCalcOpen} onClose={() => setIsCalcOpen(false)} />
     </>
   )
 }

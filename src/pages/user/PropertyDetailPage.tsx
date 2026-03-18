@@ -13,6 +13,9 @@ import { useAreaUnitStore } from '@/stores/areaUnitStore'
 import { KakaoMap } from '@/components/common/KakaoMap'
 import { Modal } from '@/components/common/Modal'
 import { createInquiry } from '@/api/inquiries'
+import { addFavorite, removeFavorite, checkIsFavorite } from '@/api/favorites'
+import { useAuthStore } from '@/stores/authStore'
+import { isFeatureInPlan } from '@/config/planFeatures'
 import type { InquiryType } from '@/types/database'
 import toast from 'react-hot-toast'
 
@@ -26,6 +29,8 @@ export function PropertyDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [currentPhoto, setCurrentPhoto] = useState(0)
   const [isInquiryOpen, setIsInquiryOpen] = useState(false)
+  const [isFav, setIsFav] = useState(false)
+  const user = useAuthStore((s) => s.user)
 
   useEffect(() => {
     if (!id) return
@@ -36,6 +41,11 @@ export function PropertyDetailPage() {
       .finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
   }, [id])
+
+  useEffect(() => {
+    if (!id || !user) return
+    checkIsFavorite(id).then(setIsFav).catch(() => {})
+  }, [id, user])
 
   if (isLoading) {
     return <div className="flex min-h-[50vh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" /></div>
@@ -204,11 +214,26 @@ export function PropertyDetailPage() {
               <Button className="w-full" onClick={() => setIsInquiryOpen(true)}>
                 🔥 이 매물 문의하기
               </Button>
-              <Button variant="outline" className="w-full">
-                📅 임장 예약
-              </Button>
+              {isFeatureInPlan('inspection_booking', tenant?.subscription_plan ?? 'free') && (
+                <Button variant="outline" className="w-full">
+                  📅 임장 예약
+                </Button>
+              )}
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="secondary" size="sm" onClick={() => toast.success('관심 매물에 저장했습니다.')}>❤️ 관심 저장</Button>
+                <Button variant="secondary" size="sm" onClick={async () => {
+                  if (!user) { toast.error('로그인이 필요합니다.'); return }
+                  try {
+                    if (isFav) {
+                      await removeFavorite(property.id)
+                      setIsFav(false)
+                      toast.success('관심 매물에서 삭제했습니다.')
+                    } else {
+                      await addFavorite(property.id)
+                      setIsFav(true)
+                      toast.success('관심 매물에 저장했습니다.')
+                    }
+                  } catch { toast.error('처리에 실패했습니다.') }
+                }}>{isFav ? '💔 관심 해제' : '❤️ 관심 저장'}</Button>
                 <Button variant="secondary" size="sm" onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('링크가 복사되었습니다.') }}>🔗 공유하기</Button>
               </div>
             </div>

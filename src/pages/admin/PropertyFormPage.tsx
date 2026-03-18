@@ -117,6 +117,7 @@ export function PropertyFormPage() {
   const [tagConditions] = useState<TagConditionInfo[]>(getTagBasedConditions())
   const [customTagLabels, setCustomTagLabels] = useState<string[]>([])
   const [isWholeBuilding, setIsWholeBuilding] = useState(false)
+  const [isPreConstruction, setIsPreConstruction] = useState(false)
 
   useEffect(() => {
     fetchCategories().then(setCategories).catch(() => setCategories([]))
@@ -225,6 +226,8 @@ export function PropertyFormPage() {
         })
         // 공동주택이면서 동/호 모두 비어있으면 전체 건물로 간주
         if (!p.dong && !p.ho) setIsWholeBuilding(true)
+        // 준공연도 없으면 준공예정으로 간주
+        if (!p.built_year) setIsPreConstruction(true)
       })
     }
   }, [id, navigate])
@@ -265,20 +268,28 @@ export function PropertyFormPage() {
 
   // 전체 건물 모드: 공급면적/전용면적/방/욕실/해당층 숨김, 총층수/준공연도만 표시
   const wholeBuildingStructVis = { supply_area: false, exclusive_area: false, rooms: false, bathrooms: false, floor: false, total_floors: true, direction: false, built_year: true }
-  // 주택: 해당층 불필요, 공급면적 대신 대지면적/연면적을 extra fields로
-  const houseStructVis = { supply_area: false, exclusive_area: false, rooms: true, bathrooms: true, floor: false, total_floors: true, direction: true, built_year: true }
   const isHouse = selectedCategoryName === '주택'
+  const isHouseSale = isHouse && form.transaction_type === 'sale'
+  const isHouseLease = isHouse && form.transaction_type !== 'sale'
+
+  // 주택 매매: 건물/토지 정보 중심 (대지면적, 연면적, 건물구조 등)
+  const houseSaleStructVis = { supply_area: false, exclusive_area: false, rooms: true, bathrooms: true, floor: false, total_floors: true, direction: true, built_year: true }
+  // 주택 전세/월세: 세대 정보 중심 (전용면적, 해당층 등) — 일반 residential과 유사
+  const houseLeaseStructVis = { supply_area: false, exclusive_area: true, rooms: true, bathrooms: true, floor: true, total_floors: true, direction: true, built_year: true }
 
   const structVis = isWholeBuilding
     ? wholeBuildingStructVis
-    : isHouse
-      ? houseStructVis
-      : (catGroup ? STRUCTURE_VISIBILITY[catGroup] : null)
+    : isHouseSale
+      ? houseSaleStructVis
+      : isHouseLease
+        ? houseLeaseStructVis
+        : (catGroup ? STRUCTURE_VISIBILITY[catGroup] : null)
   const detailVis = catGroup ? DETAIL_VISIBILITY[catGroup] : null
   const priceOvr = catGroup ? PRICE_OVERRIDES[catGroup] : null
   const optionChoices = catGroup ? OPTIONS_PER_GROUP[catGroup] : ['에어컨', '냉장고', '세탁기', '가스레인지', '인덕션', '전자레인지', '옷장', '신발장', '침대', '책상', 'TV', '인터넷', 'CCTV', '현관보안', '비디오폰']
 
-  const HOUSE_EXTRA_FIELDS: ExtraFieldDef[] = [
+  // 주택 매매: 건물/토지 extra fields
+  const HOUSE_SALE_EXTRA_FIELDS: ExtraFieldDef[] = [
     { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure', required: true },
     { key: 'gross_floor_area_m2', label: '연면적', type: 'area', tab: 'structure', required: true },
     { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트', '조적조', '목조', '경량철골'], tab: 'structure', required: true },
@@ -288,13 +299,19 @@ export function PropertyFormPage() {
     { key: 'zoning', label: '용도지역', type: 'select', options: ['제1종일반주거', '제2종일반주거', '제3종일반주거', '준주거', '일반상업', '근린상업', '기타'], tab: 'structure' },
     { key: 'bcr_far', label: '건폐율/용적률', type: 'text', placeholder: '예: 60%/200%', tab: 'structure' },
   ]
+  // 주택 전세/월세: 일반 residential extra fields 사용
+  const HOUSE_LEASE_EXTRA_FIELDS: ExtraFieldDef[] = [
+    { key: 'heating_type', label: '난방방식', type: 'select', options: ['개별난방', '중앙난방', '지역난방'], tab: 'structure', required: true },
+    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트', '조적조', '목조', '경량철골'], tab: 'structure' },
+  ]
 
   const extraFieldsForTab = useCallback((tab: 'structure' | 'detail' | 'price'): ExtraFieldDef[] => {
     if (isWholeBuilding) return WHOLE_BUILDING_EXTRA_FIELDS.filter((f) => f.tab === tab)
-    if (isHouse) return HOUSE_EXTRA_FIELDS.filter((f) => f.tab === tab)
+    if (isHouseSale) return HOUSE_SALE_EXTRA_FIELDS.filter((f) => f.tab === tab)
+    if (isHouseLease) return HOUSE_LEASE_EXTRA_FIELDS.filter((f) => f.tab === tab)
     if (!catGroup) return []
     return (EXTRA_FIELDS[catGroup] || []).filter((f) => f.tab === tab)
-  }, [catGroup, isWholeBuilding, isHouse]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [catGroup, isWholeBuilding, isHouseSale, isHouseLease]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Tag conditions ───
   const visibleTagConditions = useMemo(() => {
@@ -650,7 +667,10 @@ ${categoryGuide}
           if (structVis?.floor && !form.floor) return '해당층을 입력해주세요.'
           if (structVis?.total_floors && !form.total_floors) return '총층수를 입력해주세요.'
           if (structVis?.direction && !form.direction) return '방향을 선택해주세요.'
-          if (structVis?.built_year && (!form.built_year || !/^\d{4}-\d{2}$/.test(form.built_year))) return '준공연도를 입력해주세요.'
+          if (structVis?.built_year && !isPreConstruction) {
+            if (!form.built_year || !/^\d{4}-\d{2}$/.test(form.built_year)) return '준공연도를 입력해주세요.'
+            if (form.built_year > new Date().toISOString().slice(0, 7)) return '준공연도는 미래일 수 없습니다.'
+          }
         }
         if (catGroup === 'industrial') {
           if (form.buildings.length === 0) return '건물을 1개 이상 추가해주세요.'
@@ -661,7 +681,7 @@ ${categoryGuide}
         }
         // extra fields 중 required인 것 검증 (모든 카테고리 공통)
         {
-          const extraSource = isWholeBuilding ? WHOLE_BUILDING_EXTRA_FIELDS : isHouse ? HOUSE_EXTRA_FIELDS : (catGroup ? EXTRA_FIELDS[catGroup] || [] : [])
+          const extraSource = isWholeBuilding ? WHOLE_BUILDING_EXTRA_FIELDS : isHouseSale ? HOUSE_SALE_EXTRA_FIELDS : isHouseLease ? HOUSE_LEASE_EXTRA_FIELDS : (catGroup ? EXTRA_FIELDS[catGroup] || [] : [])
           const requiredExtras = extraSource.filter((f) => f.required && f.tab === 'structure')
           for (const fd of requiredExtras) {
             if (!form.extra_info[fd.key as keyof ExtraInfoForm]) return `${fd.label}을(를) 입력해주세요.`
@@ -672,7 +692,7 @@ ${categoryGuide}
       case 'detail': {
         // extra fields 중 required인 것 검증
         {
-          const extraSource = isWholeBuilding ? WHOLE_BUILDING_EXTRA_FIELDS : isHouse ? HOUSE_EXTRA_FIELDS : (catGroup ? EXTRA_FIELDS[catGroup] || [] : [])
+          const extraSource = isWholeBuilding ? WHOLE_BUILDING_EXTRA_FIELDS : isHouseSale ? HOUSE_SALE_EXTRA_FIELDS : isHouseLease ? HOUSE_LEASE_EXTRA_FIELDS : (catGroup ? EXTRA_FIELDS[catGroup] || [] : [])
           const requiredExtras = extraSource.filter((f) => f.required && f.tab === 'detail')
           for (const fd of requiredExtras) {
             if (!form.extra_info[fd.key as keyof ExtraInfoForm]) return `${fd.label}을(를) 입력해주세요.`
@@ -1091,9 +1111,22 @@ ${categoryGuide}
                 )}
                 {structVis?.built_year !== false && (
                   <div>
-                    <label htmlFor="built_year" className="mb-1 block text-sm font-medium text-gray-700">준공연도 <span className="text-red-500">*</span></label>
-                    <input id="built_year" type="month" value={form.built_year} onChange={(e) => set('built_year', e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" required />
+                    <label htmlFor="built_year" className="mb-1 block text-sm font-medium text-gray-700">
+                      준공연도 {!isPreConstruction && <span className="text-red-500">*</span>}
+                    </label>
+                    {!isPreConstruction && (
+                      <input id="built_year" type="month" max={new Date().toISOString().slice(0, 7)} value={form.built_year} onChange={(e) => set('built_year', e.target.value)}
+                        className="mb-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" required />
+                    )}
+                    <label className="flex items-center gap-2 text-sm text-gray-600">
+                      <input type="checkbox" checked={isPreConstruction}
+                        onChange={(e) => {
+                          setIsPreConstruction(e.target.checked)
+                          if (e.target.checked) set('built_year', '')
+                        }}
+                        className="h-4 w-4 rounded border-gray-300 text-primary-600" />
+                      준공예정
+                    </label>
                   </div>
                 )}
               </div>

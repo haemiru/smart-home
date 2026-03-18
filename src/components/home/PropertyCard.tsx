@@ -22,7 +22,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
   const imageUrl = property.photos?.[0] ?? 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Image'
 
   return (
-    <Link to={`/properties/${property.id}`} className="group block cursor-pointer overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+    <Link to={`/properties/${property.id}`} className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
       {/* Image */}
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
         <img
@@ -45,22 +45,26 @@ export function PropertyCard({ property }: PropertyCardProps) {
       </div>
 
       {/* Info */}
-      <div className="p-3">
+      <div className="flex flex-1 flex-col p-3">
         <p className="text-lg font-bold text-gray-900">{priceText}</p>
         <p className="mt-0.5 text-sm font-medium text-gray-700 truncate">{property.title}</p>
         <p className="mt-0.5 text-xs text-gray-500">
           {property.address} · {areaText}
           {floorText && ` · ${floorText}`}
         </p>
-        {property.tags && property.tags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {property.tags.slice(0, 3).map((tag) => (
-              <span key={tag} className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
+        <div className="mt-auto pt-2">
+          {property.tags && property.tags.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {property.tags.slice(0, 3).map((tag) => (
+                <span key={tag} className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="h-4" />
+          )}
+        </div>
       </div>
     </Link>
   )

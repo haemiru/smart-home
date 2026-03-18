@@ -36,6 +36,36 @@ export function AIRecommendations() {
     })
   }
 
+  // 자동 스크롤 (5초 간격, 끝까지 가면 처음으로)
+  useEffect(() => {
+    if (recommended.length === 0) return
+    const el = scrollRef.current
+    if (!el) return
+    let paused = false
+    const timer = setInterval(() => {
+      if (paused) return
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 10
+      if (atEnd) {
+        el.scrollTo({ left: 0, behavior: 'smooth' })
+      } else {
+        el.scrollBy({ left: 300, behavior: 'smooth' })
+      }
+    }, 5000)
+    const pause = () => { paused = true }
+    const resume = () => { paused = false }
+    el.addEventListener('pointerdown', pause)
+    el.addEventListener('pointerup', resume)
+    el.addEventListener('mouseenter', pause)
+    el.addEventListener('mouseleave', resume)
+    return () => {
+      clearInterval(timer)
+      el.removeEventListener('pointerdown', pause)
+      el.removeEventListener('pointerup', resume)
+      el.removeEventListener('mouseenter', pause)
+      el.removeEventListener('mouseleave', resume)
+    }
+  }, [recommended])
+
   if (!session) {
     return (
       <section>
@@ -93,7 +123,7 @@ export function AIRecommendations() {
         className="scrollbar-hide -mx-4 flex gap-4 overflow-x-auto px-4 snap-x snap-mandatory"
       >
         {recommended.map((p) => (
-          <div key={p.id} className="w-64 shrink-0 snap-start sm:w-72">
+          <div key={p.id} className="w-[49vw] shrink-0 snap-start sm:w-56 lg:w-[269px]">
             <PropertyCard property={p} />
           </div>
         ))}
