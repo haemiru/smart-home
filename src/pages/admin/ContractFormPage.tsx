@@ -164,7 +164,7 @@ export function ContractFormPage() {
   }
 
   const canNext = () => {
-    if (step === 1) return selectedProperty !== null
+    if (step === 1) return true // 매물 미선택 시에도 다음 단계 진행 가능
     if (step === 2) return true
     if (step === 3) return sellerInfo.name && buyerInfo.name
     return true
@@ -409,6 +409,7 @@ function Step1PropertySelect({ properties, search, onSearchChange, categoryId, o
           <p className="text-xs text-primary-600">{selected.address} · {formatPropertyPrice(selected.transaction_type, selected.sale_price, selected.deposit, selected.monthly_rent)}</p>
         </div>
       )}
+
     </div>
   )
 }

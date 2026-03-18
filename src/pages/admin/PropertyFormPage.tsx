@@ -19,6 +19,7 @@ import {
   PRICE_OVERRIDES,
   OPTIONS_PER_GROUP,
   EXTRA_FIELDS,
+  WHOLE_BUILDING_EXTRA_FIELDS,
   emptyExtraInfo,
   emptyBuilding,
   BUILDING_STRUCTURE_OPTIONS,
@@ -115,6 +116,7 @@ export function PropertyFormPage() {
   const [specialties, setSpecialties] = useState<string[]>([])
   const [tagConditions] = useState<TagConditionInfo[]>(getTagBasedConditions())
   const [customTagLabels, setCustomTagLabels] = useState<string[]>([])
+  const [isWholeBuilding, setIsWholeBuilding] = useState(false)
 
   useEffect(() => {
     fetchCategories().then(setCategories).catch(() => setCategories([]))
@@ -221,6 +223,8 @@ export function PropertyFormPage() {
               }))
             : [{ ...emptyBuilding }],
         })
+        // 공동주택이면서 동/호 모두 비어있으면 전체 건물로 간주
+        if (!p.dong && !p.ho) setIsWholeBuilding(true)
       })
     }
   }, [id, navigate])
@@ -259,15 +263,38 @@ export function PropertyFormPage() {
     }
   }, [catGroup]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const structVis = catGroup ? STRUCTURE_VISIBILITY[catGroup] : null
+  // 전체 건물 모드: 공급면적/전용면적/방/욕실/해당층 숨김, 총층수/준공연도만 표시
+  const wholeBuildingStructVis = { supply_area: false, exclusive_area: false, rooms: false, bathrooms: false, floor: false, total_floors: true, direction: false, built_year: true }
+  // 주택: 해당층 불필요, 공급면적 대신 대지면적/연면적을 extra fields로
+  const houseStructVis = { supply_area: false, exclusive_area: false, rooms: true, bathrooms: true, floor: false, total_floors: true, direction: true, built_year: true }
+  const isHouse = selectedCategoryName === '주택'
+
+  const structVis = isWholeBuilding
+    ? wholeBuildingStructVis
+    : isHouse
+      ? houseStructVis
+      : (catGroup ? STRUCTURE_VISIBILITY[catGroup] : null)
   const detailVis = catGroup ? DETAIL_VISIBILITY[catGroup] : null
   const priceOvr = catGroup ? PRICE_OVERRIDES[catGroup] : null
   const optionChoices = catGroup ? OPTIONS_PER_GROUP[catGroup] : ['에어컨', '냉장고', '세탁기', '가스레인지', '인덕션', '전자레인지', '옷장', '신발장', '침대', '책상', 'TV', '인터넷', 'CCTV', '현관보안', '비디오폰']
 
+  const HOUSE_EXTRA_FIELDS: ExtraFieldDef[] = [
+    { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure', required: true },
+    { key: 'gross_floor_area_m2', label: '연면적', type: 'area', tab: 'structure', required: true },
+    { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트', '조적조', '목조', '경량철골'], tab: 'structure', required: true },
+    { key: 'building_usage', label: '건물용도', type: 'text', placeholder: '예: 단독주택, 다가구주택', tab: 'structure' },
+    { key: 'land_category', label: '지목', type: 'select', options: ['대', '전', '답', '임야', '잡종지', '기타'], tab: 'structure' },
+    { key: 'heating_type', label: '난방방식', type: 'select', options: ['개별난방', '중앙난방', '지역난방'], tab: 'structure', required: true },
+    { key: 'zoning', label: '용도지역', type: 'select', options: ['제1종일반주거', '제2종일반주거', '제3종일반주거', '준주거', '일반상업', '근린상업', '기타'], tab: 'structure' },
+    { key: 'bcr_far', label: '건폐율/용적률', type: 'text', placeholder: '예: 60%/200%', tab: 'structure' },
+  ]
+
   const extraFieldsForTab = useCallback((tab: 'structure' | 'detail' | 'price'): ExtraFieldDef[] => {
+    if (isWholeBuilding) return WHOLE_BUILDING_EXTRA_FIELDS.filter((f) => f.tab === tab)
+    if (isHouse) return HOUSE_EXTRA_FIELDS.filter((f) => f.tab === tab)
     if (!catGroup) return []
     return (EXTRA_FIELDS[catGroup] || []).filter((f) => f.tab === tab)
-  }, [catGroup])
+  }, [catGroup, isWholeBuilding, isHouse]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Tag conditions ───
   const visibleTagConditions = useMemo(() => {
@@ -601,9 +628,8 @@ ${categoryGuide}
         return null
       case 'location': {
         if (!form.address) return '주소를 입력해주세요.'
-        if (['아파트', '오피스텔', '빌라'].includes(selectedCategoryName)) {
-          if (!form.dong) return '동을 입력해주세요.'
-          if (!form.ho) return '호를 입력해주세요.'
+        if (['아파트', '오피스텔', '빌라'].includes(selectedCategoryName) && !isWholeBuilding) {
+          if (!form.ho) return '호수를 입력해주세요.'
         }
         return null
       }
@@ -634,8 +660,9 @@ ${categoryGuide}
           if (!b.usage) return '첫 번째 건물의 용도를 선택해주세요.'
         }
         // extra fields 중 required인 것 검증 (모든 카테고리 공통)
-        if (catGroup) {
-          const requiredExtras = (EXTRA_FIELDS[catGroup] || []).filter((f) => f.required && f.tab === 'structure')
+        {
+          const extraSource = isWholeBuilding ? WHOLE_BUILDING_EXTRA_FIELDS : isHouse ? HOUSE_EXTRA_FIELDS : (catGroup ? EXTRA_FIELDS[catGroup] || [] : [])
+          const requiredExtras = extraSource.filter((f) => f.required && f.tab === 'structure')
           for (const fd of requiredExtras) {
             if (!form.extra_info[fd.key as keyof ExtraInfoForm]) return `${fd.label}을(를) 입력해주세요.`
           }
@@ -644,8 +671,9 @@ ${categoryGuide}
       }
       case 'detail': {
         // extra fields 중 required인 것 검증
-        if (catGroup) {
-          const requiredExtras = (EXTRA_FIELDS[catGroup] || []).filter((f) => f.required && f.tab === 'detail')
+        {
+          const extraSource = isWholeBuilding ? WHOLE_BUILDING_EXTRA_FIELDS : isHouse ? HOUSE_EXTRA_FIELDS : (catGroup ? EXTRA_FIELDS[catGroup] || [] : [])
+          const requiredExtras = extraSource.filter((f) => f.required && f.tab === 'detail')
           for (const fd of requiredExtras) {
             if (!form.extra_info[fd.key as keyof ExtraInfoForm]) return `${fd.label}을(를) 입력해주세요.`
           }
@@ -880,14 +908,27 @@ ${categoryGuide}
                 </button>
               </div>
             </div>
-            {/* 공동주택 동/호수 (필수) */}
+            {/* 공동주택 동/호수 */}
             {(() => {
               const cn = categories.find((c) => c.id === form.category_id)?.name || ''
               const isMultiUnit = ['아파트', '오피스텔', '빌라'].includes(cn)
               return isMultiUnit ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <Input id="dong" label={<>동 <span className="text-red-500">*</span></>} value={form.dong} onChange={(e) => set('dong', e.target.value)} placeholder="예: 101" required />
-                  <Input id="ho" label={<>호 <span className="text-red-500">*</span></>} value={form.ho} onChange={(e) => set('ho', e.target.value)} placeholder="예: 502" required />
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={isWholeBuilding}
+                      onChange={(e) => {
+                        setIsWholeBuilding(e.target.checked)
+                        if (e.target.checked) { set('dong', ''); set('ho', '') }
+                      }}
+                      className="h-4 w-4 rounded border-gray-300 text-primary-600" />
+                    전체 (건물 전체 거래)
+                  </label>
+                  {!isWholeBuilding && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input id="dong" label="동" value={form.dong} onChange={(e) => set('dong', e.target.value)} placeholder="예: 101" />
+                      <Input id="ho" label={<>호 <span className="text-red-500">*</span></>} value={form.ho} onChange={(e) => set('ho', e.target.value)} placeholder="예: 502" required />
+                    </div>
+                  )}
                 </div>
               ) : null
             })()}

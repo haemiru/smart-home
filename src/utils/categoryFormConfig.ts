@@ -113,6 +113,18 @@ export type ExtraFieldDef = {
   required?: boolean       // 계약서/확인설명서 필수 필드
 }
 
+/** 전체 건물 거래 시 extra fields (빌라 등 공동주택 전체 매매) */
+export const WHOLE_BUILDING_EXTRA_FIELDS: ExtraFieldDef[] = [
+  { key: 'land_area_m2', label: '대지면적', type: 'area', tab: 'structure', required: true },
+  { key: 'gross_floor_area_m2', label: '연면적', type: 'area', tab: 'structure', required: true },
+  { key: 'household_count', label: '세대수', type: 'number', placeholder: '예: 12', tab: 'structure', required: true },
+  { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트', '조적조', '목조', '경량철골'], tab: 'structure', required: true },
+  { key: 'zoning', label: '용도지역', type: 'select', options: ['제1종일반주거', '제2종일반주거', '제3종일반주거', '준주거', '일반상업', '근린상업', '기타'], tab: 'structure' },
+  { key: 'bcr_far', label: '건폐율/용적률', type: 'text', placeholder: '예: 60%/200%', tab: 'structure' },
+  { key: 'heating_type', label: '난방방식', type: 'select', options: ['개별난방', '중앙난방', '지역난방'], tab: 'structure' },
+  { key: 'land_category', label: '지목', type: 'select', options: ['대', '전', '답', '임야', '잡종지', '기타'], tab: 'structure' },
+]
+
 export const EXTRA_FIELDS: Record<CategoryGroup, ExtraFieldDef[]> = {
   residential: [
     { key: 'building_structure', label: '건물구조', type: 'select', options: ['철근콘크리트', '철골조', '철골철근콘크리트', '조적조', '목조', '경량철골'], tab: 'structure', required: true },
@@ -215,6 +227,7 @@ export type ExtraInfoForm = {
   bcr_far: string
   slope_terrain: string
   building_area_m2: string
+  gross_floor_area_m2: string
   power_capacity: string
   truck_25t: boolean
   truck_wingbody: boolean
@@ -251,6 +264,7 @@ export const emptyExtraInfo: ExtraInfoForm = {
   bcr_far: '',
   slope_terrain: '',
   building_area_m2: '',
+  gross_floor_area_m2: '',
   power_capacity: '',
   truck_25t: false,
   truck_wingbody: false,
