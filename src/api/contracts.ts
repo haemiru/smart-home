@@ -61,8 +61,8 @@ export function getStepDocuments(stepType: ContractStepType, txType: Transaction
     down_payment: [],
     mid_payment: ['중도금 입금 확인서'],
     final_payment: isSale
-      ? ['잔금 입금 확인서', '등기권리증', '인감증명서', '주민등록초본']
-      : ['잔금 입금 확인서'],
+      ? ['등기권리증', '인감증명서', '주민등록초본']
+      : [],
     ownership_transfer: ['등기신청서', '취득세 납부 확인서', '등기권리증', '위임장'],
     move_in_report: ['임대차 계약서', '신분증'],
     fixed_date: ['임대차계약서 원본', '확정일자 신청서'],

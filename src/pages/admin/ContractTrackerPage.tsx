@@ -21,7 +21,7 @@ export function ContractTrackerPage() {
   const [isReviewing, setIsReviewing] = useState(false)
   const [reviewResult, setReviewResult] = useState<string | null>(null)
   const [isGeneratingGuide, setIsGeneratingGuide] = useState(false)
-  const [receiptOpen, setReceiptOpen] = useState(false)
+  const [receiptOpen, setReceiptOpen] = useState<'down_payment' | 'final_payment' | null>(null)
   // 전자서명 상태 — 추후 활성화 시 복원
   // const [signatureStatus, setSignatureStatus] = useState<SignatureStatus>('unsigned')
   // const [isRequestingSignature, setIsRequestingSignature] = useState(false)
@@ -380,12 +380,20 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
                     </div>
                   )}
 
-                  {/* 계약금 영수증 출력 버튼 */}
+                  {/* 계약금/잔금 영수증 출력 버튼 */}
                   {step.step_type === 'down_payment' && (
                     <div className="mt-2">
-                      <button onClick={() => setReceiptOpen(true)}
+                      <button onClick={() => setReceiptOpen('down_payment')}
                         className="rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-100">
                         🧾 계약금 영수증 출력
+                      </button>
+                    </div>
+                  )}
+                  {step.step_type === 'final_payment' && (
+                    <div className="mt-2">
+                      <button onClick={() => setReceiptOpen('final_payment')}
+                        className="rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-100">
+                        🧾 잔금 영수증 출력
                       </button>
                     </div>
                   )}
@@ -396,30 +404,34 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
         </div>
       </div>
 
-      {/* 계약금 영수증 모달 */}
+      {/* 영수증 모달 */}
       {receiptOpen && contract && (
-        <DepositReceipt
+        <PaymentReceipt
           contract={contract}
           property={property}
-          onClose={() => setReceiptOpen(false)}
+          paymentType={receiptOpen}
+          onClose={() => setReceiptOpen(null)}
         />
       )}
     </div>
   )
 }
 
-// ── 계약금 영수증 ──
-function DepositReceipt({ contract, property, onClose }: {
-  contract: Contract; property: Property | null; onClose: () => void
+// ── 영수증 (계약금 / 잔금 공용) ──
+function PaymentReceipt({ contract, property, paymentType, onClose }: {
+  contract: Contract; property: Property | null; paymentType: 'down_payment' | 'final_payment'; onClose: () => void
 }) {
   const receiptRef = useRef<HTMLDivElement>(null)
   const isSale = contract.transaction_type === 'sale'
   const priceInfo = contract.price_info as Record<string, number>
   const sellerInfo = contract.seller_info as Record<string, string>
-  const downPayment = priceInfo.downPayment ?? 0
 
-  const amountKorean = formatPrice(downPayment)
-  const amountNum = (downPayment * 10000).toLocaleString('ko-KR')
+  const isDown = paymentType === 'down_payment'
+  const amount = isDown ? (priceInfo.downPayment ?? 0) : (priceInfo.finalPayment ?? 0)
+  const paymentLabel = isDown ? '계약금' : '잔금'
+
+  const amountKorean = formatPrice(amount)
+  const amountNum = (amount * 10000).toLocaleString('ko-KR')
   const purposeText = isSale ? '매매대금' : '임대보증금'
   const issuerLabel = isSale ? '발 행 인(매도인)' : '발 행 인(임대인)'
   const propertyLabel = isSale ? '매매부동산' : '임대부동산'
@@ -436,7 +448,7 @@ function DepositReceipt({ contract, property, onClose }: {
     <div class="receipt">
       <h3 class="title">영 수 증</h3>
       <p class="amount-row"><span class="label">금 액 :</span><span class="amount-value">${amountKorean}원정</span><span class="won">(￦ ${amountNum})</span></p>
-      <p class="body-text">상기 금액은 부동산 <b>${purposeText}</b>의 계약금으로 정히 영수함.</p>
+      <p class="body-text">상기 금액은 부동산 <b>${purposeText}</b>의 ${paymentLabel}으로 정히 영수함.</p>
       <p class="property-row"><span class="label">${propertyLabel} :</span><span>${propertyAddress}</span></p>
       <p class="date">${yyyy} 년 ${mm} 월 ${dd} 일</p>
       <p class="signer"><span class="issuer-label">${issuerLabel} :</span><span class="issuer-name">${sellerInfo.name || ''}</span><span class="seal">(서명 및 날인)</span></p>
@@ -477,7 +489,7 @@ function DepositReceipt({ contract, property, onClose }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
       <div className="mx-4 w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold">계약금 영수증</h2>
+          <h2 className="text-lg font-bold">{paymentLabel} 영수증</h2>
           <div className="flex gap-2">
             <button onClick={handlePrint} className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
               인쇄
@@ -497,7 +509,7 @@ function DepositReceipt({ contract, property, onClose }: {
               <span className="text-xs text-gray-500">(￦ {amountNum})</span>
             </p>
             <p className="my-6 text-center text-sm leading-relaxed">
-              상기 금액은 부동산 <b>{purposeText}</b>의 계약금으로 정히 영수함.
+              상기 금액은 부동산 <b>{purposeText}</b>의 {paymentLabel}으로 정히 영수함.
             </p>
             <p className="mb-2 flex items-baseline gap-2 text-sm">
               <span className="font-bold">{propertyLabel} :</span>
@@ -523,7 +535,7 @@ function DepositReceipt({ contract, property, onClose }: {
               <span className="text-xs text-gray-500">(￦ {amountNum})</span>
             </p>
             <p className="my-6 text-center text-sm leading-relaxed">
-              상기 금액은 부동산 <b>{purposeText}</b>의 계약금으로 정히 영수함.
+              상기 금액은 부동산 <b>{purposeText}</b>의 {paymentLabel}으로 정히 영수함.
             </p>
             <p className="mb-2 flex items-baseline gap-2 text-sm">
               <span className="font-bold">{propertyLabel} :</span>
