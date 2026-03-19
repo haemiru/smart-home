@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import type { Contract, ContractProcess, ContractStatus, Property } from '@/types/database'
 import { fetchContractById, fetchContractProcess, toggleProcessStep, updateProcessStep, updateContractStatus, getStepDocuments } from '@/api/contracts'
@@ -21,6 +21,7 @@ export function ContractTrackerPage() {
   const [isReviewing, setIsReviewing] = useState(false)
   const [reviewResult, setReviewResult] = useState<string | null>(null)
   const [isGeneratingGuide, setIsGeneratingGuide] = useState(false)
+  const [receiptOpen, setReceiptOpen] = useState(false)
   // 전자서명 상태 — 추후 활성화 시 복원
   // const [signatureStatus, setSignatureStatus] = useState<SignatureStatus>('unsigned')
   // const [isRequestingSignature, setIsRequestingSignature] = useState(false)
@@ -378,10 +379,158 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
                       </div>
                     </div>
                   )}
+
+                  {/* 계약금 영수증 출력 버튼 */}
+                  {step.step_type === 'down_payment' && (
+                    <div className="mt-2">
+                      <button onClick={() => setReceiptOpen(true)}
+                        className="rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-100">
+                        🧾 계약금 영수증 출력
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )
           })}
+        </div>
+      </div>
+
+      {/* 계약금 영수증 모달 */}
+      {receiptOpen && contract && (
+        <DepositReceipt
+          contract={contract}
+          property={property}
+          onClose={() => setReceiptOpen(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── 계약금 영수증 ──
+function DepositReceipt({ contract, property, onClose }: {
+  contract: Contract; property: Property | null; onClose: () => void
+}) {
+  const receiptRef = useRef<HTMLDivElement>(null)
+  const isSale = contract.transaction_type === 'sale'
+  const priceInfo = contract.price_info as Record<string, number>
+  const sellerInfo = contract.seller_info as Record<string, string>
+  const downPayment = priceInfo.downPayment ?? 0
+
+  const amountKorean = formatPrice(downPayment)
+  const amountNum = (downPayment * 10000).toLocaleString('ko-KR')
+  const purposeText = isSale ? '매매대금' : '임대보증금'
+  const receiverLabel = isSale ? '매도인(영수인)' : '임대인(영수인)'
+  const propertyLabel = isSale ? '매매부동산' : '임대부동산'
+  const propertyAddress = property
+    ? `${property.address}${property.dong ? ` ${property.dong}동` : ''}${property.ho ? ` ${property.ho}호` : ''}`
+    : ''
+
+  const today = new Date()
+  const yyyy = today.getFullYear()
+  const mm = String(today.getMonth() + 1).padStart(2, ' ')
+  const dd = String(today.getDate()).padStart(2, ' ')
+
+  const receiptHTML = `
+    <div class="receipt">
+      <h3 class="title">영 수 증</h3>
+      <p class="amount-row"><span class="label">금 액 :</span><span class="amount-value">${amountKorean}원정</span><span class="won">(￦ ${amountNum})</span></p>
+      <p class="body-text">상기 금액은 부동산 <b>${purposeText}</b>의 계약금으로 정히 영수함.</p>
+      <p class="property-row"><span class="label">${propertyLabel} :</span><span>${propertyAddress}</span></p>
+      <p class="date">${yyyy} 년 ${mm} 월 ${dd} 일</p>
+      <p class="signer">${receiverLabel}<br/>${sellerInfo.name || ''}  귀하</p>
+    </div>`
+
+  const handlePrint = () => {
+    const w = window.open('', '_blank', 'width=800,height=900')
+    if (!w) return
+    w.document.write(`<!DOCTYPE html><html><head><title>계약금 영수증</title><style>
+      @page { size: A4; margin: 20mm 25mm; }
+      body { font-family: '바탕', 'Batang', 'Nanum Myeongjo', serif; margin: 0; padding: 0; -webkit-print-color-adjust: exact; }
+      .receipt { border: 2px solid #333; padding: 36px 48px; }
+      .title { text-align: center; font-size: 28px; font-weight: bold; letter-spacing: 24px; margin: 0 0 36px; }
+      .amount-row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; font-size: 15px; }
+      .label { font-weight: bold; white-space: nowrap; letter-spacing: 4px; }
+      .amount-value { white-space: nowrap; }
+      .won { font-size: 13px; color: #555; }
+      .body-text { margin: 28px 0; font-size: 15px; text-align: center; line-height: 1.8; }
+      .property-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; font-size: 15px; }
+      .date { text-align: center; margin: 32px 0 20px; font-size: 15px; letter-spacing: 2px; }
+      .signer { text-align: right; font-size: 15px; line-height: 1.8; }
+      .divider { border: none; border-top: 2px dashed #999; margin: 28px 0 8px; }
+      .divider-label { text-align: center; font-size: 12px; color: #888; margin-bottom: 28px; }
+    </style></head><body>
+      ${receiptHTML}
+      <hr class="divider" />
+      <p class="divider-label">(회사보관용)</p>
+      ${receiptHTML}
+    </body></html>`)
+    w.document.close()
+    w.print()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="mx-4 w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold">계약금 영수증</h2>
+          <div className="flex gap-2">
+            <button onClick={handlePrint} className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
+              인쇄
+            </button>
+            <button onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-100">닫기</button>
+          </div>
+        </div>
+
+        {/* 미리보기 */}
+        <div className="max-h-[70vh] overflow-y-auto rounded-lg border border-gray-200 bg-white p-4" ref={receiptRef}>
+          {/* 고객보관용 */}
+          <div className="border-2 border-gray-800 px-10 py-8" style={{ fontFamily: "'바탕', 'Batang', serif" }}>
+            <h3 className="mb-8 text-center text-2xl font-bold" style={{ letterSpacing: '24px' }}>영 수 증</h3>
+            <p className="mb-2 flex items-baseline gap-3 text-sm">
+              <span className="font-bold" style={{ letterSpacing: '4px' }}>금 액 :</span>
+              <span>{amountKorean}원정</span>
+              <span className="text-xs text-gray-500">(￦ {amountNum})</span>
+            </p>
+            <p className="my-6 text-center text-sm leading-relaxed">
+              상기 금액은 부동산 <b>{purposeText}</b>의 계약금으로 정히 영수함.
+            </p>
+            <p className="mb-2 flex items-baseline gap-2 text-sm">
+              <span className="font-bold">{propertyLabel} :</span>
+              <span>{propertyAddress}</span>
+            </p>
+            <p className="my-7 text-center text-sm" style={{ letterSpacing: '2px' }}>{yyyy} 년 {mm} 월 {dd} 일</p>
+            <p className="text-right text-sm leading-relaxed">
+              {receiverLabel}<br />
+              {sellerInfo.name || ''}  귀하
+            </p>
+          </div>
+
+          <div className="my-3 border-t-2 border-dashed border-gray-400" />
+          <p className="mb-3 text-center text-xs text-gray-500">(회사보관용)</p>
+
+          {/* 회사보관용 */}
+          <div className="border-2 border-gray-800 px-10 py-8" style={{ fontFamily: "'바탕', 'Batang', serif" }}>
+            <h3 className="mb-8 text-center text-2xl font-bold" style={{ letterSpacing: '24px' }}>영 수 증</h3>
+            <p className="mb-2 flex items-baseline gap-3 text-sm">
+              <span className="font-bold" style={{ letterSpacing: '4px' }}>금 액 :</span>
+              <span>{amountKorean}원정</span>
+              <span className="text-xs text-gray-500">(￦ {amountNum})</span>
+            </p>
+            <p className="my-6 text-center text-sm leading-relaxed">
+              상기 금액은 부동산 <b>{purposeText}</b>의 계약금으로 정히 영수함.
+            </p>
+            <p className="mb-2 flex items-baseline gap-2 text-sm">
+              <span className="font-bold">{propertyLabel} :</span>
+              <span>{propertyAddress}</span>
+            </p>
+            <p className="my-7 text-center text-sm" style={{ letterSpacing: '2px' }}>{yyyy} 년 {mm} 월 {dd} 일</p>
+            <p className="text-right text-sm leading-relaxed">
+              {receiverLabel}<br />
+              {sellerInfo.name || ''}  귀하
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -58,7 +58,7 @@ export function getStepDocuments(stepType: ContractStepType, txType: Transaction
     contract_signed: isSale
       ? ['신분증', '등기부등본', '국세·지방세 완납증명서']
       : ['신분증', '등기부등본', '국세·지방세 완납증명서', '확정일자 부여현황', '전입세대 확인서'],
-    down_payment: ['계약금 입금 확인서'],
+    down_payment: [],
     mid_payment: ['중도금 입금 확인서'],
     final_payment: isSale
       ? ['잔금 입금 확인서', '등기권리증', '인감증명서', '주민등록초본']
