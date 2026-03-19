@@ -210,11 +210,15 @@ export function PropertyDetailPage() {
               <Button className="w-full" onClick={() => setIsInquiryOpen(true)}>
                 🔥 이 매물 문의하기
               </Button>
-              {isFeatureInPlan('inspection_booking', (tenant?.subscription_plan ?? 'free') as import('@/types/database').PlanType) && (
-                <Button variant="outline" className="w-full">
-                  📅 임장 예약
-                </Button>
-              )}
+              <Button variant="outline" className="w-full" onClick={() => {
+                if (!isFeatureInPlan('inspection_booking', (tenant?.subscription_plan ?? 'free') as import('@/types/database').PlanType)) {
+                  toast('Basic 플랜에서 사용 가능한 기능입니다.', { icon: '🔒' })
+                  return
+                }
+                toast('임장 예약 기능 준비 중입니다.')
+              }}>
+                📅 임장 예약
+              </Button>
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="secondary" size="sm" onClick={async () => {
                   if (!user) { toast.error('로그인이 필요합니다.'); return }

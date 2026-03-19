@@ -64,6 +64,24 @@ export function isNavItemVisible(navKey: string, features: Record<string, boolea
   return featureKeys.some((fk) => isFeatureInPlan(fk, plan) && features[fk] !== false)
 }
 
+/** Check if a nav item is locked (exists but not in current plan) */
+export function isNavItemLocked(navKey: string, plan: PlanType): boolean {
+  const featureKeys = NAV_FEATURE_MAP[navKey]
+  if (!featureKeys || featureKeys.length === 0) return false
+  return !featureKeys.some((fk) => isFeatureInPlan(fk, plan))
+}
+
+/** Get the minimum required plan for a nav item */
+export function getRequiredPlan(navKey: string): PlanType {
+  const featureKeys = NAV_FEATURE_MAP[navKey]
+  if (!featureKeys || featureKeys.length === 0) return 'free'
+  const plans: PlanType[] = ['free', 'basic', 'pro']
+  for (const p of plans) {
+    if (featureKeys.some((fk) => isFeatureInPlan(fk, p))) return p
+  }
+  return 'pro'
+}
+
 // Mapping from sidebar nav keys to staff permission keys
 const NAV_PERMISSION_MAP: Record<string, string> = {
   properties: 'property_create',

@@ -1,7 +1,9 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useNotificationStore } from '@/stores/notificationStore'
-import { useFeatureStore, isNavItemVisible, isNavItemPermitted } from '@/stores/featureStore'
+import { useFeatureStore, isNavItemPermitted, isNavItemLocked, getRequiredPlan } from '@/stores/featureStore'
 import { useAuthStore } from '@/stores/authStore'
+import { PLAN_INFO } from '@/config/planFeatures'
+import toast from 'react-hot-toast'
 
 export type AdminNavItem = {
   key: string
@@ -32,12 +34,14 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
   const { unansweredInquiryCount } = useNotificationStore()
-  const { features, plan, isLoaded } = useFeatureStore()
+  const { plan, isLoaded } = useFeatureStore()
   const { user, staffPermissions } = useAuthStore()
 
-  // Filter nav items by plan + feature settings + staff permissions
+  const navigate = useNavigate()
+
+  // Show all nav items but mark locked ones — filter only by staff permissions
   const visibleItems = isLoaded
-    ? baseNavItems.filter((item) => isNavItemVisible(item.key, features, plan) && isNavItemPermitted(item.key, user?.role, staffPermissions))
+    ? baseNavItems.filter((item) => isNavItemPermitted(item.key, user?.role, staffPermissions))
     : baseNavItems
 
   const showSettings = isNavItemPermitted('settings', user?.role, staffPermissions)
@@ -68,28 +72,50 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
       >
         <div className="flex h-full flex-col">
           <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-            {mainNavItems.map((item) => (
-              <NavLink
-                key={item.key}
-                to={item.path}
-                onClick={onClose}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-                    isActive
-                      ? 'bg-primary-50 font-medium text-primary-700'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`
-                }
-              >
-                <span className="text-base">{item.icon}</span>
-                <span className="flex-1">{item.label}</span>
-                {item.badge != null && item.badge > 0 && (
-                  <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                    {item.badge}
-                  </span>
-                )}
-              </NavLink>
-            ))}
+            {mainNavItems.map((item) => {
+              const locked = isLoaded && isNavItemLocked(item.key, plan)
+              if (locked) {
+                const reqPlan = getRequiredPlan(item.key)
+                const planLabel = PLAN_INFO[reqPlan]?.label ?? reqPlan
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => {
+                      toast(`${planLabel} 플랜에서 사용 가능한 기능입니다.`, { icon: '🔒' })
+                      navigate('/admin/settings/billing')
+                      onClose()
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-400 transition-colors hover:bg-gray-50"
+                  >
+                    <span className="text-base opacity-50">{item.icon}</span>
+                    <span className="flex-1">{item.label}</span>
+                    <span className="text-[10px]">🔒</span>
+                  </button>
+                )
+              }
+              return (
+                <NavLink
+                  key={item.key}
+                  to={item.path}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                      isActive
+                        ? 'bg-primary-50 font-medium text-primary-700'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`
+                  }
+                >
+                  <span className="text-base">{item.icon}</span>
+                  <span className="flex-1">{item.label}</span>
+                  {item.badge != null && item.badge > 0 && (
+                    <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      {item.badge}
+                    </span>
+                  )}
+                </NavLink>
+              )
+            })}
           </nav>
 
           {/* Bottom: Settings */}
