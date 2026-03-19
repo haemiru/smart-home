@@ -6,11 +6,9 @@ import { supabaseAuth, supabase } from '@/api/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import toast from 'react-hot-toast'
 
-/** 플랫폼 루트(www/naked)에서 로그인한 경우 개공의 서브도메인으로 리다이렉트 */
+/** 로그인 후 개공의 올바른 서브도메인으로 리다이렉트 */
 async function redirectToSubdomain(userId: string): Promise<boolean> {
   const hostname = window.location.hostname
-  // 서브도메인이 이미 있으면 리다이렉트 불필요
-  if (!['www', 'localhost', ''].includes(hostname.split('.')[0]) && !hostname.includes('vercel.app')) return false
   // localhost 개발 환경은 리다이렉트 안 함
   if (hostname === 'localhost' || hostname === '127.0.0.1') return false
 
@@ -20,12 +18,18 @@ async function redirectToSubdomain(userId: string): Promise<boolean> {
       .select('slug')
       .eq('user_id', userId)
       .maybeSingle()
-    if (data?.slug) {
-      const protocol = window.location.protocol
-      const baseDomain = hostname.replace(/^www\./, '')
-      window.location.href = `${protocol}//${data.slug}.${baseDomain}/admin/dashboard`
-      return true
-    }
+    if (!data?.slug) return false
+
+    // 현재 서브도메인과 실제 slug가 같으면 리다이렉트 불필요
+    const currentSub = hostname.split('.')[0]
+    if (currentSub === data.slug) return false
+
+    // 베이스 도메인 추출 (www.jungaepro.com → jungaepro.com, gangnam.jungaepro.com → jungaepro.com)
+    const parts = hostname.replace(/^www\./, '').split('.')
+    const baseDomain = parts.length > 2 ? parts.slice(1).join('.') : parts.join('.')
+    const protocol = window.location.protocol
+    window.location.href = `${protocol}//${data.slug}.${baseDomain}/admin/dashboard`
+    return true
   } catch { /* ignore */ }
   return false
 }
