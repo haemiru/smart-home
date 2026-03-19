@@ -13,9 +13,9 @@ const features = [
 ]
 
 const plans = [
-  { name: 'Free', price: '무료', desc: '시작하는 중개사', features: ['매물 10건', '계약 관리', 'CRM', '문의 관리'] },
-  { name: 'Basic', price: '월 29,000원', desc: '성장하는 중개사', features: ['매물 무제한', 'AI 도구 전체', '시세/분석', '임장 관리', '공동중개', '알림톡/SMS'], highlight: true },
-  { name: 'Pro', price: '월 59,000원', desc: '전문 중개사', features: ['Basic 전체', 'AI 홈스테이징', 'SNS 자동 포스팅', '전자서명', '실시간 채팅', '커스텀 도메인'] },
+  { name: 'Free', price: '무료', desc: '시작하는 중개사', features: ['매물 50건', '고객관리', '문의 관리', '계약 관리', '서브도메인'] },
+  { name: 'Basic', price: '3,000원/월', priceNote: 'VAT 별도', desc: '성장하는 중개사', features: ['매물 무제한', 'AI 도구', '고객 스코어링/진성 분석', '데이터 분석', '임장/임대 관리', '공동중개', '커스텀 도메인', '알림톡/SMS'], highlight: true },
+  { name: 'Pro', price: '5,000원/월', priceNote: 'VAT 별도', desc: '전문 중개사', features: ['Basic 전체', 'AI 가상스테이징', 'SNS 포스팅', '실시간 채팅', '전자서명'] },
 ]
 
 export default function LandingPage() {
@@ -130,6 +130,7 @@ export default function LandingPage() {
               {p.highlight && <span className="mb-2 inline-block rounded-full bg-primary-600 px-3 py-0.5 text-xs font-bold text-white">인기</span>}
               <h3 className="text-lg font-bold text-gray-900">{p.name}</h3>
               <p className="mt-1 text-2xl font-extrabold text-primary-700">{p.price}</p>
+              {p.priceNote && <p className="text-xs text-gray-400">{p.priceNote}</p>}
               <p className="mt-1 text-sm text-gray-500">{p.desc}</p>
               <ul className="mt-4 space-y-2">
                 {p.features.map((f) => (
