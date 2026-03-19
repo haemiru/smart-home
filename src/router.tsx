@@ -114,13 +114,15 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Admin portal (agent, staff only)
+  // Admin portal (agent, staff only) — TenantGate blocks access from www/root domain
   {
     path: '/admin',
     element: (
-      <ProtectedRoute allowedRoles={['agent', 'staff']}>
-        <AdminLayout />
-      </ProtectedRoute>
+      <TenantGate>
+        <ProtectedRoute allowedRoles={['agent', 'staff']}>
+          <AdminLayout />
+        </ProtectedRoute>
+      </TenantGate>
     ),
     children: [
       { path: 'dashboard', element: <S><DashboardPage /></S> },
