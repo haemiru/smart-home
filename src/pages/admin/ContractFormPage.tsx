@@ -544,6 +544,7 @@ function Step3ContractInfo({ txType, templateType: _templateType, sellerInfo, on
   const { findCategory } = useCategories()
   const isSale = txType === 'sale'
   const isMonthly = txType === 'monthly'
+  const todayStr = new Date().toISOString().slice(0, 10)
 
   return (
     <div className="space-y-6">
@@ -644,13 +645,13 @@ function Step3ContractInfo({ txType, templateType: _templateType, sellerInfo, on
         {/* 중도금 1 */}
         <div className="mb-3 grid grid-cols-2 gap-4">
           <PriceField label="중도금 (만원)" value={priceInfo.midPayment} onChange={(v) => onPriceChange({ ...priceInfo, midPayment: v })} />
-          <DateField label="중도금 지급일" value={priceInfo.midPaymentDate} onChange={(v) => onPriceChange({ ...priceInfo, midPaymentDate: v })} />
+          <DateField label="중도금 지급일" value={priceInfo.midPaymentDate} min={todayStr} onChange={(v) => onPriceChange({ ...priceInfo, midPaymentDate: v })} />
         </div>
         {/* 중도금 2 (매매) */}
         {isSale && (
           <div className="mb-3 grid grid-cols-2 gap-4">
             <PriceField label="중도금 2 (만원)" value={priceInfo.midPayment2} onChange={(v) => onPriceChange({ ...priceInfo, midPayment2: v })} />
-            <DateField label="중도금 2 지급일" value={priceInfo.midPaymentDate2} onChange={(v) => onPriceChange({ ...priceInfo, midPaymentDate2: v })} />
+            <DateField label="중도금 2 지급일" value={priceInfo.midPaymentDate2} min={priceInfo.midPaymentDate || todayStr} onChange={(v) => onPriceChange({ ...priceInfo, midPaymentDate2: v })} />
           </div>
         )}
         {/* 잔금 */}
@@ -660,7 +661,7 @@ function Step3ContractInfo({ txType, templateType: _templateType, sellerInfo, on
             <input type="text" readOnly value={formatNumber(priceInfo.finalPayment)}
               className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-right text-gray-500" />
           </div>
-          <DateField label="잔금 지급일" value={priceInfo.finalPaymentDate} onChange={(v) => onPriceChange({ ...priceInfo, finalPaymentDate: v })} />
+          <DateField label="잔금 지급일" value={priceInfo.finalPaymentDate} min={priceInfo.midPaymentDate2 || priceInfo.midPaymentDate || todayStr} onChange={(v) => onPriceChange({ ...priceInfo, finalPaymentDate: v })} />
         </div>
         {/* 융자금 (매매) */}
         {isSale && (
@@ -770,11 +771,11 @@ function PriceField({ label, value, onChange }: { label: string; value: string; 
   )
 }
 
-function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function DateField({ label, value, onChange, min }: { label: string; value: string; onChange: (v: string) => void; min?: string }) {
   return (
     <div>
       <label className="mb-1 block text-xs font-medium text-gray-500">{label}</label>
-      <input type="date" value={value} onChange={(e) => onChange(e.target.value)}
+      <input type="date" value={value} min={min} onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
     </div>
   )
