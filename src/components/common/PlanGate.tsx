@@ -38,14 +38,6 @@ const FEATURE_SHOWCASES: Record<string, FeatureShowcase> = {
       { title: '매수매도 신호등', desc: '거래량, 가격변동, 공급량, 금리, 미분양 5개 지표로 매수/관망/매도 시그널을 제공합니다.', icon: '🚦' },
     ],
   },
-  legal: {
-    label: '법률 행정',
-    icon: '⚖️',
-    features: [
-      { title: '등기부등본 조회', desc: '주소 입력만으로 등기부등본 갑구/을구를 조회하고 위험 사항을 자동 분석합니다.', icon: '📄' },
-      { title: '전자서명 연동', desc: '카카오/네이버 전자서명으로 비대면 계약 체결이 가능합니다. (Pro)', icon: '✒️' },
-    ],
-  },
   'co-brokerage': {
     label: '공동중개',
     icon: '🤝',
@@ -98,9 +90,9 @@ export function PlanGate({ navKey, children }: PlanGateProps) {
       <div className="flex min-h-[60vh] items-center justify-center px-4">
         <div className="w-full max-w-md text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-3xl">🔒</div>
-          <h2 className="text-lg font-bold text-gray-900">이 기능은 {nextInfo.label} 요금제부터 사용할 수 있습니다</h2>
+          <h2 className="text-lg font-bold text-gray-900">이 기능은 {nextInfo.label} 플랜부터 사용할 수 있습니다</h2>
           <Link to="/admin/settings/billing" className="mt-6 inline-block rounded-lg bg-primary-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-700">
-            요금제 업그레이드
+            플랜 업그레이드
           </Link>
         </div>
       </div>
@@ -114,7 +106,7 @@ export function PlanGate({ navKey, children }: PlanGateProps) {
         <span className="text-5xl">{showcase.icon}</span>
         <h1 className="mt-4 text-2xl font-bold text-gray-900">{showcase.label}</h1>
         <p className="mt-2 text-gray-500">
-          <span className={`font-semibold ${nextInfo.textColor}`}>{nextInfo.label}</span> 요금제에서 사용할 수 있습니다
+          <span className={`font-semibold ${nextInfo.textColor}`}>{nextInfo.label}</span> 플랜에서 사용할 수 있습니다
         </p>
       </div>
 
@@ -136,17 +128,17 @@ export function PlanGate({ navKey, children }: PlanGateProps) {
       {/* CTA */}
       <div className="rounded-2xl bg-gradient-to-r from-primary-50 to-blue-50 p-8 text-center">
         <p className="text-base font-semibold text-gray-800">
-          {nextInfo.label} 요금제로 업그레이드하고 {showcase.label} 기능을 사용해보세요
+          {nextInfo.label} 플랜으로 업그레이드하고 {showcase.label} 기능을 사용해보세요
         </p>
         <p className="mt-1 text-sm text-gray-500">
-          현재 <span className={`font-semibold ${PLAN_INFO[plan].textColor}`}>{PLAN_INFO[plan].label}</span> 요금제 이용 중
+          현재 <span className={`font-semibold ${PLAN_INFO[plan].textColor}`}>{PLAN_INFO[plan].label}</span> 플랜 이용 중
         </p>
         <div className="mt-5 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <Link
             to="/admin/settings/billing"
             className="rounded-lg bg-primary-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-700"
           >
-            {nextInfo.label} 요금제로 업그레이드 (월 {nextInfo.price.toLocaleString()}원)
+            {nextInfo.label} 플랜으로 업그레이드 (월 {nextInfo.price.toLocaleString()}원) <span className="text-[10px] font-normal opacity-70">VAT 별도</span>
           </Link>
           <Link
             to="/admin/dashboard"
