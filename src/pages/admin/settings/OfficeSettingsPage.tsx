@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/authStore'
 import toast from 'react-hot-toast'
 
 const DAYS = ['월', '화', '수', '목', '금', '토', '일'] as const
-const SPECIALTY_OPTIONS = ['아파트', '오피스텔', '분양권', '빌라', '주택', '원룸', '상가', '사무실', '지식산업센터', '토지', '공장/창고', '재개발', '숙박/펜션'] as const
+const SPECIALTY_OPTIONS = ['아파트', '오피스텔', '빌라', '주택', '원룸', '상가', '사무실', '지식산업센터', '토지', '공장/창고'] as const
 
 const defaultBusinessHours: BusinessHours = Object.fromEntries(
   DAYS.map((day) => [day, { open: '09:00', close: '18:00', isOpen: true }])

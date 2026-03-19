@@ -125,13 +125,13 @@ export type TagConditionInfo = {
   categories?: string[]
 }
 
-const RESIDENTIAL = ['아파트', '오피스텔', '분양권', '빌라', '주택', '원룸']
+const RESIDENTIAL = ['아파트', '오피스텔', '빌라', '주택', '원룸']
 const COMMERCIAL = ['상가', '사무실', '지식산업센터']
 
 const tagCategoryMap: Record<string, string[] | undefined> = {
-  walk_minutes: [...RESIDENTIAL, ...COMMERCIAL, '토지', '재개발', '숙박/펜션'],
+  walk_minutes: [...RESIDENTIAL, ...COMMERCIAL, '토지'],
   school_walk_minutes: RESIDENTIAL,
-  park_walk_minutes: [...RESIDENTIAL, ...COMMERCIAL, '토지', '재개발', '숙박/펜션'],
+  park_walk_minutes: [...RESIDENTIAL, ...COMMERCIAL, '토지'],
   wide_yard: ['공장/창고'],
   private_yard: ['공장/창고'],
   hoist: ['공장/창고'],

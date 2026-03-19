@@ -10,7 +10,7 @@ const TYPE_GROUPS: { type: CategoryType; label: string; icon: string; names: str
     type: '주거',
     label: '주거',
     icon: '🏠',
-    names: ['아파트', '오피스텔', '분양권', '빌라', '주택', '원룸'],
+    names: ['아파트', '오피스텔', '빌라', '주택', '원룸'],
   },
   {
     type: '상업',
@@ -29,12 +29,6 @@ const TYPE_GROUPS: { type: CategoryType; label: string; icon: string; names: str
     label: '토지',
     icon: '🌍',
     names: ['토지'],
-  },
-  {
-    type: '건물',
-    label: '건물',
-    icon: '🏦',
-    names: ['재개발', '숙박/펜션'],
   },
 ]
 
