@@ -256,8 +256,52 @@ function molitProxy(): PluginOption {
   }
 }
 
+/** Vite dev server plugin: proxies /api/naver-news → 네이버 검색 API (1시간 캐시) */
+function naverNewsProxy(): PluginOption {
+  const cache = new Map<string, { data: unknown; cachedAt: number }>()
+  const CACHE_TTL_MS = 60 * 60 * 1000 // 1시간
+
+  return {
+    name: 'naver-news-proxy',
+    configureServer(server) {
+      server.middlewares.use('/api/naver-news', async (req, res) => {
+        const clientId = env.NAVER_CLIENT_ID
+        const clientSecret = env.NAVER_CLIENT_SECRET
+        if (!clientId || !clientSecret) { res.writeHead(500); res.end(JSON.stringify({ error: 'NAVER_CLIENT_ID/SECRET not set' })); return }
+
+        const url = new URL(req.url || '/', 'http://localhost')
+        const query = url.searchParams.get('query') || '부동산'
+        const display = url.searchParams.get('display') || '5'
+        const sort = url.searchParams.get('sort') || 'date'
+
+        const cacheKey = `${query}|${display}|${sort}`
+        const hit = cache.get(cacheKey)
+        if (hit && (Date.now() - hit.cachedAt) < CACHE_TTL_MS) {
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(hit.data))
+          return
+        }
+
+        try {
+          const resp = await fetch(
+            `https://openapi.naver.com/v1/search/news.json?query=${encodeURIComponent(query)}&display=${display}&sort=${sort}`,
+            { headers: { 'X-Naver-Client-Id': clientId, 'X-Naver-Client-Secret': clientSecret } },
+          )
+          const data = await resp.json()
+          cache.set(cacheKey, { data, cachedAt: Date.now() })
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(data))
+        } catch (e) {
+          res.writeHead(502)
+          res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'proxy error' }))
+        }
+      })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), geminiProxy(), kakaoGeoProxy(), resendEmailProxy(), molitProxy()],
+  plugins: [react(), tailwindcss(), geminiProxy(), kakaoGeoProxy(), resendEmailProxy(), molitProxy(), naverNewsProxy()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

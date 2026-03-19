@@ -61,8 +61,8 @@ export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
           </svg>
         </button>
         <Link to="/admin/dashboard" className="flex items-center gap-2">
-          <img src={agentProfile?.logo_url || '/logo.png'} alt={agentProfile?.office_name || 'Smart Home'} className="h-9 w-9 rounded-lg object-contain" />
-          <span className="hidden text-lg font-bold text-primary-700 sm:inline">{agentProfile?.office_name || 'Smart Home'}</span>
+          <img src={agentProfile?.logo_url || '/logo.png'} alt={agentProfile?.office_name || '중개프로'} className="h-9 w-9 rounded-lg object-contain" />
+          <span className="hidden text-lg font-bold text-primary-700 sm:inline">{agentProfile?.office_name || '중개프로'}</span>
         </Link>
       </div>
 

@@ -177,19 +177,19 @@ export const presaleInfos = [
 // 유관기관 링크
 // ============================================
 export const relatedOrgLinks = [
-  { id: '1', label: '부동산 전자계약 시스템', url: '#' },
-  { id: '2', label: '국토교통부 실거래가 공개', url: '#' },
-  { id: '3', label: '한국부동산원', url: '#' },
-  { id: '4', label: '대법원 등기정보', url: '#' },
-  { id: '5', label: '주택도시보증공사(HUG)', url: '#' },
-  { id: '6', label: '한국감정원', url: '#' },
+  { id: '1', label: '부동산 전자계약시스템', url: 'https://irts.molit.go.kr', logo: '/images/org-logos/부동산 전자계약시스템.png' },
+  { id: '2', label: '국토교통부 실거래가', url: 'https://rt.molit.go.kr', logo: '/images/org-logos/국토교통부 실거래가.png' },
+  { id: '3', label: '한국부동산원', url: 'https://www.reb.or.kr', logo: '/images/org-logos/한국부동산원.png' },
+  { id: '4', label: '대법원 인터넷등기소', url: 'https://www.iros.go.kr', logo: '/images/org-logos/대법원 인터넷등기소.png' },
+  { id: '5', label: '주택도시보증공사', url: 'https://www.khug.or.kr', logo: '/images/org-logos/주택도시보증공사.png' },
+  { id: '6', label: '국토교통부', url: 'https://www.molit.go.kr', logo: '/images/org-logos/국토교통부.png' },
 ]
 
 export const legalInfoLinks = [
-  { id: '1', label: '공인중개사법', url: '#' },
-  { id: '2', label: '주택임대차보호법', url: '#' },
-  { id: '3', label: '부동산 거래신고 등에 관한 법률', url: '#' },
-  { id: '4', label: '건축법', url: '#' },
+  { id: '1', label: '공인중개사법', url: 'https://www.law.go.kr/법령/공인중개사법', logo: '/images/org-logos/법제처.png' },
+  { id: '2', label: '주택임대차보호법', url: 'https://www.law.go.kr/법령/주택임대차보호법', logo: '/images/org-logos/법제처.png' },
+  { id: '3', label: '부동산 거래신고 등에 관한 법률', url: 'https://www.law.go.kr/법령/부동산거래신고등에관한법률', logo: '/images/org-logos/법제처.png' },
+  { id: '4', label: '건축법', url: 'https://www.law.go.kr/법령/건축법', logo: '/images/org-logos/법제처.png' },
 ]
 
 // ============================================

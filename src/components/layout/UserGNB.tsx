@@ -25,8 +25,8 @@ export function UserGNB() {
           <div className="flex h-16 items-center justify-between">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
-              <img src={tenant?.logo_url || '/logo.png'} alt={tenant?.office_name || 'Smart Home'} className="h-9 w-9 rounded-lg object-contain" />
-              <span className="text-lg font-bold text-primary-700">{tenant?.office_name || 'Smart Home'}</span>
+              <img src={tenant?.logo_url || '/logo.png'} alt={tenant?.office_name || '중개프로'} className="h-9 w-9 rounded-lg object-contain" />
+              <span className="text-lg font-bold text-primary-700">{tenant?.office_name || '중개프로'}</span>
             </Link>
 
             {/* Desktop Menu */}

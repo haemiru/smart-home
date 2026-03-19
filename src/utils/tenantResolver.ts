@@ -12,7 +12,7 @@ export type TenantSource =
   | { source: 'dev_default' } // localhost without subdomain
 
 /** Domains that belong to the platform itself (not a tenant). */
-const PLATFORM_DOMAINS = ['smarthome.co.kr', 'localhost']
+const PLATFORM_DOMAINS = ['jungaepro.com', 'smarthome.co.kr', 'localhost']
 
 /** Vercel preview/production domains — treat as dev_default (mock tenant). */
 const VERCEL_DOMAIN_SUFFIXES = ['.vercel.app']
@@ -22,9 +22,9 @@ const VERCEL_DOMAIN_SUFFIXES = ['.vercel.app']
  *
  * | Hostname                        | Result                                       |
  * |---------------------------------|----------------------------------------------|
- * | gangnam.smarthome.co.kr         | { source: 'slug', identifier: 'gangnam' }    |
+ * | gangnam.jungaepro.com           | { source: 'slug', identifier: 'gangnam' }    |
  * | www.custom.com                  | { source: 'custom_domain', identifier: ... }  |
- * | smarthome.co.kr / www.smarthome | { source: 'none' } → landing page            |
+ * | jungaepro.com / www.jungaepro   | { source: 'none' } → landing page            |
  * | demo.localhost:5173             | { source: 'slug', identifier: 'demo' }        |
  * | localhost:5173                  | { source: 'dev_default' }                     |
  */

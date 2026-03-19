@@ -26,7 +26,7 @@ export function UserFooter() {
         {/* Company Info — dynamic from tenant */}
         <div className="pt-6 text-xs leading-relaxed text-gray-400">
           <p className="font-medium text-gray-500">
-            {tenant?.office_name || 'Smart Home'} — 공인중개사 올인원 업무 플랫폼
+            {tenant?.office_name || '중개프로'} — 공인중개사 올인원 업무 플랫폼
           </p>
           {tenant && (
             <div className="mt-2 space-y-0.5">
@@ -36,9 +36,9 @@ export function UserFooter() {
             </div>
           )}
           <p className="mt-2">
-            Smart Home은 통신판매중개자로서 중개사무소가 등록한 매물정보 및 거래에 대한 책임은 각 중개사무소에 있습니다.
+            중개프로은 통신판매중개자로서 중개사무소가 등록한 매물정보 및 거래에 대한 책임은 각 중개사무소에 있습니다.
           </p>
-          <p className="mt-4">&copy; {new Date().getFullYear()} {tenant?.office_name || 'Smart Home'}. All rights reserved.</p>
+          <p className="mt-4">&copy; {new Date().getFullYear()} {tenant?.office_name || '중개프로'}. All rights reserved.</p>
         </div>
       </div>
     </footer>

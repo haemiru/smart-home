@@ -268,7 +268,7 @@ export function OfficeSettingsPage() {
       <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
         <h3 className="mb-1 text-sm font-semibold text-gray-900">나만의 홈페이지 주소</h3>
         <p className="mb-4 text-sm text-gray-500">
-          고객이 접속할 서브도메인을 설정하세요. 설정 후 <strong>{slug || 'my-office'}.smarthome.co.kr</strong>로 접속할 수 있습니다.
+          고객이 접속할 서브도메인을 설정하세요. 설정 후 <strong>{slug || 'my-office'}.jungaepro.com</strong>로 접속할 수 있습니다.
         </p>
         <div className="flex items-start gap-3">
           <div className="flex-1">
@@ -281,7 +281,7 @@ export function OfficeSettingsPage() {
                 placeholder="my-office"
                 maxLength={63}
               />
-              <span className="shrink-0 bg-gray-50 px-3 py-2 text-sm text-gray-500">.smarthome.co.kr</span>
+              <span className="shrink-0 bg-gray-50 px-3 py-2 text-sm text-gray-500">.jungaepro.com</span>
             </div>
             {/* Status indicator */}
             <div className="mt-1.5 h-5">
@@ -306,7 +306,7 @@ export function OfficeSettingsPage() {
         </div>
         {savedSlug && (
           <div className="mt-3 rounded-lg bg-primary-50 px-4 py-2.5 text-sm text-primary-700">
-            현재 주소: <strong>{savedSlug}.smarthome.co.kr</strong>
+            현재 주소: <strong>{savedSlug}.jungaepro.com</strong>
           </div>
         )}
       </div>
