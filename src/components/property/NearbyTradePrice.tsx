@@ -143,7 +143,7 @@ export function NearbyTradePrice({ property, categoryName }: Props) {
                   <XAxis dataKey="month" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5) + '월'} />
                   <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 10000).toFixed(0)}억`} width={45} />
                   <Tooltip
-                    formatter={(value: number) => [formatPrice(value), isSale ? '평균 거래가' : '평균 보증금']}
+                    formatter={(value?: number) => [formatPrice(value ?? 0), isSale ? '평균 거래가' : '평균 보증금']}
                     labelFormatter={(label) => `${label.slice(0, 4)}년 ${label.slice(5)}월`}
                   />
                   <Line type="monotone" dataKey="avg" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />

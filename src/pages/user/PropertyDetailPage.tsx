@@ -210,7 +210,7 @@ export function PropertyDetailPage() {
               <Button className="w-full" onClick={() => setIsInquiryOpen(true)}>
                 🔥 이 매물 문의하기
               </Button>
-              {isFeatureInPlan('inspection_booking', tenant?.subscription_plan ?? 'free') && (
+              {isFeatureInPlan('inspection_booking', (tenant?.subscription_plan ?? 'free') as import('@/types/database').PlanType) && (
                 <Button variant="outline" className="w-full">
                   📅 임장 예약
                 </Button>
