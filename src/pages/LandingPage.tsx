@@ -32,7 +32,7 @@ export default function LandingPage() {
             <a href="#features" className="hidden text-sm font-medium text-gray-600 hover:text-primary-600 sm:inline">기능</a>
             <a href="#pricing" className="hidden text-sm font-medium text-gray-600 hover:text-primary-600 sm:inline">요금제</a>
             <Link to="/auth/login" className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">로그인</Link>
-            <Link to="/auth/signup" className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">무료 시작하기</Link>
+            <Link to="/auth/signup" className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">무료로 시작하기</Link>
           </div>
         </div>
       </header>
