@@ -13,7 +13,7 @@ const features = [
 ]
 
 const plans = [
-  { name: 'Free', price: '무료', desc: '시작하는 중개사', features: ['매물 50건', '고객관리', '문의 관리', '계약 관리', '서브도메인'] },
+  { name: 'Free', price: '무료', desc: '시작하는 중개사', features: ['매물 20건', '고객관리', '문의 관리', '계약 관리', '서브도메인'] },
   { name: 'Basic', price: '3,000원/월', priceNote: 'VAT 별도', desc: '성장하는 중개사', features: ['매물 무제한', 'AI 도구', '고객 스코어링/진성 분석', '데이터 분석', '임장/임대 관리', '공동중개', '커스텀 도메인', '알림톡/SMS'], highlight: true },
   { name: 'Pro', price: '5,000원/월', priceNote: 'VAT 별도', desc: '전문 중개사', features: ['Basic 전체', 'AI 가상스테이징', 'SNS 포스팅', '실시간 채팅', '전자서명'] },
 ]

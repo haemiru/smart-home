@@ -54,7 +54,7 @@ export function getRequiredPlan(featureKey: string): PlanType {
 
 /** Maximum number of properties allowed per plan (0 = unlimited) */
 export const PLAN_PROPERTY_LIMIT: Record<PlanType, number> = {
-  free: 50,
+  free: 20,
   basic: 0,
   pro: 0,
 }

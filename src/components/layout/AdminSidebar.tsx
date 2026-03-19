@@ -1,9 +1,8 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { useFeatureStore, isNavItemPermitted, isNavItemLocked, getRequiredPlan } from '@/stores/featureStore'
 import { useAuthStore } from '@/stores/authStore'
 import { PLAN_INFO } from '@/config/planFeatures'
-import toast from 'react-hot-toast'
 
 export type AdminNavItem = {
   key: string
@@ -36,8 +35,6 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
   const { unansweredInquiryCount } = useNotificationStore()
   const { plan, isLoaded } = useFeatureStore()
   const { user, staffPermissions } = useAuthStore()
-
-  const navigate = useNavigate()
 
   // Show all nav items but mark locked ones — filter only by staff permissions
   const visibleItems = isLoaded
@@ -74,25 +71,8 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
           <nav className="flex-1 space-y-1 overflow-y-auto p-3">
             {mainNavItems.map((item) => {
               const locked = isLoaded && isNavItemLocked(item.key, plan)
-              if (locked) {
-                const reqPlan = getRequiredPlan(item.key)
-                const planLabel = PLAN_INFO[reqPlan]?.label ?? reqPlan
-                return (
-                  <button
-                    key={item.key}
-                    onClick={() => {
-                      toast(`${planLabel} 플랜에서 사용 가능한 기능입니다.`, { icon: '🔒' })
-                      navigate('/admin/settings/billing')
-                      onClose()
-                    }}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-400 transition-colors hover:bg-gray-50"
-                  >
-                    <span className="text-base opacity-50">{item.icon}</span>
-                    <span className="flex-1">{item.label}</span>
-                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold text-gray-400">{planLabel}</span>
-                  </button>
-                )
-              }
+              const reqPlan = locked ? getRequiredPlan(item.key) : null
+              const planLabel = reqPlan ? (PLAN_INFO[reqPlan]?.label ?? reqPlan) : null
               return (
                 <NavLink
                   key={item.key}
@@ -100,15 +80,20 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
                   onClick={onClose}
                   className={({ isActive }) =>
                     `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-                      isActive
-                        ? 'bg-primary-50 font-medium text-primary-700'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      locked
+                        ? 'text-gray-400 hover:bg-gray-50'
+                        : isActive
+                          ? 'bg-primary-50 font-medium text-primary-700'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }`
                   }
                 >
-                  <span className="text-base">{item.icon}</span>
+                  <span className={`text-base ${locked ? 'opacity-50' : ''}`}>{item.icon}</span>
                   <span className="flex-1">{item.label}</span>
-                  {item.badge != null && item.badge > 0 && (
+                  {locked && planLabel && (
+                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold text-gray-400">{planLabel}</span>
+                  )}
+                  {!locked && item.badge != null && item.badge > 0 && (
                     <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
                       {item.badge}
                     </span>
