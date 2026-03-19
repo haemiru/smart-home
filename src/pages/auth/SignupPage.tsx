@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Button, Input } from '@/components/common'
 import { signUpWithEmail, validateInviteCode } from '@/api/auth'
 import type { UserRole, StaffRole } from '@/types/database'
+import { formatPhone, parsePhone } from '@/utils/format'
 import toast from 'react-hot-toast'
 
 type Step = 'role' | 'account' | 'agent-info' | 'invite-code'
@@ -176,7 +177,7 @@ export function SignupPage() {
         <form onSubmit={handleAccountSubmit} className="space-y-4">
           <Input id="displayName" label="이름" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required />
           <Input id="email" label="이메일" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <Input id="phone" label="연락처" type="tel" placeholder="010-0000-0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <Input id="phone" label="연락처" type="tel" placeholder="010-0000-0000" value={formatPhone(phone)} onChange={(e) => setPhone(parsePhone(e.target.value))} />
           <Input id="password" label="비밀번호" type="password" placeholder="8자 이상" value={password} onChange={(e) => setPassword(e.target.value)} required />
           <Input id="confirmPassword" label="비밀번호 확인" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
 
@@ -273,7 +274,7 @@ export function SignupPage() {
         <Input id="businessNumber" label="사업자등록번호" placeholder="000-00-00000" value={businessNumber} onChange={(e) => setBusinessNumber(e.target.value)} required />
         <Input id="licenseNumber" label="공인중개사 자격증 번호" value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} required />
         <Input id="officeAddress" label="사무소 주소" value={officeAddress} onChange={(e) => setOfficeAddress(e.target.value)} required />
-        <Input id="officePhone" label="사무소 전화번호" value={officePhone} onChange={(e) => setOfficePhone(e.target.value)} required />
+        <Input id="officePhone" label="사무소 전화번호" type="tel" value={formatPhone(officePhone)} onChange={(e) => setOfficePhone(parsePhone(e.target.value))} required />
 
         <div className="flex gap-2">
           <Button type="button" variant="outline" className="flex-1" onClick={() => setStep('account')}>

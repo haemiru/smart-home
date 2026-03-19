@@ -4,7 +4,7 @@ import type { Property } from '@/types/database'
 import { fetchPropertyById } from '@/api/properties'
 import { useTenantStore } from '@/stores/tenantStore'
 import { useCategories } from '@/hooks/useCategories'
-import { formatPropertyPrice, formatPrice, transactionTypeLabel } from '@/utils/format'
+import { formatPropertyPrice, formatPrice, transactionTypeLabel, formatPhone, parsePhone } from '@/utils/format'
 import { getInfoFieldsForCategory } from '@/utils/propertyInfoFields'
 import { formatAreaByUnit } from '@/components/common/AreaUnitToggle'
 import { Button, Input } from '@/components/common'
@@ -288,7 +288,7 @@ function PropertyInquiryModal({ isOpen, onClose, property }: { isOpen: boolean; 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Input id="inq-name" label="이름 *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <Input id="inq-phone" label="연락처 *" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
+          <Input id="inq-phone" label="연락처 *" type="tel" value={formatPhone(form.phone)} onChange={(e) => setForm({ ...form, phone: parsePhone(e.target.value) })} required />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>

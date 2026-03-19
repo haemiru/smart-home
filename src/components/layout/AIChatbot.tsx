@@ -4,7 +4,7 @@ import { createInquiry } from '@/api/inquiries'
 import { fetchProperties, fetchCategories } from '@/api/properties'
 import { useTenantStore } from '@/stores/tenantStore'
 import type { InquiryType, Property, PropertyCategory } from '@/types/database'
-import { formatNumber } from '@/utils/format'
+import { formatNumber, formatPhone, parsePhone } from '@/utils/format'
 import toast from 'react-hot-toast'
 
 type Message = {
@@ -321,8 +321,8 @@ export function AIChatbot({ onClose }: { onClose: () => void }) {
             />
             <input
               type="tel"
-              value={inquiryForm.phone}
-              onChange={(e) => setInquiryForm({ ...inquiryForm, phone: e.target.value })}
+              value={formatPhone(inquiryForm.phone)}
+              onChange={(e) => setInquiryForm({ ...inquiryForm, phone: parsePhone(e.target.value) })}
               placeholder="연락처 *"
               className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs"
             />

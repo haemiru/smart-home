@@ -4,7 +4,7 @@ import type { Property, ContractTemplateType, TransactionType } from '@/types/da
 import { fetchAdminProperties, fetchPropertyById, updatePropertyStatus } from '@/api/properties'
 import { createContract, recommendTemplate } from '@/api/contracts'
 import { Button } from '@/components/common'
-import { formatPropertyPrice, transactionTypeLabel, contractTemplateLabel, formatNumber, parseCommaNumber } from '@/utils/format'
+import { formatPropertyPrice, transactionTypeLabel, contractTemplateLabel, formatNumber, parseCommaNumber, formatPhone, parsePhone, formatIdNumber, parseIdNumber } from '@/utils/format'
 import { useFormatArea } from '@/components/common/AreaUnitToggle'
 import { useCategories } from '@/hooks/useCategories'
 import { useAuthStore } from '@/stores/authStore'
@@ -717,7 +717,7 @@ function Step3ContractInfo({ txType, templateType: _templateType, sellerInfo, on
             <Field label="대표자명" value={coAgentInfo.representative} onChange={(v) => onCoAgentInfoChange({ ...coAgentInfo, representative: v })} />
             <Field label="등록번호" value={coAgentInfo.licenseNumber} onChange={(v) => onCoAgentInfoChange({ ...coAgentInfo, licenseNumber: v })} />
             <Field label="사무소 소재지" value={coAgentInfo.address} onChange={(v) => onCoAgentInfoChange({ ...coAgentInfo, address: v })} />
-            <Field label="전화번호" value={coAgentInfo.phone} onChange={(v) => onCoAgentInfoChange({ ...coAgentInfo, phone: v })} />
+            <PhoneField label="전화번호" value={coAgentInfo.phone} onChange={(v) => onCoAgentInfoChange({ ...coAgentInfo, phone: v })} />
           </div>
         </div>
       )}
@@ -743,8 +743,8 @@ function PersonInfoCard({ title, info, onChange }: {
       <p className="mb-3 text-[10px] font-medium text-yellow-600">수동 입력 필요</p>
       <div className="space-y-3">
         <Field label="성명" value={info.name} onChange={(v) => onChange({ ...info, name: v })} required />
-        <Field label="연락처" value={info.phone} onChange={(v) => onChange({ ...info, phone: v })} placeholder="010-0000-0000" />
-        <Field label="주민등록번호" value={info.idNumber} onChange={(v) => onChange({ ...info, idNumber: v })} placeholder="******-*******" />
+        <PhoneField label="연락처" value={info.phone} onChange={(v) => onChange({ ...info, phone: v })} />
+        <IdNumberField label="주민등록번호" value={info.idNumber} onChange={(v) => onChange({ ...info, idNumber: v })} />
         <Field label="주소" value={info.address} onChange={(v) => onChange({ ...info, address: v })} />
       </div>
     </div>
@@ -757,6 +757,26 @@ function Field({ label, value, onChange, placeholder, required }: { label: strin
       <label className="mb-1 block text-xs font-medium text-gray-500">{label}{required && ' *'}</label>
       <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" required={required} />
+    </div>
+  )
+}
+
+function PhoneField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-gray-500">{label}</label>
+      <input type="tel" value={formatPhone(value)} onChange={(e) => onChange(parsePhone(e.target.value))} placeholder="010-0000-0000"
+        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+    </div>
+  )
+}
+
+function IdNumberField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-gray-500">{label}</label>
+      <input type="text" inputMode="numeric" value={formatIdNumber(value)} onChange={(e) => onChange(parseIdNumber(e.target.value))} placeholder="000000-0000000"
+        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
     </div>
   )
 }

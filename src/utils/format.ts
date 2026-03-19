@@ -356,3 +356,36 @@ export function dDayColor(dateStr: string | null | undefined): string {
   if (diff <= 3) return 'text-orange-600 font-semibold'
   return 'text-gray-500'
 }
+
+/** 전화번호 포맷: 숫자만 추출 후 하이픈 자동 삽입 */
+export function formatPhone(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11)
+  if (digits.startsWith('02')) {
+    // 서울 02
+    if (digits.length <= 2) return digits
+    if (digits.length <= 5) return `${digits.slice(0, 2)}-${digits.slice(2)}`
+    if (digits.length <= 9) return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`
+    return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`
+  }
+  // 010, 031 등
+  if (digits.length <= 3) return digits
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+}
+
+/** 전화번호 입력에서 숫자만 추출 */
+export function parsePhone(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 11)
+}
+
+/** 주민등록번호 포맷: 숫자만 추출 후 하이픈 자동 삽입 */
+export function formatIdNumber(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 13)
+  if (digits.length <= 6) return digits
+  return `${digits.slice(0, 6)}-${digits.slice(6)}`
+}
+
+/** 주민등록번호 입력에서 숫자만 추출 */
+export function parseIdNumber(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 13)
+}

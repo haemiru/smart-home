@@ -6,6 +6,7 @@ import { AIChatbot } from '@/components/layout/AIChatbot'
 import { createInquiry } from '@/api/inquiries'
 import { fetchPublicFloatingSettings, type FloatingSettings } from '@/api/settings'
 import { useTenantStore } from '@/stores/tenantStore'
+import { formatPhone, parsePhone } from '@/utils/format'
 import type { InquiryType } from '@/types/database'
 import toast from 'react-hot-toast'
 
@@ -159,8 +160,8 @@ function InquiryModal({ isOpen, onClose, agentId }: { isOpen: boolean; onClose: 
             label="연락처 *"
             type="tel"
             placeholder="010-0000-0000"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            value={formatPhone(form.phone)}
+            onChange={(e) => setForm({ ...form, phone: parsePhone(e.target.value) })}
             required
           />
         </div>
