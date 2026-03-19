@@ -53,11 +53,14 @@ export function getDefaultProcessSteps(txType: TransactionType): { step_type: Co
 
 // Required documents per step — pure function
 export function getStepDocuments(stepType: ContractStepType, txType: TransactionType): string[] {
+  const isSale = txType === 'sale'
   const docs: Record<string, string[]> = {
-    contract_signed: ['신분증 사본', '인감증명서', '등기부등본', '계약서 2부'],
+    contract_signed: isSale
+      ? ['신분증', '등기부등본', '국세·지방세 완납증명서']
+      : ['신분증', '등기부등본', '국세·지방세 완납증명서', '확정일자 부여현황', '전입세대 확인서'],
     down_payment: ['계약금 입금 확인서'],
     mid_payment: ['중도금 입금 확인서'],
-    final_payment: txType === 'sale'
+    final_payment: isSale
       ? ['잔금 입금 확인서', '등기권리증', '인감증명서', '주민등록초본']
       : ['잔금 입금 확인서'],
     ownership_transfer: ['등기신청서', '취득세 납부 확인서', '등기권리증', '위임장'],
