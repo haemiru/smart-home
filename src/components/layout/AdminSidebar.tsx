@@ -89,7 +89,7 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
                   >
                     <span className="text-base opacity-50">{item.icon}</span>
                     <span className="flex-1">{item.label}</span>
-                    <span className="text-[10px]">🔒</span>
+                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold text-gray-400">{planLabel}</span>
                   </button>
                 )
               }
