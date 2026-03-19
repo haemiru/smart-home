@@ -732,10 +732,12 @@ function Step3ContractInfo({ txType, templateType: _templateType, sellerInfo, on
 
       {/* Special Terms */}
       <div className="rounded-xl bg-white p-5 shadow-sm ring-2 ring-yellow-200">
-        <p className="mb-1 text-sm font-semibold">특약사항</p>
-        <p className="mb-3 text-[10px] font-medium text-yellow-600">수동 입력 필요 · 내용이 많으면 별지 첨부 가능</p>
+        <p className="mb-3 text-sm font-semibold">특약사항</p>
         <textarea value={specialTerms} onChange={(e) => onSpecialTermsChange(e.target.value)} rows={6}
           placeholder="특약사항을 입력하세요..." className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+        {specialTerms.length > 200 && (
+          <p className="mt-1.5 text-xs text-amber-600">200자를 초과하여 별지로 첨부됩니다.</p>
+        )}
       </div>
     </div>
   )
