@@ -21,7 +21,6 @@ const NAV_FEATURE_MAP: Record<string, string[]> = {
   contracts: ['contracts'],
   'ai-tools': ['ai_description', 'ai_legal_review', 'ai_reply_draft'],
   analytics: ['avm', 'roi_calculator', 'location_report', 'buy_sell_signal'],
-  legal: ['registry', 'e_signature'],
   'co-brokerage': ['co_brokerage'],
   inspection: ['inspection'],
   'rental-mgmt': ['rental_mgmt'],

@@ -49,7 +49,6 @@ const InspectionReportPage = lazy(() => import('@/pages/admin/InspectionReportPa
 const RentalManagementPage = lazy(() => import('@/pages/admin/RentalManagementPage').then((m) => ({ default: m.RentalManagementPage })))
 const RentalDetailPage = lazy(() => import('@/pages/admin/RentalDetailPage').then((m) => ({ default: m.RentalDetailPage })))
 const RentalSharePage = lazy(() => import('@/pages/admin/RentalSharePage').then((m) => ({ default: m.RentalSharePage })))
-const RegistryPage = lazy(() => import('@/pages/admin/RegistryPage').then((m) => ({ default: m.RegistryPage })))
 const CoBrokeragePoolPage = lazy(() => import('@/pages/admin/CoBrokeragePoolPage').then((m) => ({ default: m.CoBrokeragePoolPage })))
 const CoBrokerageRequestsPage = lazy(() => import('@/pages/admin/CoBrokerageRequestsPage').then((m) => ({ default: m.CoBrokerageRequestsPage })))
 
@@ -150,8 +149,6 @@ export const router = createBrowserRouter([
       { path: 'rental-mgmt', element: <PlanGate navKey="rental-mgmt"><S><RentalManagementPage /></S></PlanGate> },
       { path: 'rental-mgmt/:id', element: <PlanGate navKey="rental-mgmt"><S><RentalDetailPage /></S></PlanGate> },
       { path: 'rental-mgmt/share/:token', element: <S><RentalSharePage /></S> },
-      { path: 'legal', element: <PlanGate navKey="legal"><S><RegistryPage /></S></PlanGate> },
-      { path: 'legal/registry', element: <PlanGate navKey="legal"><S><RegistryPage /></S></PlanGate> },
       { path: 'co-brokerage', element: <PlanGate navKey="co-brokerage"><S><CoBrokeragePoolPage /></S></PlanGate> },
       { path: 'co-brokerage/pool', element: <PlanGate navKey="co-brokerage"><S><CoBrokeragePoolPage /></S></PlanGate> },
       { path: 'co-brokerage/requests', element: <PlanGate navKey="co-brokerage"><S><CoBrokerageRequestsPage /></S></PlanGate> },

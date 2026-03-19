@@ -20,7 +20,6 @@ const baseNavItems: Omit<AdminNavItem, 'badge'>[] = [
   { key: 'contracts', label: '계약 관리', path: '/admin/contracts', icon: '📝' },
   { key: 'ai-tools', label: 'AI 도구', path: '/admin/ai-tools', icon: '🤖' },
   { key: 'analytics', label: '데이터 분석', path: '/admin/analytics', icon: '📈' },
-  { key: 'legal', label: '법률 행정', path: '/admin/legal', icon: '⚖️' },
   { key: 'co-brokerage', label: '공동중개', path: '/admin/co-brokerage', icon: '🤝' },
   { key: 'inspection', label: '임장 관리', path: '/admin/inspection', icon: '🔍' },
   { key: 'rental-mgmt', label: '임대 관리', path: '/admin/rental-mgmt', icon: '🏢' },
