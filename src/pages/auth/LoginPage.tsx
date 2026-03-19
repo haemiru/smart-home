@@ -2,9 +2,33 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Button, Input } from '@/components/common'
 import { signInWithEmail, verifyMFACode, recordLogin } from '@/api/auth'
-import { supabaseAuth } from '@/api/supabase'
+import { supabaseAuth, supabase } from '@/api/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import toast from 'react-hot-toast'
+
+/** 플랫폼 루트(www/naked)에서 로그인한 경우 개공의 서브도메인으로 리다이렉트 */
+async function redirectToSubdomain(userId: string): Promise<boolean> {
+  const hostname = window.location.hostname
+  // 서브도메인이 이미 있으면 리다이렉트 불필요
+  if (!['www', 'localhost', ''].includes(hostname.split('.')[0]) && !hostname.includes('vercel.app')) return false
+  // localhost 개발 환경은 리다이렉트 안 함
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return false
+
+  try {
+    const { data } = await supabase
+      .from('agent_profiles')
+      .select('slug')
+      .eq('user_id', userId)
+      .maybeSingle()
+    if (data?.slug) {
+      const protocol = window.location.protocol
+      const baseDomain = hostname.replace(/^www\./, '')
+      window.location.href = `${protocol}//${data.slug}.${baseDomain}/admin/dashboard`
+      return true
+    }
+  } catch { /* ignore */ }
+  return false
+}
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -23,8 +47,13 @@ export function LoginPage() {
 
   // Redirect if already logged in
   if (user) {
-    const target = user.role === 'customer' ? '/' : '/admin/dashboard'
-    navigate(target, { replace: true })
+    if (user.role === 'agent' || user.role === 'staff') {
+      redirectToSubdomain(user.id).then((redirected) => {
+        if (!redirected) navigate('/admin/dashboard', { replace: true })
+      })
+    } else {
+      navigate('/', { replace: true })
+    }
     return null
   }
 
@@ -50,6 +79,11 @@ export function LoginPage() {
       recordLogin()
       toast.success('로그인 성공!')
       const userRole = data.user?.user_metadata?.role
+      // www에서 로그인한 agent는 자신의 서브도메인으로 리다이렉트
+      if ((userRole === 'agent' || userRole === 'staff') && data.user?.id) {
+        const redirected = await redirectToSubdomain(data.user.id)
+        if (redirected) return
+      }
       navigate(getRedirectTarget(userRole), { replace: true })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '로그인에 실패했습니다.')
@@ -68,6 +102,10 @@ export function LoginPage() {
       toast.success('로그인 성공!')
       const { data: { user: currentUser } } = await supabaseAuth.auth.getUser()
       const userRole = currentUser?.user_metadata?.role
+      if ((userRole === 'agent' || userRole === 'staff') && currentUser?.id) {
+        const redirected = await redirectToSubdomain(currentUser.id)
+        if (redirected) return
+      }
       navigate(getRedirectTarget(userRole), { replace: true })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '인증 코드 확인에 실패했습니다.')
