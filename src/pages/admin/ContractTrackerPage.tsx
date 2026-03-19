@@ -397,6 +397,14 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
                       </button>
                     </div>
                   )}
+                  {step.step_type === 'fixed_date' && (
+                    <div className="mt-2">
+                      <a href="https://rtms.molit.go.kr/main/main.do" target="_blank" rel="noopener noreferrer"
+                        className="inline-block rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100">
+                        🏛️ 부동산거래관리시스템
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             )
