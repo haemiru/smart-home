@@ -421,7 +421,7 @@ function DepositReceipt({ contract, property, onClose }: {
   const amountKorean = formatPrice(downPayment)
   const amountNum = (downPayment * 10000).toLocaleString('ko-KR')
   const purposeText = isSale ? '매매대금' : '임대보증금'
-  const receiverLabel = isSale ? '매도인(영수인)' : '임대인(영수인)'
+  const issuerLabel = isSale ? '발 행 인(매도인)' : '발 행 인(임대인)'
   const propertyLabel = isSale ? '매매부동산' : '임대부동산'
   const propertyAddress = property
     ? `${property.address}${property.dong ? ` ${property.dong}동` : ''}${property.ho ? ` ${property.ho}호` : ''}`
@@ -439,7 +439,7 @@ function DepositReceipt({ contract, property, onClose }: {
       <p class="body-text">상기 금액은 부동산 <b>${purposeText}</b>의 계약금으로 정히 영수함.</p>
       <p class="property-row"><span class="label">${propertyLabel} :</span><span>${propertyAddress}</span></p>
       <p class="date">${yyyy} 년 ${mm} 월 ${dd} 일</p>
-      <p class="signer">${receiverLabel}<br/>${sellerInfo.name || ''}  귀하</p>
+      <p class="signer"><span class="issuer-label">${issuerLabel} :</span><span class="issuer-name">${sellerInfo.name || ''}</span><span class="seal">(서명 및 날인)</span></p>
     </div>`
 
   const handlePrint = () => {
@@ -457,7 +457,10 @@ function DepositReceipt({ contract, property, onClose }: {
       .body-text { margin: 28px 0; font-size: 15px; text-align: center; line-height: 1.8; }
       .property-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; font-size: 15px; }
       .date { text-align: center; margin: 32px 0 20px; font-size: 15px; letter-spacing: 2px; }
-      .signer { text-align: right; font-size: 15px; line-height: 1.8; }
+      .signer { display: flex; align-items: baseline; gap: 8px; font-size: 15px; margin-top: 8px; }
+      .issuer-label { font-weight: bold; white-space: nowrap; letter-spacing: 4px; }
+      .issuer-name { flex: 1; }
+      .seal { white-space: nowrap; color: #555; }
       .divider { border: none; border-top: 2px dashed #999; margin: 28px 0 8px; }
       .divider-label { text-align: center; font-size: 12px; color: #888; margin-bottom: 28px; }
     </style></head><body>
@@ -501,9 +504,10 @@ function DepositReceipt({ contract, property, onClose }: {
               <span>{propertyAddress}</span>
             </p>
             <p className="my-7 text-center text-sm" style={{ letterSpacing: '2px' }}>{yyyy} 년 {mm} 월 {dd} 일</p>
-            <p className="text-right text-sm leading-relaxed">
-              {receiverLabel}<br />
-              {sellerInfo.name || ''}  귀하
+            <p className="flex items-baseline gap-2 text-sm">
+              <span className="font-bold" style={{ letterSpacing: '4px' }}>{issuerLabel} :</span>
+              <span className="flex-1">{sellerInfo.name || ''}</span>
+              <span className="text-gray-500">(서명 및 날인)</span>
             </p>
           </div>
 
@@ -526,9 +530,10 @@ function DepositReceipt({ contract, property, onClose }: {
               <span>{propertyAddress}</span>
             </p>
             <p className="my-7 text-center text-sm" style={{ letterSpacing: '2px' }}>{yyyy} 년 {mm} 월 {dd} 일</p>
-            <p className="text-right text-sm leading-relaxed">
-              {receiverLabel}<br />
-              {sellerInfo.name || ''}  귀하
+            <p className="flex items-baseline gap-2 text-sm">
+              <span className="font-bold" style={{ letterSpacing: '4px' }}>{issuerLabel} :</span>
+              <span className="flex-1">{sellerInfo.name || ''}</span>
+              <span className="text-gray-500">(서명 및 날인)</span>
             </p>
           </div>
         </div>
