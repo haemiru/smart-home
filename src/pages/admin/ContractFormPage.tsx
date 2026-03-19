@@ -52,6 +52,7 @@ export function ContractFormPage() {
   })
   const [specialTerms, setSpecialTerms] = useState('')
   const [deliveryDate, setDeliveryDate] = useState('')            // 인도일
+  const deliveryManuallyEdited = useRef(false)                    // 사용자가 인도일을 직접 수정했는지
   const [leasePeriodStart, setLeasePeriodStart] = useState('')    // 임대차 기간 시작
   const [leasePeriodEnd, setLeasePeriodEnd] = useState('')        // 임대차 기간 종료
   const [leasePartDesc, setLeasePartDesc] = useState('')           // 임대할부분 설명
@@ -75,6 +76,13 @@ export function ContractFormPage() {
       setPriceInfo((prev) => ({ ...prev, finalPayment: finalStr }))
     }
   }, [txType, priceInfo.salePrice, priceInfo.deposit, priceInfo.downPayment, priceInfo.midPayment, priceInfo.midPayment2])
+
+  // 잔금 지급일 → 인도일 자동 동기화 (사용자가 직접 수정하지 않은 경우)
+  useEffect(() => {
+    if (!deliveryManuallyEdited.current && priceInfo.finalPaymentDate) {
+      setDeliveryDate(priceInfo.finalPaymentDate)
+    }
+  }, [priceInfo.finalPaymentDate])
 
   // Load properties
   useEffect(() => {
@@ -229,7 +237,7 @@ export function ContractFormPage() {
           sellerInfo={sellerInfo} onSellerChange={setSellerInfo}
           buyerInfo={buyerInfo} onBuyerChange={setBuyerInfo}
           priceInfo={priceInfo} onPriceChange={setPriceInfo}
-          deliveryDate={deliveryDate} onDeliveryDateChange={setDeliveryDate}
+          deliveryDate={deliveryDate} onDeliveryDateChange={(v) => { deliveryManuallyEdited.current = true; setDeliveryDate(v) }}
           leasePeriodStart={leasePeriodStart} onLeasePeriodStartChange={setLeasePeriodStart}
           leasePeriodEnd={leasePeriodEnd} onLeasePeriodEndChange={setLeasePeriodEnd}
           leasePartDesc={leasePartDesc} onLeasePartDescChange={setLeasePartDesc}
