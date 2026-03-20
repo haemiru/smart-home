@@ -339,7 +339,7 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <p className={`text-sm font-semibold ${step.is_completed ? 'text-green-700' : 'text-gray-800'}`}>
-                        {step.step_type === 'fixed_date' ? '임대차계약 신고 및 확정일자' : step.step_label}
+                        {step.step_label}
                       </p>
                       {step.is_completed && step.completed_at && (
                         <p className="text-xs text-green-600">완료: {formatDateTime(step.completed_at)}</p>
@@ -367,19 +367,13 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
                   </div>
 
                   {/* Documents */}
-                  {(docs.length > 0 || step.step_type === 'fixed_date') && (
+                  {docs.length > 0 && (
                     <div className="mt-2">
                       <p className="text-[10px] font-medium text-gray-400">필요 서류</p>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {docs.map((doc) => (
                           <span key={doc} className="rounded bg-white px-2 py-0.5 text-[10px] text-gray-500 ring-1 ring-gray-200">{doc}</span>
                         ))}
-                        {step.step_type === 'fixed_date' && (
-                          <a href="https://rtms.molit.go.kr/main/main.do" target="_blank" rel="noopener noreferrer"
-                            className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 hover:bg-blue-100">
-                            부동산거래관리시스템
-                          </a>
-                        )}
                       </div>
                     </div>
                   )}

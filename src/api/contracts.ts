@@ -69,9 +69,7 @@ export function getDefaultProcessSteps(txType: TransactionType): { step_type: Co
     { step_type: 'final_payment', step_label: '잔금 입금', sort_order: 3 },
     { step_type: 'maintenance_settle', step_label: '관리비 정산', sort_order: 4 },
     { step_type: 'moving', step_label: '이사', sort_order: 5 },
-    { step_type: 'move_in_report', step_label: '전입신고', sort_order: 6 },
-    { step_type: 'fixed_date', step_label: '임대차계약 신고 및 확정일자', sort_order: 7 },
-    { step_type: 'completed', step_label: '거래 완료', sort_order: 8 },
+    { step_type: 'completed', step_label: '거래 완료', sort_order: 6 },
   ]
 }
 
@@ -81,7 +79,7 @@ export function getStepDocuments(stepType: ContractStepType, txType: Transaction
   const docs: Record<string, string[]> = {
     contract_signed: isSale
       ? ['신분증', '등기부등본', '국세·지방세 완납증명서']
-      : ['신분증', '등기부등본', '국세·지방세 완납증명서', '확정일자 부여현황', '전입세대 확인서'],
+      : ['신분증', '등기부등본', '국세·지방세 완납증명서', '확정일자 부여현황', '전입세대 확인서', '임대차 계약신고 안내'],
     down_payment: [],
     mid_payment: ['중도금 입금 확인서'],
     final_payment: isSale
