@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, useSearchParams, useParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useParams, Link } from 'react-router-dom'
 import type { Property, ContractTemplateType, TransactionType } from '@/types/database'
 import { fetchAdminProperties, fetchPropertyById, updatePropertyStatus } from '@/api/properties'
 import { createContract, updateDraftContract, fetchContractById, recommendTemplate } from '@/api/contracts'
@@ -285,6 +285,12 @@ export function ContractFormPage() {
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-sm text-gray-400">
+        <Link to="/admin/contracts" className="hover:text-gray-600">계약 관리</Link>
+        <span>/</span>
+        <span className="text-gray-600">{editId ? '이어서 작성' : '새 계약서'}</span>
+      </div>
       <h1 className="text-xl font-bold">계약서 작성</h1>
 
       {/* Step Indicator */}
