@@ -378,6 +378,16 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
                     </div>
                   )}
 
+                  {/* 임대차 계약 체결 시 계약신고 안내 링크 */}
+                  {step.step_type === 'contract_signed' && contract.transaction_type !== 'sale' && (
+                    <div className="mt-2">
+                      <a href="https://rtms.molit.go.kr/" target="_blank" rel="noopener noreferrer"
+                        className="inline-block rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100">
+                        임대차 계약신고 안내
+                      </a>
+                    </div>
+                  )}
+
                   {/* 하단 액션: 완료 버튼 + 영수증 */}
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {step.is_completed ? (
