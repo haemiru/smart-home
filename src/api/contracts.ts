@@ -222,8 +222,10 @@ export async function updateDraftContract(id: string, data: ContractInput, statu
 
   if (error) throw error
 
-  // When finalizing a draft, create process steps
+  // When finalizing a draft, recreate process steps (remove existing to prevent duplicates)
   if (status === 'finalized') {
+    await supabase.from('contract_process').delete().eq('contract_id', contract.id)
+
     const steps = getDefaultProcessSteps(data.transaction_type)
     const processRows = steps.map((step) => ({
       contract_id: contract.id,
