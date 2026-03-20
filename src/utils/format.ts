@@ -196,16 +196,14 @@ export const activityTypeLabel: Record<string, string> = {
 /** 계약서 상태 한글 라벨 */
 export const contractStatusLabel: Record<string, string> = {
   drafting: '작성중',
-  pending_sign: '서명대기',
-  signed: '서명완료',
+  finalized: '작성완료',
   completed: '계약완료',
 }
 
 /** 계약서 상태 색상 */
 export const contractStatusColor: Record<string, string> = {
   drafting: 'bg-gray-100 text-gray-600',
-  pending_sign: 'bg-yellow-100 text-yellow-700',
-  signed: 'bg-blue-100 text-blue-700',
+  finalized: 'bg-blue-100 text-blue-700',
   completed: 'bg-green-100 text-green-700',
 }
 

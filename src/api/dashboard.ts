@@ -75,7 +75,7 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
     safe(supabase.from('inquiries').select('*', { count: 'exact', head: true }).in('status', ['new', 'checked'])),
     safe(supabase.from('inquiries').select('*', { count: 'exact', head: true }).gte('created_at', today.toISOString())),
     safe(supabase.from('inquiries').select('*', { count: 'exact', head: true }).gte('created_at', yesterday.toISOString()).lt('created_at', today.toISOString())),
-    safe(supabase.from('contracts').select('*', { count: 'exact', head: true }).in('status', ['drafting', 'pending_sign', 'signed'])),
+    safe(supabase.from('contracts').select('*', { count: 'exact', head: true }).in('status', ['drafting', 'finalized'])),
     safe(supabase.from('contracts').select('*', { count: 'exact', head: true }).eq('status', 'completed')),
     safe(supabase.from('properties').select('*', { count: 'exact', head: true }).eq('status', 'contracted')),
     safe(supabase.from('properties').select('*', { count: 'exact', head: true }).eq('status', 'completed')),
@@ -143,7 +143,7 @@ export async function fetchMonthlyPerformance(): Promise<MonthlyPerformance> {
   const closedPropList: ClosedPropRow[] = (closedProps ?? []) as ClosedPropRow[]
 
   // contracts 테이블 기반 계약 성사
-  const isClosed = (c: ContractRow) => c.status === 'signed' || c.status === 'completed'
+  const isClosed = (c: ContractRow) => c.status === 'completed'
   const getContractAmount = (c: ContractRow) => {
     const pi = c.price_info
     if (!pi) return 0
@@ -384,7 +384,7 @@ export async function fetchActivityFeed(): Promise<ActivityItem[]> {
       items.push({ id: `inq-${row.id}`, icon: '\uD83D\uDCE9', message: '새 문의가 접수되었습니다.', time: row.created_at, link: '/admin/inquiries' })
     }
     for (const row of contracts ?? []) {
-      const msg = row.status === 'signed' || row.status === 'completed'
+      const msg = row.status === 'completed'
         ? '계약이 체결되었습니다.'
         : '새 계약서가 작성되었습니다.'
       items.push({ id: `con-${row.id}`, icon: '\u270D\uFE0F', message: msg, time: row.created_at, link: '/admin/contracts' })
@@ -416,7 +416,7 @@ export async function fetchTodoList(): Promise<TodoItem[]> {
 
   const [unansweredCount, upcomingContractCount, repairCount, expiringCount] = await Promise.all([
     safeCount(supabase.from('inquiries').select('*', { count: 'exact', head: true }).in('status', ['new', 'checked']) as never),
-    safeCount(supabase.from('contracts').select('*', { count: 'exact', head: true }).in('status', ['drafting', 'pending_sign']) as never),
+    safeCount(supabase.from('contracts').select('*', { count: 'exact', head: true }).in('status', ['drafting', 'finalized']) as never),
     safeCount(supabase.from('repair_requests').select('*', { count: 'exact', head: true }).in('status', ['requested', 'confirmed']) as never),
     safeCount(supabase.from('rental_properties').select('*', { count: 'exact', head: true }).eq('status', 'expiring') as never),
   ])

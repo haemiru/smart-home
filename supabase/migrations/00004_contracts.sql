@@ -13,7 +13,7 @@ CREATE TYPE contract_template_type AS ENUM (
   'knowledge_center_sale', 'knowledge_center_lease'
 );
 
-CREATE TYPE contract_status AS ENUM ('drafting', 'pending_sign', 'signed', 'completed');
+CREATE TYPE contract_status AS ENUM ('drafting', 'finalized', 'completed');
 
 CREATE TYPE contract_step_type AS ENUM (
   'contract_signed', 'down_payment', 'mid_payment', 'final_payment',

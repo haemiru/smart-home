@@ -9,8 +9,7 @@ import { contractStatusLabel, contractStatusColor, contractTemplateLabel, transa
 const statusTabs: { key: ContractStatus | 'all'; label: string }[] = [
   { key: 'all', label: '전체' },
   { key: 'drafting', label: '작성중' },
-  { key: 'pending_sign', label: '서명대기' },
-  { key: 'signed', label: '서명완료' },
+  { key: 'finalized', label: '작성완료' },
   { key: 'completed', label: '계약완료' },
 ]
 

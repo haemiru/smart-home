@@ -243,8 +243,7 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
             <select value={contract.status} onChange={(e) => handleStatusChange(e.target.value as ContractStatus)}
               className="rounded-lg border border-gray-200 px-3 py-2 text-sm">
               <option value="drafting">작성중</option>
-              <option value="pending_sign">서명대기</option>
-              <option value="signed">서명완료</option>
+              <option value="finalized">작성완료</option>
               <option value="completed">계약완료</option>
             </select>
             <Link to={`/admin/contracts/${contract.id}/confirmation`}>
