@@ -862,18 +862,22 @@ function PersonInfoCard({ title, info, onChange }: {
       <p className="mb-1 text-sm font-semibold">{title}</p>
       <p className="mb-3 text-[10px] font-medium text-yellow-600">수동 입력 필요</p>
       <div className="space-y-3">
-        <Field label={ID_TYPE_NAME_LABEL[info.idType]} value={info.name} onChange={(v) => onChange({ ...info, name: v })} required />
-        <PhoneField label="연락처" value={info.phone} onChange={(v) => onChange({ ...info, phone: v })} />
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">번호 유형</label>
-          <select value={info.idType} onChange={(e) => onChange({ ...info, idType: e.target.value as IdType, idNumber: '' })}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20">
-            {ID_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={ID_TYPE_NAME_LABEL[info.idType]} value={info.name} onChange={(v) => onChange({ ...info, name: v })} required />
+          <PhoneField label="연락처" value={info.phone} onChange={(v) => onChange({ ...info, phone: v })} />
         </div>
-        {info.idType === 'resident' && <IdNumberField label="주민등록번호" value={info.idNumber} onChange={(v) => onChange({ ...info, idNumber: v })} />}
-        {info.idType === 'corp' && <CorpNumberField label="법인등록번호" value={info.idNumber} onChange={(v) => onChange({ ...info, idNumber: v })} />}
-        {info.idType === 'business' && <BusinessNumberField label="사업자등록번호" value={info.idNumber} onChange={(v) => onChange({ ...info, idNumber: v })} />}
+        <div className="grid grid-cols-[auto_1fr] gap-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">{'\u00A0'}</label>
+            <select value={info.idType} onChange={(e) => onChange({ ...info, idType: e.target.value as IdType, idNumber: '' })}
+              className="rounded-lg border border-gray-200 px-2 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20">
+              {ID_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          {info.idType === 'resident' && <IdNumberField label={'\u00A0'} value={info.idNumber} onChange={(v) => onChange({ ...info, idNumber: v })} />}
+          {info.idType === 'corp' && <CorpNumberField label={'\u00A0'} value={info.idNumber} onChange={(v) => onChange({ ...info, idNumber: v })} />}
+          {info.idType === 'business' && <BusinessNumberField label={'\u00A0'} value={info.idNumber} onChange={(v) => onChange({ ...info, idNumber: v })} />}
+        </div>
         <Field label={info.idType === 'resident' ? '주소' : '사업장 주소'} value={info.address} onChange={(v) => onChange({ ...info, address: v })} />
       </div>
     </div>
