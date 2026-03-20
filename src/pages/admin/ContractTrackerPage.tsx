@@ -326,9 +326,6 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
 
           {steps.map((step, idx) => {
             const docs = getStepDocuments(step.step_type, contract.transaction_type)
-            // 계약서에서 날짜를 가져온 단계는 예정일 읽기전용
-            const autoDateSteps: string[] = ['contract_signed', 'down_payment', 'mid_payment', 'final_payment', 'maintenance_settle', 'moving']
-            const isAutoDate = autoDateSteps.includes(step.step_type) && !!step.due_date
             return (
               <div key={step.id} className="relative">
                 {/* Circle */}
@@ -359,12 +356,8 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <div>
                       <label className="text-[10px] text-gray-400">예정일</label>
-                      {isAutoDate ? (
-                        <p className="rounded border border-gray-100 bg-gray-50 px-2 py-1 text-xs text-gray-500">{step.due_date}</p>
-                      ) : (
-                        <input type="date" value={step.due_date ?? ''} onChange={(e) => handleDateChange(step.id, e.target.value)}
-                          className="block rounded border border-gray-200 px-2 py-1 text-xs" />
-                      )}
+                      <input type="date" value={step.due_date ?? ''} onChange={(e) => handleDateChange(step.id, e.target.value)}
+                        className="block rounded border border-gray-200 px-2 py-1 text-xs" />
                     </div>
                     <div className="flex-1">
                       <label className="text-[10px] text-gray-400">메모</label>
