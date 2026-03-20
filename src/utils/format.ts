@@ -455,3 +455,33 @@ export function validateBusinessNumber(digits: string): string | null {
 
   return null
 }
+
+/** 법인등록번호 포맷: 숫자만 추출 후 하이픈 자동 삽입 (NNNNNN-NNNNNNN) */
+export function formatCorpNumber(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 13)
+  if (digits.length <= 6) return digits
+  return `${digits.slice(0, 6)}-${digits.slice(6)}`
+}
+
+/** 법인등록번호 입력에서 숫자만 추출 */
+export function parseCorpNumber(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 13)
+}
+
+/** 법인등록번호 유효성 검사 — 13자리 미만이면 null(미완성), 유효하면 null, 무효하면 오류 메시지 반환 */
+export function validateCorpNumber(digits: string): string | null {
+  if (digits.length < 13) return null
+
+  const weights = [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2]
+  let sum = 0
+  for (let i = 0; i < 12; i++) {
+    const product = parseInt(digits[i], 10) * weights[i]
+    sum += product >= 10 ? Math.floor(product / 10) + (product % 10) : product
+  }
+  const checkDigit = (10 - (sum % 10)) % 10
+  if (checkDigit !== parseInt(digits[12], 10)) {
+    return '유효하지 않은 법인등록번호입니다'
+  }
+
+  return null
+}
