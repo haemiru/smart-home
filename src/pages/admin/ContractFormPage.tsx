@@ -107,7 +107,7 @@ export function ContractFormPage() {
     if (!editId || draftLoadedRef.current) return
     draftLoadedRef.current = true
     fetchContractById(editId).then(async (ct) => {
-      if (!ct || ct.status !== 'drafting') return
+      if (!ct || ct.status !== 'contract_writing') return
       // Restore form state
       setTemplateType(ct.template_type)
       setTxType(ct.transaction_type)
@@ -242,9 +242,9 @@ export function ContractFormPage() {
     try {
       const data = buildContractData()
       if (draftId) {
-        await updateDraftContract(draftId, data, 'drafting')
+        await updateDraftContract(draftId, data, 'contract_writing')
       } else {
-        const contract = await createContract(data, 'drafting')
+        const contract = await createContract(data, 'contract_writing')
         setDraftId(contract.id)
       }
       toast.success('임시저장되었습니다.')
@@ -262,12 +262,12 @@ export function ContractFormPage() {
       const data = buildContractData()
       let contract
       if (draftId) {
-        contract = await updateDraftContract(draftId, data, 'finalized')
+        contract = await updateDraftContract(draftId, data, 'confirmation_writing')
       } else {
-        contract = await createContract(data, 'finalized')
+        contract = await createContract(data, 'confirmation_writing')
       }
       toast.success(`계약서가 생성되었습니다. (${contract.contract_number})`)
-      navigate(`/admin/contracts/${contract.id}/tracker`)
+      navigate(`/admin/contracts/${contract.id}/confirmation`)
     } catch (err) {
       console.error('[Contract] 계약서 저장 실패:', err)
       toast.error(`계약서 저장에 실패했습니다. ${err instanceof Error ? err.message : ''}`)

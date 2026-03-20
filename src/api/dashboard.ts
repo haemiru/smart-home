@@ -75,7 +75,7 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
     safe(supabase.from('inquiries').select('*', { count: 'exact', head: true }).in('status', ['new', 'checked'])),
     safe(supabase.from('inquiries').select('*', { count: 'exact', head: true }).gte('created_at', today.toISOString())),
     safe(supabase.from('inquiries').select('*', { count: 'exact', head: true }).gte('created_at', yesterday.toISOString()).lt('created_at', today.toISOString())),
-    safe(supabase.from('contracts').select('*', { count: 'exact', head: true }).in('status', ['drafting', 'finalized'])),
+    safe(supabase.from('contracts').select('*', { count: 'exact', head: true }).in('status', ['contract_writing', 'confirmation_writing', 'in_progress'])),
     safe(supabase.from('contracts').select('*', { count: 'exact', head: true }).eq('status', 'completed')),
     safe(supabase.from('properties').select('*', { count: 'exact', head: true }).eq('status', 'contracted')),
     safe(supabase.from('properties').select('*', { count: 'exact', head: true }).eq('status', 'completed')),
@@ -416,7 +416,7 @@ export async function fetchTodoList(): Promise<TodoItem[]> {
 
   const [unansweredCount, upcomingContractCount, repairCount, expiringCount] = await Promise.all([
     safeCount(supabase.from('inquiries').select('*', { count: 'exact', head: true }).in('status', ['new', 'checked']) as never),
-    safeCount(supabase.from('contracts').select('*', { count: 'exact', head: true }).in('status', ['drafting', 'finalized']) as never),
+    safeCount(supabase.from('contracts').select('*', { count: 'exact', head: true }).in('status', ['contract_writing', 'confirmation_writing', 'in_progress']) as never),
     safeCount(supabase.from('repair_requests').select('*', { count: 'exact', head: true }).in('status', ['requested', 'confirmed']) as never),
     safeCount(supabase.from('rental_properties').select('*', { count: 'exact', head: true }).eq('status', 'expiring') as never),
   ])

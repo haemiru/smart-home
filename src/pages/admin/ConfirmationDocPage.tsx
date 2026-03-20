@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { fetchContractById, updateContract } from '@/api/contracts'
+import { useNavigate } from 'react-router-dom'
+import { fetchContractById, updateContract, finalizeConfirmation } from '@/api/contracts'
 import { fetchPropertyById } from '@/api/properties'
 import { getConfirmationFormType, confirmationForms } from '@/utils/confirmationFormConfig'
 import { ConfirmationFormRenderer } from '@/features/contracts/components/ConfirmationFormRenderer'
@@ -17,6 +18,8 @@ export function ConfirmationDocPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isPdfLoading, setIsPdfLoading] = useState(false)
+  const [isFinalizing, setIsFinalizing] = useState(false)
+  const navigate = useNavigate()
   const printRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -72,6 +75,20 @@ export function ConfirmationDocPage() {
       toast.error('저장에 실패했습니다.')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleFinalize = async () => {
+    setIsFinalizing(true)
+    try {
+      await updateContract(contract.id, { confirmation_doc: formData })
+      await finalizeConfirmation(contract.id)
+      toast.success('확인설명서 작성이 완료되었습니다. 계약 진행 단계로 이동합니다.')
+      navigate(`/admin/contracts/${contract.id}/tracker`)
+    } catch {
+      toast.error('완료 처리에 실패했습니다.')
+    } finally {
+      setIsFinalizing(false)
     }
   }
 
@@ -132,7 +149,10 @@ export function ConfirmationDocPage() {
           >
             {isPdfLoading ? 'PDF 생성 중...' : 'PDF 다운로드'}
           </Button>
-          <Button onClick={handleSave} isLoading={isSaving}>저장</Button>
+          <Button variant="outline" onClick={handleSave} isLoading={isSaving}>임시저장</Button>
+          {contract.status === 'confirmation_writing' && (
+            <Button onClick={handleFinalize} isLoading={isFinalizing}>확인설명서 완료</Button>
+          )}
         </div>
       </div>
 

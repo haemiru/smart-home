@@ -8,9 +8,10 @@ import { contractStatusLabel, contractStatusColor, contractTemplateLabel, transa
 
 const statusTabs: { key: ContractStatus | 'all'; label: string }[] = [
   { key: 'all', label: '전체' },
-  { key: 'drafting', label: '작성중' },
-  { key: 'finalized', label: '작성완료' },
-  { key: 'completed', label: '계약완료' },
+  { key: 'contract_writing', label: '계약서 작성' },
+  { key: 'confirmation_writing', label: '확인설명서 작성' },
+  { key: 'in_progress', label: '계약 후 진행' },
+  { key: 'completed', label: '완료' },
 ]
 
 export function ContractsPage() {
@@ -82,7 +83,7 @@ export function ContractsPage() {
       </div>
 
       {/* 계약서 작성중 매물 안내 — '전체' 또는 '작성중' 탭에서만 표시 */}
-      {pendingProperties.length > 0 && (statusFilter === 'all' || statusFilter === 'drafting') && (
+      {pendingProperties.length > 0 && (statusFilter === 'all' || statusFilter === 'contract_writing') && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
           <p className="mb-2 text-sm font-semibold text-amber-800">📋 계약서 작성중 매물 {pendingProperties.length}건</p>
           <p className="mb-3 text-xs text-amber-600">매물 상태가 '계약진행'이며 계약서 작성이 필요합니다.</p>
@@ -158,20 +159,25 @@ export function ContractsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
-                        {ct.status === 'drafting' ? (
+                        {ct.status === 'contract_writing' ? (
                           <Link to={`/admin/contracts/${ct.id}/edit`}
-                            className="rounded-md bg-yellow-50 px-2.5 py-1 text-xs font-medium text-yellow-700 hover:bg-yellow-100">
+                            className="rounded-md bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100">
                             이어서 작성
                           </Link>
-                        ) : ct.status === 'completed' ? (
-                          <Link to={`/admin/contracts/${ct.id}/tracker`}
-                            className="rounded-md bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 hover:bg-green-100">
-                            상세보기
+                        ) : ct.status === 'confirmation_writing' ? (
+                          <Link to={`/admin/contracts/${ct.id}/confirmation`}
+                            className="rounded-md bg-yellow-50 px-2.5 py-1 text-xs font-medium text-yellow-700 hover:bg-yellow-100">
+                            확인설명서 작성
                           </Link>
-                        ) : (
+                        ) : ct.status === 'in_progress' ? (
                           <Link to={`/admin/contracts/${ct.id}/tracker`}
                             className="rounded-md bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100">
                             진행현황
+                          </Link>
+                        ) : (
+                          <Link to={`/admin/contracts/${ct.id}/tracker`}
+                            className="rounded-md bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 hover:bg-green-100">
+                            상세보기
                           </Link>
                         )}
                       </div>

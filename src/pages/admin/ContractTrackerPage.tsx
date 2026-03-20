@@ -61,8 +61,8 @@ export function ContractTrackerPage() {
       }
       // '거래 완료' 완료 취소 시 작성완료로 되돌림
       if (updated.step_type === 'completed' && !updated.is_completed && contract?.status === 'completed') {
-        await updateContractStatus(contract.id, 'finalized')
-        setContract((prev) => prev ? { ...prev, status: 'finalized' } : prev)
+        await updateContractStatus(contract.id, 'in_progress')
+        setContract((prev) => prev ? { ...prev, status: 'in_progress' } : prev)
       }
     }
   }
@@ -255,8 +255,7 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
           <div className="flex items-center gap-2">
             <select value={contract.status} onChange={(e) => handleStatusChange(e.target.value as ContractStatus)}
               className="rounded-lg border border-gray-200 px-3 py-2 text-sm">
-              <option value="drafting">작성중</option>
-              <option value="finalized">작성완료</option>
+              <option value="in_progress">계약 후 진행</option>
               <option value="completed">계약완료</option>
             </select>
             <Link to={`/admin/contracts/${contract.id}/confirmation`}>

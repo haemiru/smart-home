@@ -19,7 +19,7 @@ export type ContractTemplateType =
   | 'factory_sale' | 'factory_lease'
   | 'knowledge_center_sale' | 'knowledge_center_lease'
 
-export type ContractStatus = 'drafting' | 'finalized' | 'completed'
+export type ContractStatus = 'contract_writing' | 'confirmation_writing' | 'in_progress' | 'completed'
 
 export type ContractStepType =
   | 'contract_signed' | 'down_payment' | 'mid_payment' | 'final_payment'

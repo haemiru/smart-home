@@ -172,7 +172,7 @@ type ContractInput = {
   draft_data?: Record<string, unknown>
 }
 
-export async function createContract(data: ContractInput, status: ContractStatus = 'finalized'): Promise<Contract> {
+export async function createContract(data: ContractInput, status: ContractStatus = 'confirmation_writing'): Promise<Contract> {
   const agentId = await getAgentProfileId()
 
   // Generate contract number via DB sequence
@@ -194,37 +194,17 @@ export async function createContract(data: ContractInput, status: ContractStatus
       special_terms: data.special_terms ?? null,
       status,
       confirmation_doc: {},
-      draft_data: status === 'drafting' ? (data.draft_data ?? null) : null,
+      draft_data: status === 'contract_writing' ? (data.draft_data ?? null) : null,
     })
     .select()
     .single()
 
   if (error) throw error
 
-  // Auto-create process steps only for finalized contracts
-  if (status === 'finalized') {
-    const steps = getDefaultProcessSteps(data.transaction_type)
-    const pi = data.price_info as Record<string, unknown>
-    const dueDateMap = buildStepDueDates(pi, data.transaction_type)
-    const processRows = steps.map((step) => ({
-      contract_id: contract.id,
-      step_type: step.step_type,
-      step_label: step.step_label,
-      sort_order: step.sort_order,
-      due_date: dueDateMap[step.step_type] ?? null,
-    }))
-
-    const { error: stepsError } = await supabase
-      .from('contract_process')
-      .insert(processRows)
-
-    if (stepsError) throw stepsError
-  }
-
   return contract
 }
 
-export async function updateDraftContract(id: string, data: ContractInput, status: ContractStatus = 'drafting'): Promise<Contract> {
+export async function updateDraftContract(id: string, data: ContractInput, status: ContractStatus = 'contract_writing'): Promise<Contract> {
   const updatePayload: Record<string, unknown> = {
     property_id: data.property_id,
     transaction_type: data.transaction_type,
@@ -235,7 +215,7 @@ export async function updateDraftContract(id: string, data: ContractInput, statu
     price_info: data.price_info,
     special_terms: data.special_terms ?? null,
     status,
-    draft_data: status === 'drafting' ? (data.draft_data ?? null) : null,
+    draft_data: status === 'contract_writing' ? (data.draft_data ?? null) : null,
   }
 
   const { data: contract, error } = await supabase
@@ -247,29 +227,39 @@ export async function updateDraftContract(id: string, data: ContractInput, statu
 
   if (error) throw error
 
-  // When finalizing a draft, recreate process steps (remove existing to prevent duplicates)
-  if (status === 'finalized') {
-    await supabase.from('contract_process').delete().eq('contract_id', contract.id)
-
-    const steps = getDefaultProcessSteps(data.transaction_type)
-    const pi = data.price_info as Record<string, unknown>
-    const dueDateMap = buildStepDueDates(pi, data.transaction_type)
-    const processRows = steps.map((step) => ({
-      contract_id: contract.id,
-      step_type: step.step_type,
-      step_label: step.step_label,
-      sort_order: step.sort_order,
-      due_date: dueDateMap[step.step_type] ?? null,
-    }))
-
-    const { error: stepsError } = await supabase
-      .from('contract_process')
-      .insert(processRows)
-
-    if (stepsError) throw stepsError
-  }
-
   return contract
+}
+
+/** 확인설명서 완료 → in_progress 전환 + 진행 단계 생성 */
+export async function finalizeConfirmation(contractId: string): Promise<void> {
+  const { data: contract, error } = await supabase
+    .from('contracts')
+    .update({ status: 'in_progress' })
+    .eq('id', contractId)
+    .select()
+    .single()
+
+  if (error) throw error
+
+  // 기존 진행 단계 제거 후 재생성
+  await supabase.from('contract_process').delete().eq('contract_id', contractId)
+
+  const steps = getDefaultProcessSteps(contract.transaction_type)
+  const pi = contract.price_info as Record<string, unknown>
+  const dueDateMap = buildStepDueDates(pi, contract.transaction_type)
+  const processRows = steps.map((step) => ({
+    contract_id: contractId,
+    step_type: step.step_type,
+    step_label: step.step_label,
+    sort_order: step.sort_order,
+    due_date: dueDateMap[step.step_type] ?? null,
+  }))
+
+  const { error: stepsError } = await supabase
+    .from('contract_process')
+    .insert(processRows)
+
+  if (stepsError) throw stepsError
 }
 
 export async function updateContract(id: string, data: Partial<Contract>): Promise<Contract | null> {
