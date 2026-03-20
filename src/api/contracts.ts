@@ -43,10 +43,10 @@ export function getDefaultProcessSteps(txType: TransactionType): { step_type: Co
     { step_type: 'contract_signed', step_label: '계약 체결', sort_order: 1 },
     { step_type: 'down_payment', step_label: '계약금 입금', sort_order: 2 },
     { step_type: 'final_payment', step_label: '잔금 입금', sort_order: 3 },
-    { step_type: 'move_in_report', step_label: '전입신고', sort_order: 4 },
-    { step_type: 'fixed_date', step_label: '임대차계약 신고 및 확정일자', sort_order: 5 },
-    { step_type: 'moving', step_label: '이사', sort_order: 6 },
-    { step_type: 'maintenance_settle', step_label: '관리비 정산', sort_order: 7 },
+    { step_type: 'maintenance_settle', step_label: '관리비 정산', sort_order: 4 },
+    { step_type: 'moving', step_label: '이사', sort_order: 5 },
+    { step_type: 'move_in_report', step_label: '전입신고', sort_order: 6 },
+    { step_type: 'fixed_date', step_label: '임대차계약 신고 및 확정일자', sort_order: 7 },
     { step_type: 'completed', step_label: '거래 완료', sort_order: 8 },
   ]
 }
