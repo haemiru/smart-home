@@ -525,6 +525,17 @@ function txTypeFromTemplate(t: ContractTemplateType): TransactionType {
   return t.endsWith('_sale') ? 'sale' : 'jeonse'
 }
 
+/** 카테고리명 기반 양식 라벨 (빌라→빌라 매매, 원룸→원룸 임대차 등) */
+function getTemplateLabelForCategory(t: ContractTemplateType, categoryName: string | null): string {
+  const isSale = t.endsWith('_sale')
+  const txLabel = isSale ? '매매' : '임대차'
+  const name = (categoryName ?? '').trim()
+  // 카테고리가 있으면 카테고리명 기반 라벨
+  if (name) return `${name} ${txLabel}`
+  // 카테고리 없으면 기본 라벨
+  return contractTemplateLabel[t]
+}
+
 function Step2TemplateSelect({ templateType, onTemplateChange, txType, onTxTypeChange, property }: {
   templateType: ContractTemplateType; onTemplateChange: (v: ContractTemplateType) => void
   txType: TransactionType; onTxTypeChange: (v: TransactionType) => void
@@ -572,7 +583,7 @@ function Step2TemplateSelect({ templateType, onTemplateChange, txType, onTxTypeC
           {availableTemplates.map((t) => (
             <button key={t} onClick={() => handleTemplateSelect(t)}
               className={`rounded-xl border-2 p-4 text-left transition-all ${templateType === t ? 'border-primary-500 bg-primary-50' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
-              <p className="text-sm font-semibold text-gray-800">{contractTemplateLabel[t]}</p>
+              <p className="text-sm font-semibold text-gray-800">{getTemplateLabelForCategory(t, categoryName)}</p>
               {t === recommended && (
                 <span className="mt-1 inline-block rounded-full bg-primary-100 px-2 py-0.5 text-[10px] font-bold text-primary-700">추천</span>
               )}
@@ -921,8 +932,12 @@ function fmtWon(manwon: string | number) {
   return (n * 10000).toLocaleString('ko-KR')
 }
 
-function getContractTitle(templateType: ContractTemplateType, txType: TransactionType) {
+function getContractTitle(templateType: ContractTemplateType, txType: TransactionType, categoryName?: string | null) {
   const txLabel = txType === 'sale' ? '매매' : txType === 'jeonse' ? '전세' : '월세'
+  // 카테고리명이 있으면 그대로 사용
+  const name = (categoryName ?? '').trim()
+  if (name) return `${name} ${txLabel} 계약서`
+  // fallback
   if (templateType.startsWith('land')) return `토지 ${txLabel} 계약서`
   if (templateType.startsWith('factory')) return `공장/창고 ${txLabel} 계약서`
   if (templateType.startsWith('commercial')) return `상가 ${txLabel} 계약서`
@@ -941,6 +956,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
   isJointBrokerage: boolean; coAgentInfo: AgentInfo
 }) {
   const { findCategory } = useCategories()
+  const categoryName = property ? (findCategory(property.category_id)?.name ?? null) : null
   const isSale = txType === 'sale'
   const isMonthly = txType === 'monthly'
   const isLand = templateType.startsWith('land')
@@ -993,7 +1009,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
       <div ref={previewRef} className="mx-auto max-w-3xl bg-white px-8 py-8 shadow ring-1 ring-gray-200 print:shadow-none print:ring-0" style={{ fontFamily: 'serif' }}>
 
         {/* ── 제목 ── */}
-        <h2 className="mb-4 text-center text-2xl font-bold tracking-[0.3em] text-blue-900">{getContractTitle(templateType, txType)}</h2>
+        <h2 className="mb-4 text-center text-2xl font-bold tracking-[0.3em] text-blue-900">{getContractTitle(templateType, txType, categoryName)}</h2>
         <p className="mb-6 text-sm leading-relaxed">
           {isSale
             ? `본 부동산에 대하여 ${sellerRole}과 ${buyerRole} 쌍방은 다음과 같이 합의하여 매매 계약을 체결한다.`
