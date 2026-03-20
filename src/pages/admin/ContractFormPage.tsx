@@ -141,12 +141,13 @@ export function ContractFormPage() {
         if (dd.leasePartArea) setLeasePartArea(dd.leasePartArea)
         if (dd.monthlyPayDay) setMonthlyPayDay(dd.monthlyPayDay)
         if (dd.monthlyPayMethod) setMonthlyPayMethod(dd.monthlyPayMethod as 'prepaid' | 'postpaid')
-        if (dd.step) setStep(Number(dd.step) as Step)
         if (dd.isJointBrokerage) setIsJointBrokerage(dd.isJointBrokerage === 'true')
         if (dd.coAgentInfo) {
           try { setCoAgentInfo(JSON.parse(dd.coAgentInfo)) } catch { /* ignore */ }
         }
       }
+      // 이어서 작성 시 계약 정보 입력(3단계)으로 바로 이동
+      setStep(3)
       // Load property
       if (ct.property_id) {
         try {
@@ -219,7 +220,6 @@ export function ContractFormPage() {
     },
     special_terms: specialTerms,
     draft_data: {
-      step: String(step),
       deliveryDate,
       leasePeriodStart,
       leasePeriodEnd,
