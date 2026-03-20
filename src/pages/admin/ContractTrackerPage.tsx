@@ -326,15 +326,17 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
 
           {steps.map((step, idx) => {
             const docs = getStepDocuments(step.step_type, contract.transaction_type)
+            // 계약서에서 날짜를 가져온 단계는 예정일 읽기전용
+            const autoDateSteps: string[] = ['contract_signed', 'down_payment', 'mid_payment', 'final_payment', 'maintenance_settle', 'moving']
+            const isAutoDate = autoDateSteps.includes(step.step_type) && !!step.due_date
             return (
               <div key={step.id} className="relative">
                 {/* Circle */}
-                <button onClick={() => handleToggle(step.id)}
-                  className={`absolute -left-8 top-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 transition-colors ${
-                    step.is_completed ? 'border-green-500 bg-green-500 text-white' : 'border-gray-300 bg-white text-gray-400 hover:border-primary-400'
-                  }`}>
+                <div className={`absolute -left-8 top-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 ${
+                  step.is_completed ? 'border-green-500 bg-green-500 text-white' : 'border-gray-300 bg-white text-gray-400'
+                }`}>
                   {step.is_completed ? '\u2713' : <span className="text-xs">{idx + 1}</span>}
-                </button>
+                </div>
 
                 <div className={`rounded-lg p-4 ${step.is_completed ? 'bg-green-50 ring-1 ring-green-200' : 'bg-gray-50 ring-1 ring-gray-200'}`}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -357,8 +359,12 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <div>
                       <label className="text-[10px] text-gray-400">예정일</label>
-                      <input type="date" value={step.due_date ?? ''} onChange={(e) => handleDateChange(step.id, e.target.value)}
-                        className="block rounded border border-gray-200 px-2 py-1 text-xs" />
+                      {isAutoDate ? (
+                        <p className="rounded border border-gray-100 bg-gray-50 px-2 py-1 text-xs text-gray-500">{step.due_date}</p>
+                      ) : (
+                        <input type="date" value={step.due_date ?? ''} onChange={(e) => handleDateChange(step.id, e.target.value)}
+                          className="block rounded border border-gray-200 px-2 py-1 text-xs" />
+                      )}
                     </div>
                     <div className="flex-1">
                       <label className="text-[10px] text-gray-400">메모</label>
@@ -378,30 +384,39 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
                         {step.step_type === 'fixed_date' && (
                           <a href="https://rtms.molit.go.kr/main/main.do" target="_blank" rel="noopener noreferrer"
                             className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 hover:bg-blue-100">
-                            🏛️ 부동산거래관리시스템
+                            부동산거래관리시스템
                           </a>
                         )}
                       </div>
                     </div>
                   )}
 
-                  {/* 계약금/잔금 영수증 출력 버튼 */}
-                  {step.step_type === 'down_payment' && (
-                    <div className="mt-2">
+                  {/* 하단 액션: 완료 버튼 + 영수증 */}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {step.is_completed ? (
+                      <button onClick={() => handleToggle(step.id)}
+                        className="rounded-lg bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-200">
+                        완료 취소
+                      </button>
+                    ) : (
+                      <button onClick={() => handleToggle(step.id)}
+                        className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700">
+                        완료 처리
+                      </button>
+                    )}
+                    {step.step_type === 'down_payment' && (
                       <button onClick={() => setReceiptOpen('down_payment')}
                         className="rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-100">
-                        🧾 계약금 영수증 출력
+                        계약금 영수증 출력
                       </button>
-                    </div>
-                  )}
-                  {step.step_type === 'final_payment' && (
-                    <div className="mt-2">
+                    )}
+                    {step.step_type === 'final_payment' && (
                       <button onClick={() => setReceiptOpen('final_payment')}
                         className="rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-100">
-                        🧾 잔금 영수증 출력
+                        잔금 영수증 출력
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             )

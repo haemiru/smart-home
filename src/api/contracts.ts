@@ -26,6 +26,30 @@ export function recommendTemplate(categoryName: string | null, txType: Transacti
   }
 }
 
+// 계약서 price_info에서 진행 단계별 예정일 매핑
+function buildStepDueDates(priceInfo: Record<string, unknown>, txType: TransactionType): Partial<Record<ContractStepType, string>> {
+  const pi = priceInfo as Record<string, string | number | null>
+  const downDate = pi.downPaymentDate ? String(pi.downPaymentDate) : null
+  const midDate = pi.midPaymentDate ? String(pi.midPaymentDate) : null
+  const finalDate = pi.finalPaymentDate ? String(pi.finalPaymentDate) : null
+  const isSale = txType === 'sale'
+
+  const map: Partial<Record<ContractStepType, string>> = {}
+  if (downDate) {
+    map.contract_signed = downDate  // 계약 체결일 = 계약금 지급일
+    map.down_payment = downDate
+  }
+  if (midDate) map.mid_payment = midDate
+  if (finalDate) {
+    map.final_payment = finalDate
+    if (!isSale) {
+      map.maintenance_settle = finalDate  // 관리비 정산 = 잔금 지급일
+      map.moving = finalDate              // 이사 = 잔금 지급일
+    }
+  }
+  return map
+}
+
 // Default process steps based on transaction type — pure function
 export function getDefaultProcessSteps(txType: TransactionType): { step_type: ContractStepType; step_label: string; sort_order: number }[] {
   if (txType === 'sale') {
@@ -182,11 +206,14 @@ export async function createContract(data: ContractInput, status: ContractStatus
   // Auto-create process steps only for finalized contracts
   if (status === 'finalized') {
     const steps = getDefaultProcessSteps(data.transaction_type)
+    const pi = data.price_info as Record<string, unknown>
+    const dueDateMap = buildStepDueDates(pi, data.transaction_type)
     const processRows = steps.map((step) => ({
       contract_id: contract.id,
       step_type: step.step_type,
       step_label: step.step_label,
       sort_order: step.sort_order,
+      due_date: dueDateMap[step.step_type] ?? null,
     }))
 
     const { error: stepsError } = await supabase
@@ -227,11 +254,14 @@ export async function updateDraftContract(id: string, data: ContractInput, statu
     await supabase.from('contract_process').delete().eq('contract_id', contract.id)
 
     const steps = getDefaultProcessSteps(data.transaction_type)
+    const pi = data.price_info as Record<string, unknown>
+    const dueDateMap = buildStepDueDates(pi, data.transaction_type)
     const processRows = steps.map((step) => ({
       contract_id: contract.id,
       step_type: step.step_type,
       step_label: step.step_label,
       sort_order: step.sort_order,
+      due_date: dueDateMap[step.step_type] ?? null,
     }))
 
     const { error: stepsError } = await supabase
