@@ -468,20 +468,9 @@ export function parseCorpNumber(value: string): string {
   return value.replace(/\D/g, '').slice(0, 13)
 }
 
-/** 법인등록번호 유효성 검사 — 13자리 미만이면 null(미완성), 유효하면 null, 무효하면 오류 메시지 반환 */
+/** 법인등록번호 유효성 검사 — 13자리 형식 검증 (체크섬 공식 미공개) */
 export function validateCorpNumber(digits: string): string | null {
   if (digits.length < 13) return null
-
-  const weights = [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2]
-  let sum = 0
-  for (let i = 0; i < 12; i++) {
-    const product = parseInt(digits[i], 10) * weights[i]
-    sum += product >= 10 ? Math.floor(product / 10) + (product % 10) : product
-  }
-  const checkDigit = (10 - (sum % 10)) % 10
-  if (checkDigit !== parseInt(digits[12], 10)) {
-    return '유효하지 않은 법인등록번호입니다'
-  }
-
+  if (!/^\d{13}$/.test(digits)) return '법인등록번호는 숫자 13자리여야 합니다'
   return null
 }
