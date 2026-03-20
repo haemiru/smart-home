@@ -4,7 +4,7 @@ import type { Property, ContractTemplateType, TransactionType } from '@/types/da
 import { fetchAdminProperties, fetchPropertyById, updatePropertyStatus } from '@/api/properties'
 import { createContract, updateDraftContract, fetchContractById, recommendTemplate } from '@/api/contracts'
 import { Button } from '@/components/common'
-import { formatPropertyPrice, transactionTypeLabel, contractTemplateLabel, formatNumber, parseCommaNumber, formatPhone, parsePhone, formatIdNumber, parseIdNumber } from '@/utils/format'
+import { formatPropertyPrice, transactionTypeLabel, contractTemplateLabel, formatNumber, parseCommaNumber, formatPhone, parsePhone, formatIdNumber, parseIdNumber, validateIdNumber, formatBusinessNumber, parseBusinessNumber, validateBusinessNumber } from '@/utils/format'
 import { useFormatArea } from '@/components/common/AreaUnitToggle'
 import { useCategories } from '@/hooks/useCategories'
 import { useAuthStore } from '@/stores/authStore'
@@ -42,8 +42,8 @@ export function ContractFormPage() {
   const [txType, setTxType] = useState<TransactionType>('sale')
 
   // Step 3: Contract info
-  const [sellerInfo, setSellerInfo] = useState({ name: '', phone: '', idNumber: '', address: '' })
-  const [buyerInfo, setBuyerInfo] = useState({ name: '', phone: '', idNumber: '', address: '' })
+  const [sellerInfo, setSellerInfo] = useState({ name: '', phone: '', idNumber: '', address: '', entityType: 'individual' as 'individual' | 'business' })
+  const [buyerInfo, setBuyerInfo] = useState({ name: '', phone: '', idNumber: '', address: '', entityType: 'individual' as 'individual' | 'business' })
   const todayStr = new Date().toISOString().slice(0, 10)
   const [priceInfo, setPriceInfo] = useState({
     salePrice: '', deposit: '', monthlyRent: '',
@@ -112,9 +112,9 @@ export function ContractFormPage() {
       setTemplateType(ct.template_type)
       setTxType(ct.transaction_type)
       const si = ct.seller_info as Record<string, string>
-      setSellerInfo({ name: si.name || '', phone: si.phone || '', idNumber: si.idNumber || '', address: si.address || '' })
+      setSellerInfo({ name: si.name || '', phone: si.phone || '', idNumber: si.idNumber || '', address: si.address || '', entityType: (si.entityType as 'individual' | 'business') || 'individual' })
       const bi = ct.buyer_info as Record<string, string>
-      setBuyerInfo({ name: bi.name || '', phone: bi.phone || '', idNumber: bi.idNumber || '', address: bi.address || '' })
+      setBuyerInfo({ name: bi.name || '', phone: bi.phone || '', idNumber: bi.idNumber || '', address: bi.address || '', entityType: (bi.entityType as 'individual' | 'business') || 'individual' })
       const pi = ct.price_info as Record<string, string>
       setPriceInfo({
         salePrice: pi.salePrice ? String(pi.salePrice) : '',
@@ -606,6 +606,11 @@ function Step2TemplateSelect({ templateType, onTemplateChange, txType, onTxTypeC
 // ============================================================
 // Step 3: Contract Info Input
 // ============================================================
+type PersonInfo = {
+  name: string; phone: string; idNumber: string; address: string
+  entityType: 'individual' | 'business'
+}
+
 type PriceInfoType = {
   salePrice: string; deposit: string; monthlyRent: string
   downPayment: string; downPaymentDate: string
@@ -617,9 +622,9 @@ type PriceInfoType = {
 
 function Step3ContractInfo({ txType, templateType: _templateType, sellerInfo, onSellerChange, buyerInfo, onBuyerChange, priceInfo, onPriceChange, deliveryDate, onDeliveryDateChange, leasePeriodStart, onLeasePeriodStartChange, leasePeriodEnd, onLeasePeriodEndChange, leasePartDesc, onLeasePartDescChange, leasePartArea, onLeasePartAreaChange, monthlyPayDay, onMonthlyPayDayChange, monthlyPayMethod, onMonthlyPayMethodChange, specialTerms, onSpecialTermsChange, property, agentInfo, isJointBrokerage, onJointBrokerageChange, coAgentInfo, onCoAgentInfoChange }: {
   txType: TransactionType; templateType: ContractTemplateType
-  sellerInfo: { name: string; phone: string; idNumber: string; address: string }
-  onSellerChange: (v: typeof sellerInfo) => void
-  buyerInfo: typeof sellerInfo; onBuyerChange: (v: typeof sellerInfo) => void
+  sellerInfo: PersonInfo
+  onSellerChange: (v: PersonInfo) => void
+  buyerInfo: PersonInfo; onBuyerChange: (v: PersonInfo) => void
   priceInfo: PriceInfoType; onPriceChange: (v: PriceInfoType) => void
   deliveryDate: string; onDeliveryDateChange: (v: string) => void
   leasePeriodStart: string; onLeasePeriodStartChange: (v: string) => void
@@ -829,18 +834,32 @@ function Step3ContractInfo({ txType, templateType: _templateType, sellerInfo, on
 }
 
 function PersonInfoCard({ title, info, onChange }: {
-  title: string; info: { name: string; phone: string; idNumber: string; address: string }
-  onChange: (v: typeof info) => void
+  title: string; info: PersonInfo
+  onChange: (v: PersonInfo) => void
 }) {
+  const isBusiness = info.entityType === 'business'
   return (
     <div className="rounded-xl bg-white p-5 shadow-sm ring-2 ring-yellow-200">
-      <p className="mb-1 text-sm font-semibold">{title}</p>
-      <p className="mb-3 text-[10px] font-medium text-yellow-600">수동 입력 필요</p>
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold">{title}</p>
+          <p className="text-[10px] font-medium text-yellow-600">수동 입력 필요</p>
+        </div>
+        <div className="flex rounded-lg border border-gray-200 text-xs">
+          <button type="button" onClick={() => onChange({ ...info, entityType: 'individual', idNumber: '' })}
+            className={`rounded-l-lg px-3 py-1.5 font-medium transition-colors ${!isBusiness ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>개인</button>
+          <button type="button" onClick={() => onChange({ ...info, entityType: 'business', idNumber: '' })}
+            className={`rounded-r-lg px-3 py-1.5 font-medium transition-colors ${isBusiness ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>법인/사업자</button>
+        </div>
+      </div>
       <div className="space-y-3">
-        <Field label="성명" value={info.name} onChange={(v) => onChange({ ...info, name: v })} required />
+        <Field label={isBusiness ? '법인명 (대표자명)' : '성명'} value={info.name} onChange={(v) => onChange({ ...info, name: v })} required />
         <PhoneField label="연락처" value={info.phone} onChange={(v) => onChange({ ...info, phone: v })} />
-        <IdNumberField label="주민등록번호" value={info.idNumber} onChange={(v) => onChange({ ...info, idNumber: v })} />
-        <Field label="주소" value={info.address} onChange={(v) => onChange({ ...info, address: v })} />
+        {isBusiness
+          ? <BusinessNumberField label="사업자등록번호" value={info.idNumber} onChange={(v) => onChange({ ...info, idNumber: v })} />
+          : <IdNumberField label="주민등록번호" value={info.idNumber} onChange={(v) => onChange({ ...info, idNumber: v })} />
+        }
+        <Field label={isBusiness ? '사업장 주소' : '주소'} value={info.address} onChange={(v) => onChange({ ...info, address: v })} />
       </div>
     </div>
   )
@@ -867,11 +886,27 @@ function PhoneField({ label, value, onChange }: { label: string; value: string; 
 }
 
 function IdNumberField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const error = value.length === 13 ? validateIdNumber(value) : null
   return (
     <div>
       <label className="mb-1 block text-xs font-medium text-gray-500">{label}</label>
       <input type="text" inputMode="numeric" value={formatIdNumber(value)} onChange={(e) => onChange(parseIdNumber(e.target.value))} placeholder="000000-0000000"
-        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+        className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${error ? 'border-red-400 focus:border-red-400 focus:ring-red-500/20' : 'border-gray-200 focus:border-primary-300 focus:ring-primary-500/20'}`} />
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+      {value.length === 13 && !error && <p className="mt-1 text-xs text-green-600">유효한 주민등록번호입니다</p>}
+    </div>
+  )
+}
+
+function BusinessNumberField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const error = value.length === 10 ? validateBusinessNumber(value) : null
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-gray-500">{label}</label>
+      <input type="text" inputMode="numeric" value={formatBusinessNumber(value)} onChange={(e) => onChange(parseBusinessNumber(e.target.value))} placeholder="000-00-00000"
+        className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${error ? 'border-red-400 focus:border-red-400 focus:ring-red-500/20' : 'border-gray-200 focus:border-primary-300 focus:ring-primary-500/20'}`} />
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+      {value.length === 10 && !error && <p className="mt-1 text-xs text-green-600">유효한 사업자등록번호입니다</p>}
     </div>
   )
 }
@@ -946,8 +981,8 @@ function getContractTitle(templateType: ContractTemplateType, txType: Transactio
 
 function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, priceInfo, deliveryDate, leasePeriodStart: _leasePeriodStart, leasePeriodEnd, leasePartDesc, leasePartArea, monthlyPayDay, monthlyPayMethod, specialTerms, agentInfo, isJointBrokerage, coAgentInfo }: {
   property: Property | null; templateType: ContractTemplateType; txType: TransactionType
-  sellerInfo: { name: string; phone: string; idNumber: string; address: string }
-  buyerInfo: typeof sellerInfo
+  sellerInfo: PersonInfo
+  buyerInfo: PersonInfo
   priceInfo: PriceInfoType
   deliveryDate: string; leasePeriodStart: string; leasePeriodEnd: string
   leasePartDesc: string; leasePartArea: string
@@ -1204,11 +1239,11 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
               <td className={td} rowSpan={2} style={{ width: 36, textAlign: 'center', verticalAlign: 'middle' }}>(印)</td>
             </tr>
             <tr>
-              <td className={th}>주민등록번호</td>
-              <td className={td}>{sellerInfo.idNumber || ''}</td>
+              <td className={th}>{sellerInfo.entityType === 'business' ? '사업자등록번호' : '주민등록번호'}</td>
+              <td className={td}>{sellerInfo.entityType === 'business' ? formatBusinessNumber(sellerInfo.idNumber) : sellerInfo.idNumber || ''}</td>
               <td className={th} style={{ width: 36 }}>전화</td>
               <td className={td}>{sellerInfo.phone || ''}</td>
-              <td className={th} style={{ width: 36 }}>성명</td>
+              <td className={th} style={{ width: 36 }}>{sellerInfo.entityType === 'business' ? '법인명' : '성명'}</td>
               <td className={td} style={{ width: 80 }}>{sellerInfo.name || ''}</td>
             </tr>
 
@@ -1220,11 +1255,11 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
               <td className={td} rowSpan={2} style={{ textAlign: 'center', verticalAlign: 'middle' }}>(印)</td>
             </tr>
             <tr>
-              <td className={th}>주민등록번호</td>
-              <td className={td}>{buyerInfo.idNumber || ''}</td>
+              <td className={th}>{buyerInfo.entityType === 'business' ? '사업자등록번호' : '주민등록번호'}</td>
+              <td className={td}>{buyerInfo.entityType === 'business' ? formatBusinessNumber(buyerInfo.idNumber) : buyerInfo.idNumber || ''}</td>
               <td className={th}>전화</td>
               <td className={td}>{buyerInfo.phone || ''}</td>
-              <td className={th}>성명</td>
+              <td className={th}>{buyerInfo.entityType === 'business' ? '법인명' : '성명'}</td>
               <td className={td}>{buyerInfo.name || ''}</td>
             </tr>
 

@@ -389,3 +389,69 @@ export function formatIdNumber(value: string): string {
 export function parseIdNumber(value: string): string {
   return value.replace(/\D/g, '').slice(0, 13)
 }
+
+/** 주민등록번호 유효성 검사 — 13자리 미만이면 null(미완성), 유효하면 null, 무효하면 오류 메시지 반환 */
+export function validateIdNumber(digits: string): string | null {
+  if (digits.length < 13) return null
+
+  // 생년월일 검증
+  const yy = parseInt(digits.slice(0, 2), 10)
+  const mm = parseInt(digits.slice(2, 4), 10)
+  const dd = parseInt(digits.slice(4, 6), 10)
+  const genderDigit = parseInt(digits[6], 10)
+
+  if (![1, 2, 3, 4, 5, 6, 7, 8].includes(genderDigit)) {
+    return '유효하지 않은 주민등록번호입니다'
+  }
+
+  const century = genderDigit <= 2 ? 1900 : genderDigit <= 4 ? 2000 : genderDigit <= 6 ? 1900 : 2000
+  const fullYear = century + yy
+
+  if (mm < 1 || mm > 12) return '생년월일이 올바르지 않습니다'
+  const maxDay = new Date(fullYear, mm, 0).getDate()
+  if (dd < 1 || dd > maxDay) return '생년월일이 올바르지 않습니다'
+
+  // 체크섬 검증
+  const weights = [2, 3, 4, 5, 6, 7, 8, 9, 2, 3, 4, 5]
+  let sum = 0
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(digits[i], 10) * weights[i]
+  }
+  const checkDigit = (11 - (sum % 11)) % 10
+  if (checkDigit !== parseInt(digits[12], 10)) {
+    return '유효하지 않은 주민등록번호입니다'
+  }
+
+  return null
+}
+
+/** 사업자등록번호 포맷: 숫자만 추출 후 하이픈 자동 삽입 (XXX-XX-XXXXX) */
+export function formatBusinessNumber(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 10)
+  if (digits.length <= 3) return digits
+  if (digits.length <= 5) return `${digits.slice(0, 3)}-${digits.slice(3)}`
+  return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`
+}
+
+/** 사업자등록번호 입력에서 숫자만 추출 */
+export function parseBusinessNumber(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 10)
+}
+
+/** 사업자등록번호 유효성 검사 — 10자리 미만이면 null(미완성), 유효하면 null, 무효하면 오류 메시지 반환 */
+export function validateBusinessNumber(digits: string): string | null {
+  if (digits.length < 10) return null
+
+  const weights = [1, 3, 7, 1, 3, 7, 1, 3, 5]
+  let sum = 0
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(digits[i], 10) * weights[i]
+  }
+  sum += Math.floor((parseInt(digits[8], 10) * 5) / 10)
+  const checkDigit = (10 - (sum % 10)) % 10
+  if (checkDigit !== parseInt(digits[9], 10)) {
+    return '유효하지 않은 사업자등록번호입니다'
+  }
+
+  return null
+}
