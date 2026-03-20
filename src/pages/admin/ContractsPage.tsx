@@ -163,6 +163,11 @@ export function ContractsPage() {
                             className="rounded-md bg-yellow-50 px-2.5 py-1 text-xs font-medium text-yellow-700 hover:bg-yellow-100">
                             이어서 작성
                           </Link>
+                        ) : ct.status === 'completed' ? (
+                          <Link to={`/admin/contracts/${ct.id}/tracker`}
+                            className="rounded-md bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 hover:bg-green-100">
+                            상세보기
+                          </Link>
                         ) : (
                           <Link to={`/admin/contracts/${ct.id}/tracker`}
                             className="rounded-md bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100">
