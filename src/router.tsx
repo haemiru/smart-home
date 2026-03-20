@@ -134,6 +134,7 @@ export const router = createBrowserRouter([
       { path: 'customers/:id', element: <S><CustomerDetailPage /></S> },
       { path: 'contracts', element: <S><ContractsPage /></S> },
       { path: 'contracts/new', element: <S><ContractFormPage /></S> },
+      { path: 'contracts/:id/edit', element: <S><ContractFormPage /></S> },
       { path: 'contracts/:id/tracker', element: <S><ContractTrackerPage /></S> },
       { path: 'contracts/:id/confirmation', element: <S><ConfirmationDocPage /></S> },
       { path: 'ai-tools', element: <PlanGate navKey="ai-tools"><S><AIDescriptionPage /></S></PlanGate> },

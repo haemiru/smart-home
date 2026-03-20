@@ -288,6 +288,7 @@ export type Contract = {
   special_terms: string | null
   status: ContractStatus
   confirmation_doc: Record<string, unknown>
+  draft_data: Record<string, unknown> | null
   pdf_url: string | null
   created_at: string
   updated_at: string

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom'
 import type { Property, ContractTemplateType, TransactionType } from '@/types/database'
 import { fetchAdminProperties, fetchPropertyById, updatePropertyStatus } from '@/api/properties'
-import { createContract, recommendTemplate } from '@/api/contracts'
+import { createContract, updateDraftContract, fetchContractById, recommendTemplate } from '@/api/contracts'
 import { Button } from '@/components/common'
 import { formatPropertyPrice, transactionTypeLabel, contractTemplateLabel, formatNumber, parseCommaNumber, formatPhone, parsePhone, formatIdNumber, parseIdNumber } from '@/utils/format'
 import { useFormatArea } from '@/components/common/AreaUnitToggle'
@@ -22,11 +22,14 @@ const allTemplates: ContractTemplateType[] = [
 
 export function ContractFormPage() {
   const navigate = useNavigate()
+  const { id: editId } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
   const agentProfile = useAuthStore((s) => s.agentProfile)
   const { findCategory } = useCategories()
   const [step, setStep] = useState<Step>(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [draftId, setDraftId] = useState<string | null>(editId ?? null)
 
   // Step 1: Property selection
   const [properties, setProperties] = useState<Property[]>([])
@@ -98,9 +101,67 @@ export function ContractFormPage() {
     return () => { cancelled = true }
   }, [propSearch, propCategoryId])
 
+  // 기존 임시저장 계약서 로드
+  const draftLoadedRef = useRef(false)
+  useEffect(() => {
+    if (!editId || draftLoadedRef.current) return
+    draftLoadedRef.current = true
+    fetchContractById(editId).then(async (ct) => {
+      if (!ct || ct.status !== 'drafting') return
+      // Restore form state
+      setTemplateType(ct.template_type)
+      setTxType(ct.transaction_type)
+      const si = ct.seller_info as Record<string, string>
+      setSellerInfo({ name: si.name || '', phone: si.phone || '', idNumber: si.idNumber || '', address: si.address || '' })
+      const bi = ct.buyer_info as Record<string, string>
+      setBuyerInfo({ name: bi.name || '', phone: bi.phone || '', idNumber: bi.idNumber || '', address: bi.address || '' })
+      const pi = ct.price_info as Record<string, string>
+      setPriceInfo({
+        salePrice: pi.salePrice ? String(pi.salePrice) : '',
+        deposit: pi.deposit ? String(pi.deposit) : '',
+        monthlyRent: pi.monthlyRent ? String(pi.monthlyRent) : '',
+        downPayment: pi.downPayment ? String(pi.downPayment) : '',
+        downPaymentDate: pi.downPaymentDate || todayStr,
+        midPayment: pi.midPayment ? String(pi.midPayment) : '',
+        midPaymentDate: pi.midPaymentDate || '',
+        midPayment2: pi.midPayment2 ? String(pi.midPayment2) : '',
+        midPaymentDate2: pi.midPaymentDate2 || '',
+        finalPayment: pi.finalPayment ? String(pi.finalPayment) : '',
+        finalPaymentDate: pi.finalPaymentDate || '',
+        loanAmount: pi.loanAmount ? String(pi.loanAmount) : '',
+      })
+      setSpecialTerms(ct.special_terms || '')
+      // Restore draft_data extras
+      const dd = ct.draft_data as Record<string, string> | null
+      if (dd) {
+        if (dd.deliveryDate) { setDeliveryDate(dd.deliveryDate); deliveryManuallyEdited.current = true }
+        if (dd.leasePeriodStart) setLeasePeriodStart(dd.leasePeriodStart)
+        if (dd.leasePeriodEnd) setLeasePeriodEnd(dd.leasePeriodEnd)
+        if (dd.leasePartDesc) setLeasePartDesc(dd.leasePartDesc)
+        if (dd.leasePartArea) setLeasePartArea(dd.leasePartArea)
+        if (dd.monthlyPayDay) setMonthlyPayDay(dd.monthlyPayDay)
+        if (dd.monthlyPayMethod) setMonthlyPayMethod(dd.monthlyPayMethod as 'prepaid' | 'postpaid')
+        if (dd.step) setStep(Number(dd.step) as Step)
+        if (dd.isJointBrokerage) setIsJointBrokerage(dd.isJointBrokerage === 'true')
+        if (dd.coAgentInfo) {
+          try { setCoAgentInfo(JSON.parse(dd.coAgentInfo)) } catch { /* ignore */ }
+        }
+      }
+      // Load property
+      if (ct.property_id) {
+        try {
+          const p = await fetchPropertyById(ct.property_id)
+          if (p) setSelectedProperty(p)
+        } catch { /* ignore */ }
+      }
+    }).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId])
+
   // URL 쿼리 파라미터로 매물이 지정된 경우 자동 선택 → Step 2로 이동
   const preselectedRef = useRef(false)
   useEffect(() => {
+    if (editId) return // 편집 모드에서는 무시
     const pid = searchParams.get('propertyId')
     if (!pid || preselectedRef.current) return
     fetchPropertyById(pid).then((p) => {
@@ -132,35 +193,74 @@ export function ContractFormPage() {
     }))
   }
 
+  const buildContractData = () => ({
+    property_id: selectedProperty?.id ?? null,
+    transaction_type: txType,
+    template_type: templateType,
+    seller_info: sellerInfo,
+    buyer_info: buyerInfo,
+    agent_info: {
+      officeName: agentProfile?.office_name ?? '',
+      representative: agentProfile?.representative ?? '',
+      licenseNumber: agentProfile?.license_number ?? '',
+      address: agentProfile?.address ?? '',
+      phone: agentProfile?.phone ?? '',
+    },
+    price_info: {
+      salePrice: parseCommaNumber(priceInfo.salePrice),
+      deposit: parseCommaNumber(priceInfo.deposit),
+      monthlyRent: parseCommaNumber(priceInfo.monthlyRent),
+      downPayment: parseCommaNumber(priceInfo.downPayment),
+      downPaymentDate: priceInfo.downPaymentDate,
+      midPayment: parseCommaNumber(priceInfo.midPayment),
+      midPaymentDate: priceInfo.midPaymentDate,
+      finalPayment: parseCommaNumber(priceInfo.finalPayment),
+      finalPaymentDate: priceInfo.finalPaymentDate,
+    },
+    special_terms: specialTerms,
+    draft_data: {
+      step: String(step),
+      deliveryDate,
+      leasePeriodStart,
+      leasePeriodEnd,
+      leasePartDesc,
+      leasePartArea,
+      monthlyPayDay,
+      monthlyPayMethod,
+      isJointBrokerage: String(isJointBrokerage),
+      coAgentInfo: JSON.stringify(coAgentInfo),
+    },
+  })
+
+  const handleSaveDraft = async () => {
+    setIsSavingDraft(true)
+    try {
+      const data = buildContractData()
+      if (draftId) {
+        await updateDraftContract(draftId, data, 'drafting')
+      } else {
+        const contract = await createContract(data, 'drafting')
+        setDraftId(contract.id)
+      }
+      toast.success('임시저장되었습니다.')
+    } catch (err) {
+      console.error('[Contract] 임시저장 실패:', err)
+      toast.error(`임시저장에 실패했습니다. ${err instanceof Error ? err.message : ''}`)
+    } finally {
+      setIsSavingDraft(false)
+    }
+  }
+
   const handleSubmit = async () => {
     setIsSubmitting(true)
     try {
-      const contract = await createContract({
-        property_id: selectedProperty?.id ?? null,
-        transaction_type: txType,
-        template_type: templateType,
-        seller_info: sellerInfo,
-        buyer_info: buyerInfo,
-        agent_info: {
-          officeName: agentProfile?.office_name ?? '',
-          representative: agentProfile?.representative ?? '',
-          licenseNumber: agentProfile?.license_number ?? '',
-          address: agentProfile?.address ?? '',
-          phone: agentProfile?.phone ?? '',
-        },
-        price_info: {
-          salePrice: parseCommaNumber(priceInfo.salePrice),
-          deposit: parseCommaNumber(priceInfo.deposit),
-          monthlyRent: parseCommaNumber(priceInfo.monthlyRent),
-          downPayment: parseCommaNumber(priceInfo.downPayment),
-          downPaymentDate: priceInfo.downPaymentDate,
-          midPayment: parseCommaNumber(priceInfo.midPayment),
-          midPaymentDate: priceInfo.midPaymentDate,
-          finalPayment: parseCommaNumber(priceInfo.finalPayment),
-          finalPaymentDate: priceInfo.finalPaymentDate,
-        },
-        special_terms: specialTerms,
-      })
+      const data = buildContractData()
+      let contract
+      if (draftId) {
+        contract = await updateDraftContract(draftId, data, 'finalized')
+      } else {
+        contract = await createContract(data, 'finalized')
+      }
       toast.success(`계약서가 생성되었습니다. (${contract.contract_number})`)
       navigate(`/admin/contracts/${contract.id}/tracker`)
     } catch (err) {
@@ -280,42 +380,7 @@ export function ContractFormPage() {
         </Button>
         {step < 4 ? (
           <div className="flex gap-2">
-            {step === 3 && (
-              <Button variant="outline" onClick={async () => {
-                try {
-                  await createContract({
-                    property_id: selectedProperty?.id ?? null,
-                    transaction_type: txType,
-                    template_type: templateType,
-                    seller_info: sellerInfo,
-                    buyer_info: buyerInfo,
-                    agent_info: {
-                      officeName: agentProfile?.office_name ?? '',
-                      representative: agentProfile?.representative ?? '',
-                      licenseNumber: agentProfile?.license_number ?? '',
-                      address: agentProfile?.address ?? '',
-                      phone: agentProfile?.phone ?? '',
-                    },
-                    price_info: {
-                      salePrice: parseCommaNumber(priceInfo.salePrice),
-                      deposit: parseCommaNumber(priceInfo.deposit),
-                      monthlyRent: parseCommaNumber(priceInfo.monthlyRent),
-                      downPayment: parseCommaNumber(priceInfo.downPayment),
-                      downPaymentDate: priceInfo.downPaymentDate,
-                      midPayment: parseCommaNumber(priceInfo.midPayment),
-                      midPaymentDate: priceInfo.midPaymentDate,
-                      finalPayment: parseCommaNumber(priceInfo.finalPayment),
-                      finalPaymentDate: priceInfo.finalPaymentDate,
-                    },
-                    special_terms: specialTerms,
-                  })
-                  toast.success('임시저장되었습니다.')
-                } catch (err) {
-                  console.error('[Contract] 임시저장 실패:', err)
-                  toast.error(`임시저장에 실패했습니다. ${err instanceof Error ? err.message : ''}`)
-                }
-              }}>임시저장</Button>
-            )}
+            <Button variant="outline" onClick={handleSaveDraft} isLoading={isSavingDraft}>임시저장</Button>
             <Button onClick={async () => {
               // Step 3 → 4 전환 시: 포털공개중/매물등록중 매물을 계약진행으로 변경
               if (step === 3 && selectedProperty && ['active', 'draft'].includes(selectedProperty.status)) {
@@ -328,10 +393,8 @@ export function ContractFormPage() {
           </div>
         ) : (
           <div className="flex gap-2">
+            <Button variant="outline" onClick={handleSaveDraft} isLoading={isSavingDraft}>임시저장</Button>
             <Button variant="outline" onClick={() => { window.print() }}>인쇄</Button>
-            {/* 전자서명 — 추후 API 연동 시 활성화
-            <Button variant="secondary" onClick={() => toast('전자서명 요청 기능은 추후 구현 예정입니다.')}>전자서명 요청</Button>
-            */}
             <Button onClick={handleSubmit} isLoading={isSubmitting}>계약서 저장</Button>
           </div>
         )}

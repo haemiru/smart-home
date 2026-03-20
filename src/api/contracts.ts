@@ -138,7 +138,7 @@ export async function fetchContractProcess(contractId: string): Promise<Contract
   return data ?? []
 }
 
-export async function createContract(data: {
+type ContractInput = {
   property_id: string | null
   transaction_type: TransactionType
   template_type: ContractTemplateType
@@ -147,7 +147,10 @@ export async function createContract(data: {
   agent_info: Record<string, unknown>
   price_info: Record<string, unknown>
   special_terms?: string
-}): Promise<Contract> {
+  draft_data?: Record<string, unknown>
+}
+
+export async function createContract(data: ContractInput, status: ContractStatus = 'finalized'): Promise<Contract> {
   const agentId = await getAgentProfileId()
 
   // Generate contract number via DB sequence
@@ -167,28 +170,74 @@ export async function createContract(data: {
       agent_info: data.agent_info,
       price_info: data.price_info,
       special_terms: data.special_terms ?? null,
-      status: 'drafting',
+      status,
       confirmation_doc: {},
+      draft_data: status === 'drafting' ? (data.draft_data ?? null) : null,
     })
     .select()
     .single()
 
   if (error) throw error
 
-  // Auto-create process steps
-  const steps = getDefaultProcessSteps(data.transaction_type)
-  const processRows = steps.map((step) => ({
-    contract_id: contract.id,
-    step_type: step.step_type,
-    step_label: step.step_label,
-    sort_order: step.sort_order,
-  }))
+  // Auto-create process steps only for finalized contracts
+  if (status === 'finalized') {
+    const steps = getDefaultProcessSteps(data.transaction_type)
+    const processRows = steps.map((step) => ({
+      contract_id: contract.id,
+      step_type: step.step_type,
+      step_label: step.step_label,
+      sort_order: step.sort_order,
+    }))
 
-  const { error: stepsError } = await supabase
-    .from('contract_process')
-    .insert(processRows)
+    const { error: stepsError } = await supabase
+      .from('contract_process')
+      .insert(processRows)
 
-  if (stepsError) throw stepsError
+    if (stepsError) throw stepsError
+  }
+
+  return contract
+}
+
+export async function updateDraftContract(id: string, data: ContractInput, status: ContractStatus = 'drafting'): Promise<Contract> {
+  const updatePayload: Record<string, unknown> = {
+    property_id: data.property_id,
+    transaction_type: data.transaction_type,
+    template_type: data.template_type,
+    seller_info: data.seller_info,
+    buyer_info: data.buyer_info,
+    agent_info: data.agent_info,
+    price_info: data.price_info,
+    special_terms: data.special_terms ?? null,
+    status,
+    draft_data: status === 'drafting' ? (data.draft_data ?? null) : null,
+  }
+
+  const { data: contract, error } = await supabase
+    .from('contracts')
+    .update(updatePayload)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+
+  // When finalizing a draft, create process steps
+  if (status === 'finalized') {
+    const steps = getDefaultProcessSteps(data.transaction_type)
+    const processRows = steps.map((step) => ({
+      contract_id: contract.id,
+      step_type: step.step_type,
+      step_label: step.step_label,
+      sort_order: step.sort_order,
+    }))
+
+    const { error: stepsError } = await supabase
+      .from('contract_process')
+      .insert(processRows)
+
+    if (stepsError) throw stepsError
+  }
 
   return contract
 }

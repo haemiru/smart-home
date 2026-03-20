@@ -38,6 +38,7 @@ CREATE TABLE contracts (
   special_terms TEXT,
   status contract_status NOT NULL DEFAULT 'drafting',
   confirmation_doc JSONB DEFAULT '{}',
+  draft_data JSONB,
   pdf_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

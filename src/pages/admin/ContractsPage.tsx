@@ -158,10 +158,17 @@ export function ContractsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
-                        <Link to={`/admin/contracts/${ct.id}/tracker`}
-                          className="rounded-md bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100">
-                          진행현황
-                        </Link>
+                        {ct.status === 'drafting' ? (
+                          <Link to={`/admin/contracts/${ct.id}/edit`}
+                            className="rounded-md bg-yellow-50 px-2.5 py-1 text-xs font-medium text-yellow-700 hover:bg-yellow-100">
+                            이어서 작성
+                          </Link>
+                        ) : (
+                          <Link to={`/admin/contracts/${ct.id}/tracker`}
+                            className="rounded-md bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100">
+                            진행현황
+                          </Link>
+                        )}
                       </div>
                     </td>
                   </tr>
