@@ -148,11 +148,16 @@ export function ContractFormPage() {
       }
       // 이어서 작성 시 계약 정보 입력(3단계)으로 바로 이동
       setStep(3)
-      // Load property
+      // Load property + 전용면적 자동입력 (draft_data에 없을 경우)
       if (ct.property_id) {
         try {
           const p = await fetchPropertyById(ct.property_id)
-          if (p) setSelectedProperty(p)
+          if (p) {
+            setSelectedProperty(p)
+            if (!dd?.leasePartArea && p.exclusive_area_m2) {
+              setLeasePartArea(String(p.exclusive_area_m2))
+            }
+          }
         } catch { /* ignore */ }
       }
     }).catch(() => {})
