@@ -50,7 +50,20 @@ export function ContractTrackerPage() {
   const handleToggle = async (stepId: string) => {
     const updated = await toggleProcessStep(stepId)
     if (updated) {
-      setSteps((prev) => prev.map((s) => s.id === stepId ? updated : s))
+      const newSteps = steps.map((s) => s.id === stepId ? updated : s)
+      setSteps(newSteps)
+
+      // '거래 완료' 단계를 완료 처리하면 계약 상태를 계약완료로 자동 변경
+      if (updated.step_type === 'completed' && updated.is_completed && contract) {
+        await updateContractStatus(contract.id, 'completed')
+        setContract((prev) => prev ? { ...prev, status: 'completed' } : prev)
+        toast.success('모든 단계가 완료되어 계약완료로 변경되었습니다.')
+      }
+      // '거래 완료' 완료 취소 시 작성완료로 되돌림
+      if (updated.step_type === 'completed' && !updated.is_completed && contract?.status === 'completed') {
+        await updateContractStatus(contract.id, 'finalized')
+        setContract((prev) => prev ? { ...prev, status: 'finalized' } : prev)
+      }
     }
   }
 
