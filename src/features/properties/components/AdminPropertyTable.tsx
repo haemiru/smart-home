@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import type { Property, PropertyStatus } from '@/types/database'
+import { updatePropertyStatus } from '@/api/properties'
 import { formatPropertyPrice, propertyStatusColor, transactionTypeLabel, formatDate } from '@/utils/format'
 import { AreaUnitToggle, useFormatArea } from '@/components/common/AreaUnitToggle'
 import { useCategories } from '@/hooks/useCategories'
@@ -23,6 +24,15 @@ const statusOptions: { value: PropertyStatus; label: string }[] = [
 export function AdminPropertyTable({ properties, selectedIds, onSelect, onSelectAll, onStatusChange }: AdminPropertyTableProps) {
   const formatArea = useFormatArea()
   const { findCategory } = useCategories()
+  const navigate = useNavigate()
+
+  const handleCreateContract = async (p: Property) => {
+    if (p.status !== 'contracted') {
+      await updatePropertyStatus([p.id], 'contracted')
+      onStatusChange?.(p.id, 'contracted')
+    }
+    navigate(`/admin/contracts/new?propertyId=${p.id}`)
+  }
   const allSelected = properties.length > 0 && properties.every((p) => selectedIds.has(p.id))
 
   return (
@@ -88,9 +98,14 @@ export function AdminPropertyTable({ properties, selectedIds, onSelect, onSelect
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-400">{formatDate(p.created_at)}</td>
                 <td className="px-4 py-3">
-                  <Link to={`/admin/properties/${p.id}`} className="rounded px-2 py-1 text-xs font-medium text-primary-600 hover:bg-primary-50">
-                    수정
-                  </Link>
+                  <div className="flex gap-1">
+                    <Link to={`/admin/properties/${p.id}`} className="rounded px-2 py-1 text-xs font-medium text-primary-600 hover:bg-primary-50">
+                      수정
+                    </Link>
+                    <button onClick={() => handleCreateContract(p)} className="rounded px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-50">
+                      계약서
+                    </button>
+                  </div>
                 </td>
               </tr>
             )

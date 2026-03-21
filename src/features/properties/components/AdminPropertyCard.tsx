@@ -1,5 +1,7 @@
+import { Link, useNavigate } from 'react-router-dom'
 import type { Property } from '@/types/database'
 import { formatPropertyPrice, propertyStatusLabel, propertyStatusColor, transactionTypeLabel, formatDate } from '@/utils/format'
+import { updatePropertyStatus } from '@/api/properties'
 import { useFormatArea } from '@/components/common/AreaUnitToggle'
 import { useCategories } from '@/hooks/useCategories'
 
@@ -12,7 +14,15 @@ interface AdminPropertyCardProps {
 export function AdminPropertyCard({ property: p, isSelected, onSelect }: AdminPropertyCardProps) {
   const formatArea = useFormatArea()
   const { findCategory } = useCategories()
+  const navigate = useNavigate()
   const cat = findCategory(p.category_id)
+
+  const handleCreateContract = async () => {
+    if (p.status !== 'contracted') {
+      await updatePropertyStatus([p.id], 'contracted')
+    }
+    navigate(`/admin/contracts/new?propertyId=${p.id}`)
+  }
 
   return (
     <div className={`overflow-hidden rounded-xl bg-white shadow-sm ring-1 transition-all ${isSelected ? 'ring-primary-400 ring-2' : 'ring-gray-200'}`}>
@@ -36,6 +46,10 @@ export function AdminPropertyCard({ property: p, isSelected, onSelect }: AdminPr
           <span>💬 {p.inquiry_count}</span>
           <span>❤️ {p.favorite_count}</span>
           <span className="ml-auto">{formatDate(p.created_at)}</span>
+        </div>
+        <div className="mt-2 flex gap-2">
+          <Link to={`/admin/properties/${p.id}`} className="flex-1 rounded-lg bg-gray-100 py-1.5 text-center text-xs font-medium text-gray-700 hover:bg-gray-200">수정</Link>
+          <button onClick={handleCreateContract} className="flex-1 rounded-lg bg-green-50 py-1.5 text-xs font-medium text-green-700 hover:bg-green-100">계약서 작성</button>
         </div>
       </div>
     </div>
