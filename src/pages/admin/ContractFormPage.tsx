@@ -1032,8 +1032,8 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
   const [isPdfLoading, setIsPdfLoading] = useState(false)
   const sellerRole = isSale ? '매도인' : '임대인'
   const buyerRole = isSale ? '매수인' : '임차인'
-  const td = 'border border-gray-400 px-2 py-1.5 text-sm'
-  const th = 'border border-gray-400 bg-blue-50 px-2 py-1.5 text-sm font-medium text-center whitespace-nowrap text-blue-900'
+  const td = 'border border-gray-400 px-3 py-2.5 text-sm leading-relaxed'
+  const th = 'border border-gray-400 bg-blue-50 px-3 py-2.5 text-sm font-medium text-center whitespace-nowrap text-blue-900'
   const sectionHeader = 'mb-1 text-sm font-bold text-blue-800'
   const articleNum = 'font-semibold text-blue-700'
   const SPECIAL_TERMS_BYEOLJI_THRESHOLD = 200  // 특약사항이 이 글자수 넘으면 별지로 분리
