@@ -37,7 +37,7 @@ export function AdminPropertyTable({ properties, selectedIds, onSelect, onSelect
 
   return (
     <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
-      <table className="w-full min-w-[900px] text-sm">
+      <table className="w-full min-w-[1050px] text-sm">
         <thead>
           <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-500">
             <th className="px-4 py-3">
@@ -75,7 +75,7 @@ export function AdminPropertyTable({ properties, selectedIds, onSelect, onSelect
                   <br />
                   <span className="text-gray-400">{transactionTypeLabel[p.transaction_type]}</span>
                 </td>
-                <td className="px-4 py-3 font-medium">
+                <td className="whitespace-nowrap px-4 py-3 font-medium">
                   {formatPropertyPrice(p.transaction_type, p.sale_price, p.deposit, p.monthly_rent)}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">
@@ -102,8 +102,8 @@ export function AdminPropertyTable({ properties, selectedIds, onSelect, onSelect
                     <Link to={`/admin/properties/${p.id}`} className="rounded px-2 py-1 text-xs font-medium text-primary-600 hover:bg-primary-50">
                       수정
                     </Link>
-                    <button onClick={() => handleCreateContract(p)} className="rounded px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-50">
-                      계약서
+                    <button onClick={() => handleCreateContract(p)} className="whitespace-nowrap rounded px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-50">
+                      계약서 작성
                     </button>
                   </div>
                 </td>
