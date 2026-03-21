@@ -306,15 +306,15 @@ export function ContractFormPage() {
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-400">
+      <div className="no-print flex items-center gap-2 text-sm text-gray-400">
         <Link to="/admin/contracts" className="hover:text-gray-600">계약 관리</Link>
         <span>/</span>
         <span className="text-gray-600">{editId ? '이어서 작성' : '새 계약서'}</span>
       </div>
-      <h1 className="text-xl font-bold">계약서 작성</h1>
+      <h1 className="no-print text-xl font-bold">계약서 작성</h1>
 
       {/* Step Indicator */}
-      <div className="flex items-center gap-2">
+      <div className="no-print flex items-center gap-2">
         {([1, 2, 3, 4] as Step[]).map((s) => (
           <div key={s} className="flex items-center gap-2">
             <button
@@ -383,6 +383,7 @@ export function ContractFormPage() {
         />
       )}
       {step === 4 && (
+        <div className="print-area">
         <Step4Preview
           property={selectedProperty}
           templateType={templateType}
@@ -403,10 +404,11 @@ export function ContractFormPage() {
           coAgentInfo={coAgentInfo}
           onGoBack={() => setStep(3)}
         />
+        </div>
       )}
 
       {/* Navigation */}
-      <div className="flex items-center justify-between border-t border-gray-200 pt-4">
+      <div className="no-print flex items-center justify-between border-t border-gray-200 pt-4">
         <Button variant="outline" onClick={() => { if (step > 1) setStep((step - 1) as Step); else navigate('/admin/contracts') }}>
           {step === 1 ? '취소' : '이전'}
         </Button>
@@ -1088,6 +1090,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
     pdf: InstanceType<typeof import('jspdf').jsPDF>,
     html2canvas: (el: HTMLElement, opts: Record<string, unknown>) => Promise<HTMLCanvasElement>,
     isFirst: boolean,
+    fitToOnePage = false,
   ) => {
     const canvas = await html2canvas(el, { scale: 2, useCORS: true })
     const imgData = canvas.toDataURL('image/png')
@@ -1095,14 +1098,26 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
     const pdfH = pdf.internal.pageSize.getHeight()
     const margin = 10
     const contentW = pdfW - margin * 2
+    const contentH = pdfH - margin * 2
     const imgH = (canvas.height * contentW) / canvas.width
-    let y = margin
-    let page = 0
-    while (y < imgH + margin) {
-      if (!isFirst || page > 0) pdf.addPage()
-      pdf.addImage(imgData, 'PNG', margin, margin - y + (page === 0 ? 0 : margin), contentW, imgH)
-      y += pdfH - margin * 2
-      page++
+
+    if (fitToOnePage && imgH > contentH) {
+      // 한 페이지에 맞추기: 비율 유지하며 축소
+      if (!isFirst) pdf.addPage()
+      const scale = contentH / imgH
+      const scaledW = contentW * scale
+      const scaledH = contentH
+      const offsetX = margin + (contentW - scaledW) / 2
+      pdf.addImage(imgData, 'PNG', offsetX, margin, scaledW, scaledH)
+    } else {
+      let y = margin
+      let page = 0
+      while (y < imgH + margin) {
+        if (!isFirst || page > 0) pdf.addPage()
+        pdf.addImage(imgData, 'PNG', margin, margin - y + (page === 0 ? 0 : margin), contentW, imgH)
+        y += pdfH - margin * 2
+        page++
+      }
     }
   }
 
@@ -1113,9 +1128,9 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
       const html2canvas = (await import('html2canvas-pro')).default
       const { jsPDF } = await import('jspdf')
       const pdf = new jsPDF('p', 'mm', 'a4')
-      await addSectionToPdf(mainRef.current, pdf, html2canvas, true)
+      await addSectionToPdf(mainRef.current, pdf, html2canvas, true, true)
       if (needsByeolji && byeoljiRef.current) {
-        await addSectionToPdf(byeoljiRef.current, pdf, html2canvas, false)
+        await addSectionToPdf(byeoljiRef.current, pdf, html2canvas, false, true)
       }
       const contractNum = property?.title ? property.title.replace(/\s/g, '_') : 'contract'
       pdf.save(`계약서_${contractNum}.pdf`)
@@ -1476,7 +1491,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
       )}
       </div>{/* previewRef 끝 */}
 
-      <div className="flex items-center justify-center gap-3">
+      <div className="no-print flex items-center justify-center gap-3">
         <button onClick={onGoBack}
           className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>

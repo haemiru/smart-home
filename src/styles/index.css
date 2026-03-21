@@ -57,3 +57,37 @@
     transform: translateY(var(--tw-enter-translate-y, 0));
   }
 }
+
+/* Print styles — 인쇄 시 계약서/확인설명서 내용만 출력 */
+@media print {
+  /* 레이아웃 요소 숨김 */
+  header, nav, aside,
+  .no-print {
+    display: none !important;
+  }
+
+  /* main 영역 전체 너비 사용, 여백/패딩 제거 */
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* 배경색 제거 */
+  body, .min-h-screen {
+    background: white !important;
+  }
+
+  /* 인쇄 영역만 표시 */
+  .print-area {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* 계약서 본문을 한 페이지에 맞춤 */
+  .print-fit-page {
+    page-break-inside: avoid;
+    transform-origin: top center;
+  }
+}
