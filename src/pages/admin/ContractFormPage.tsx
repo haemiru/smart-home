@@ -1282,7 +1282,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
             <col style={{ width: '5%' }} />
             <col style={{ width: '11%' }} />
             <col style={{ width: '17%' }} />
-            <col style={{ width: '6%' }} />
+            <col style={{ width: '8%' }} />
             <col style={{ width: '17%' }} />
             <col style={{ width: '6%' }} />
             <col style={{ width: '10%' }} />
