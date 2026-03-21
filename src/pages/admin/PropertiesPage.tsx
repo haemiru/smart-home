@@ -101,7 +101,7 @@ export function PropertiesPage() {
   }
 
   const selectedCategory = categories.find((c) => c.id === categoryId)
-  const noJeonseCategories = ['토지', '공장', '창고', '공장/창고', '건물', '지식산업센터']
+  const noJeonseCategories = ['토지', '공장', '창고', '공장/창고', '건물', '지식산업센터', '상가', '사무실']
   const isNoJeonse = selectedCategory ? noJeonseCategories.some((n) => selectedCategory.name.includes(n)) : false
 
   // 전세 불가 유형 선택 시 거래유형이 전세면 초기화
