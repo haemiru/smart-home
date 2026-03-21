@@ -36,6 +36,7 @@ export function PropertiesPage() {
   const [maxArea, setMaxArea] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [areaUnit, setAreaUnit] = useState<'m2' | 'pyeong'>('m2')
 
   useEffect(() => { fetchCategories().then(setCategories).catch(() => {}) }, [])
 
@@ -46,10 +47,10 @@ export function PropertiesPage() {
     transactionType: (transactionType || undefined) as TransactionType | undefined,
     minPrice: minPrice ? Number(minPrice) * 10000 : undefined,
     maxPrice: maxPrice ? Number(maxPrice) * 10000 : undefined,
-    minArea: minArea ? Number(minArea) : undefined,
-    maxArea: maxArea ? Number(maxArea) : undefined,
+    minArea: minArea ? (areaUnit === 'pyeong' ? Number(minArea) * 3.3058 : Number(minArea)) : undefined,
+    maxArea: maxArea ? (areaUnit === 'pyeong' ? Number(maxArea) * 3.3058 : Number(maxArea)) : undefined,
     minBuiltYear: undefined,
-  }), [statusTab, search, categoryId, transactionType, minPrice, maxPrice, minArea, maxArea, dateFrom])
+  }), [statusTab, search, categoryId, transactionType, minPrice, maxPrice, minArea, maxArea, areaUnit, dateFrom])
 
   const load = useCallback(async () => {
     setIsLoading(true)
@@ -86,7 +87,7 @@ export function PropertiesPage() {
         if (!cancelled) setIsLoading(false)
       })
     return () => { cancelled = true }
-  }, [statusTab, search, categoryId, transactionType, minPrice, maxPrice, minArea, maxArea, dateFrom, dateTo, buildFilters])
+  }, [statusTab, search, categoryId, transactionType, minPrice, maxPrice, minArea, maxArea, areaUnit, dateFrom, dateTo, buildFilters])
 
   const handleResetAdvanced = () => {
     setCategoryId('')
@@ -261,9 +262,17 @@ export function PropertiesPage() {
                   className="w-full rounded-lg border border-gray-200 px-2 py-2 text-sm" />
               </div>
             </div>
-            {/* 평수 범위 */}
+            {/* 면적 범위 */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">면적 (m²)</label>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="text-xs font-medium text-gray-500">면적</label>
+                <div className="flex rounded-md border border-gray-200 text-xs">
+                  <button onClick={() => { setAreaUnit('m2'); setMinArea(''); setMaxArea('') }}
+                    className={`px-2 py-0.5 ${areaUnit === 'm2' ? 'bg-primary-600 text-white' : 'text-gray-500'}`}>m²</button>
+                  <button onClick={() => { setAreaUnit('pyeong'); setMinArea(''); setMaxArea('') }}
+                    className={`px-2 py-0.5 ${areaUnit === 'pyeong' ? 'bg-primary-600 text-white' : 'text-gray-500'}`}>평</button>
+                </div>
+              </div>
               <div className="flex items-center gap-1">
                 <input type="number" value={minArea} onChange={(e) => setMinArea(e.target.value)} placeholder="최소"
                   className="w-full rounded-lg border border-gray-200 px-2 py-2 text-sm" />
