@@ -299,7 +299,28 @@ export function ContractFormPage() {
   const canNext = () => {
     if (step === 1) return true // 매물 미선택 시에도 다음 단계 진행 가능
     if (step === 2) return true
-    if (step === 3) return sellerInfo.name && buyerInfo.name
+    if (step === 3) {
+      const isSale = txType === 'sale'
+      // 공통 필수: 당사자 성명/연락처/등록번호/주소
+      const sellerOk = sellerInfo.name && sellerInfo.phone && sellerInfo.idNumber && sellerInfo.address
+      const buyerOk = buyerInfo.name && buyerInfo.phone && buyerInfo.idNumber && buyerInfo.address
+      if (!sellerOk || !buyerOk) return false
+      // 공통 필수: 계약금, 잔금, 계약금 지급일, 잔금 지급일, 특약사항
+      if (!priceInfo.downPayment || !priceInfo.finalPayment) return false
+      if (!priceInfo.downPaymentDate || !priceInfo.finalPaymentDate) return false
+      if (!specialTerms) return false
+      if (isSale) {
+        // 매매: 매매대금, 인도일
+        if (!priceInfo.salePrice || !deliveryDate) return false
+      } else {
+        // 임대차: 보증금, 차임/월세, 지급일, 인도일, 임대할부분, 면적, 기간
+        if (!priceInfo.deposit || !priceInfo.monthlyRent) return false
+        if (!monthlyPayDay || !deliveryDate) return false
+        if (!leasePartDesc || !leasePartArea) return false
+        if (!leasePeriodStart || !leasePeriodEnd) return false
+      }
+      return true
+    }
     return true
   }
 
