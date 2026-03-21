@@ -381,6 +381,7 @@ export function ContractFormPage() {
           agentInfo={{ officeName: agentProfile?.office_name ?? '', representative: agentProfile?.representative ?? '', licenseNumber: agentProfile?.license_number ?? '', address: agentProfile?.address ?? '', phone: agentProfile?.phone ?? '' }}
           isJointBrokerage={isJointBrokerage}
           coAgentInfo={coAgentInfo}
+          onGoBack={() => setStep(3)}
         />
       )}
 
@@ -1023,7 +1024,7 @@ function getContractTitle(templateType: ContractTemplateType, txType: Transactio
   return `부동산 ${txLabel} 계약서`
 }
 
-function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, priceInfo, deliveryDate, leasePeriodStart: _leasePeriodStart, leasePeriodEnd, leasePartDesc, leasePartArea, monthlyPayDay, monthlyPayMethod, specialTerms, agentInfo, isJointBrokerage, coAgentInfo }: {
+function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, priceInfo, deliveryDate, leasePeriodStart: _leasePeriodStart, leasePeriodEnd, leasePartDesc, leasePartArea, monthlyPayDay, monthlyPayMethod, specialTerms, agentInfo, isJointBrokerage, coAgentInfo, onGoBack }: {
   property: Property | null; templateType: ContractTemplateType; txType: TransactionType
   sellerInfo: PersonInfo
   buyerInfo: PersonInfo
@@ -1033,6 +1034,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
   monthlyPayDay: string; monthlyPayMethod: 'prepaid' | 'postpaid'
   specialTerms: string; agentInfo: AgentInfo
   isJointBrokerage: boolean; coAgentInfo: AgentInfo
+  onGoBack: () => void
 }) {
   const { findCategory } = useCategories()
   const categoryName = property ? (findCategory(property.category_id)?.name ?? null) : null
@@ -1041,6 +1043,8 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
   const isLand = templateType.startsWith('land')
   const isCommercial = templateType.startsWith('commercial') || templateType.startsWith('factory')
   const previewRef = useRef<HTMLDivElement>(null)
+  const mainRef = useRef<HTMLDivElement>(null)
+  const byeoljiRef = useRef<HTMLDivElement>(null)
   const [isPdfLoading, setIsPdfLoading] = useState(false)
   const sellerRole = isSale ? '매도인' : '임대인'
   const buyerRole = isSale ? '매수인' : '임차인'
@@ -1058,27 +1062,39 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
   }
   const needsByeolji = estimateLines(specialTerms) > SPECIAL_TERMS_MAX_LINES
 
+  const addSectionToPdf = async (
+    el: HTMLElement,
+    pdf: InstanceType<typeof import('jspdf').jsPDF>,
+    html2canvas: (el: HTMLElement, opts: Record<string, unknown>) => Promise<HTMLCanvasElement>,
+    isFirst: boolean,
+  ) => {
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true })
+    const imgData = canvas.toDataURL('image/png')
+    const pdfW = pdf.internal.pageSize.getWidth()
+    const pdfH = pdf.internal.pageSize.getHeight()
+    const margin = 10
+    const contentW = pdfW - margin * 2
+    const imgH = (canvas.height * contentW) / canvas.width
+    let y = margin
+    let page = 0
+    while (y < imgH + margin) {
+      if (!isFirst || page > 0) pdf.addPage()
+      pdf.addImage(imgData, 'PNG', margin, margin - y + (page === 0 ? 0 : margin), contentW, imgH)
+      y += pdfH - margin * 2
+      page++
+    }
+  }
+
   const handleDownloadPdf = async () => {
-    if (!previewRef.current) return
+    if (!mainRef.current) return
     setIsPdfLoading(true)
     try {
       const html2canvas = (await import('html2canvas-pro')).default
       const { jsPDF } = await import('jspdf')
-      const canvas = await html2canvas(previewRef.current, { scale: 2, useCORS: true })
-      const imgData = canvas.toDataURL('image/png')
       const pdf = new jsPDF('p', 'mm', 'a4')
-      const pdfW = pdf.internal.pageSize.getWidth()
-      const pdfH = pdf.internal.pageSize.getHeight()
-      const margin = 10
-      const contentW = pdfW - margin * 2
-      const imgH = (canvas.height * contentW) / canvas.width
-      let y = margin
-      let page = 0
-      while (y < imgH + margin) {
-        if (page > 0) pdf.addPage()
-        pdf.addImage(imgData, 'PNG', margin, margin - y + (page === 0 ? 0 : margin), contentW, imgH)
-        y += pdfH - margin * 2
-        page++
+      await addSectionToPdf(mainRef.current, pdf, html2canvas, true)
+      if (needsByeolji && byeoljiRef.current) {
+        await addSectionToPdf(byeoljiRef.current, pdf, html2canvas, false)
       }
       const contractNum = property?.title ? property.title.replace(/\s/g, '_') : 'contract'
       pdf.save(`계약서_${contractNum}.pdf`)
@@ -1093,7 +1109,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
   return (
     <div className="space-y-6">
       <div ref={previewRef}>
-      <div className="mx-auto max-w-3xl bg-white px-6 py-6 shadow ring-1 ring-gray-200 print:shadow-none print:ring-0" style={{ fontFamily: 'serif' }}>
+      <div ref={mainRef} className="mx-auto max-w-3xl bg-white px-6 py-6 shadow ring-1 ring-gray-200 print:shadow-none print:ring-0" style={{ fontFamily: 'serif' }}>
 
         {/* ── 제목 ── */}
         <h2 className="mb-2 text-center text-xl font-bold tracking-[0.3em] text-blue-900">{getContractTitle(templateType, txType, categoryName)}</h2>
@@ -1385,7 +1401,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
 
       {/* ── 별지 (특약사항이 긴 경우) ── */}
       {needsByeolji && (
-        <div className="mx-auto mt-8 max-w-3xl bg-white px-8 py-8 shadow ring-1 ring-gray-200 print:shadow-none print:ring-0 print:break-before-page" style={{ fontFamily: 'serif' }}>
+        <div ref={byeoljiRef} className="mx-auto mt-8 max-w-3xl bg-white px-8 py-8 shadow ring-1 ring-gray-200 print:shadow-none print:ring-0" style={{ fontFamily: 'serif', breakBefore: 'page', pageBreakBefore: 'always' }}>
           <h2 className="mb-6 text-center text-2xl font-bold tracking-[0.3em] text-blue-900">계 약 서  별 지</h2>
 
           {/* 별지 부동산 정보 */}
@@ -1439,7 +1455,12 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
       )}
       </div>{/* previewRef 끝 */}
 
-      <div className="text-center">
+      <div className="flex items-center justify-center gap-3">
+        <button onClick={onGoBack}
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+          수정하기
+        </button>
         <button onClick={handleDownloadPdf} disabled={isPdfLoading}
           className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50">
           {isPdfLoading ? (
