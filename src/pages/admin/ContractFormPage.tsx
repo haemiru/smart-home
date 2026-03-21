@@ -1044,9 +1044,9 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
   const [isPdfLoading, setIsPdfLoading] = useState(false)
   const sellerRole = isSale ? '매도인' : '임대인'
   const buyerRole = isSale ? '매수인' : '임차인'
-  const td = 'border border-gray-400 px-4 py-3.5 text-sm leading-relaxed'
-  const th = 'border border-gray-400 bg-blue-50 px-4 py-3.5 text-sm font-medium text-center whitespace-nowrap text-blue-900'
-  const sectionHeader = 'mb-1 text-sm font-bold text-blue-800'
+  const td = 'border border-gray-400 px-3 py-2 text-xs leading-snug'
+  const th = 'border border-gray-400 bg-blue-50 px-3 py-2 text-xs font-medium text-center whitespace-nowrap text-blue-900'
+  const sectionHeader = 'mb-0.5 text-xs font-bold text-blue-800'
   const articleNum = 'font-semibold text-blue-700'
   const SPECIAL_TERMS_BYEOLJI_THRESHOLD = 200  // 특약사항이 이 글자수 넘으면 별지로 분리
   const needsByeolji = specialTerms.length > SPECIAL_TERMS_BYEOLJI_THRESHOLD
@@ -1085,11 +1085,12 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
 
   return (
     <div className="space-y-6">
-      <div ref={previewRef} className="mx-auto max-w-3xl bg-white px-8 py-8 shadow ring-1 ring-gray-200 print:shadow-none print:ring-0" style={{ fontFamily: 'serif' }}>
+      <div ref={previewRef}>
+      <div className="mx-auto max-w-3xl bg-white px-6 py-6 shadow ring-1 ring-gray-200 print:shadow-none print:ring-0" style={{ fontFamily: 'serif' }}>
 
         {/* ── 제목 ── */}
-        <h2 className="mb-4 text-center text-2xl font-bold tracking-[0.3em] text-blue-900">{getContractTitle(templateType, txType, categoryName)}</h2>
-        <p className="mb-6 text-sm leading-relaxed">
+        <h2 className="mb-2 text-center text-xl font-bold tracking-[0.3em] text-blue-900">{getContractTitle(templateType, txType, categoryName)}</h2>
+        <p className="mb-3 text-xs leading-relaxed">
           {isSale
             ? `본 부동산에 대하여 ${sellerRole}과 ${buyerRole} 쌍방은 다음과 같이 합의하여 매매 계약을 체결한다.`
             : `${sellerRole}과 ${buyerRole} 쌍방은 아래 표시 부동산에 관하여 다음 계약 내용과 같이 임대차계약을 체결한다.`}
@@ -1097,7 +1098,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
 
         {/* ── 1. 부동산의 표시 ── */}
         <p className={sectionHeader}>1. 부동산의 표시</p>
-        <table className="mb-6 w-full border-collapse">
+        <table className="mb-3 w-full border-collapse">
           <colgroup>
             <col style={{ width: 80 }} />
             <col style={{ width: 50 }} />
@@ -1154,14 +1155,14 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
         <p className={sectionHeader}>2. 계약내용</p>
 
         {/* 제1조 */}
-        <p className="mb-1 indent-4 text-sm leading-relaxed">
+        <p className="mb-0.5 indent-4 text-xs leading-relaxed">
           {isSale
             ? <><span className={articleNum}>제1조</span> [목 적] 위 부동산의 매매에 있어 {buyerRole}은 매매대금을 아래와 같이 지불하기로 한다.</>
             : <><span className={articleNum}>제1조</span> [목 적] 위 부동산의 임대차에 한하여 {sellerRole}과 {buyerRole}은 합의에 의하여 임차보증금 및 차임을 아래와 같이 지급하기로 한다.</>}
         </p>
 
         {/* 가격 테이블 */}
-        <table className="mb-4 w-full border-collapse">
+        <table className="mb-3 w-full border-collapse">
           <tbody>
             {isSale ? (<>
               <tr>
@@ -1230,7 +1231,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
         </table>
 
         {/* ── 제2조~제9조 ── */}
-        <div className="mb-6 space-y-2 text-sm leading-relaxed">
+        <div className="mb-3 space-y-0.5 text-xs leading-relaxed">
           {isSale ? (<>
             <p className="indent-4"><span className={articleNum}>제2조</span> [소유권이전 등] {sellerRole}은 매매대금의 잔금을 수령과 동시에 {buyerRole}에게 소유권이전등기에 필요한 모든 서류를 교부하고 등기절차에 협력하며, 위 부동산의 인도일은 <b>{fmtDate(deliveryDate)}</b>에 인도한다.</p>
             <p className="indent-4"><span className={articleNum}>제3조</span> [제한물권 등의 소멸] {sellerRole}은 위 부동산에 설정된 저당권, 지상권, 임차권 등 소유권의 행사를 제한하는 사유가 있거나, 제세공과 기타 부담금의 미납금 등이 있을때에는 잔금 수수일까지 그 권리의 하자 및 부담 등을 제거하여 완전한 소유권을 {buyerRole}에게 이전한다. 다만, 승계하기로 합의하는 권리 및 금액은 그러하지 아니한다.</p>
@@ -1253,21 +1254,21 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
         </div>
 
         {/* ── 특약사항 ── */}
-        <div className="mb-6">
-          <p className="mb-2 text-sm font-bold text-blue-800">[ 특약사항 ]</p>
-          <div className="min-h-[80px] rounded border-2 border-blue-200 bg-blue-50/30 p-3">
+        <div className="mb-3">
+          <p className="mb-1 text-xs font-bold text-blue-800">[ 특약사항 ]</p>
+          <div className="min-h-[40px] rounded border-2 border-blue-200 bg-blue-50/30 p-2">
             {needsByeolji ? (
-              <p className="text-sm font-medium text-blue-700">---별지첨부---</p>
+              <p className="text-xs font-medium text-blue-700">---별지첨부---</p>
             ) : specialTerms ? (
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">{specialTerms}</p>
+              <p className="whitespace-pre-wrap text-xs leading-relaxed">{specialTerms}</p>
             ) : (
-              <p className="text-sm text-gray-300">-이하여백-</p>
+              <p className="text-xs text-gray-300">-이하여백-</p>
             )}
           </div>
         </div>
 
         {/* ── 계약일 + 서명 안내 ── */}
-        <p className="mb-6 text-center text-sm">
+        <p className="mb-3 text-center text-xs">
           본 계약을 증명하기 위하여 계약 당사자가 이의 없음을 확인하고 각각 서명 또는 날인한다.
           <span className="ml-8">{new Date().getFullYear()}년 {String(new Date().getMonth() + 1).padStart(2, '0')}월 {String(new Date().getDate()).padStart(2, '0')}일</span>
         </p>
@@ -1381,7 +1382,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
           <h2 className="mb-6 text-center text-2xl font-bold tracking-[0.3em] text-blue-900">계 약 서  별 지</h2>
 
           {/* 별지 부동산 정보 */}
-          <table className="mb-6 w-full border-collapse">
+          <table className="mb-3 w-full border-collapse">
             <tbody>
               <tr>
                 <td className={th} style={{ width: 80 }}>계약일자</td>
@@ -1429,6 +1430,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
           <p className="text-center text-xs text-gray-500">────────── 이 하 여 백 ──────────</p>
         </div>
       )}
+      </div>{/* previewRef 끝 */}
 
       <div className="text-center">
         <button onClick={handleDownloadPdf} disabled={isPdfLoading}
