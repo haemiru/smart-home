@@ -111,11 +111,11 @@ export function ContractFormPage() {
       // Restore form state
       setTemplateType(ct.template_type)
       setTxType(ct.transaction_type)
-      const si = ct.seller_info as Record<string, string>
+      const si = (ct.seller_info as Record<string, string>) ?? {}
       setSellerInfo({ name: si.name || '', phone: si.phone || '', idNumber: si.idNumber || '', address: si.address || '', idType: (si.idType as IdType) || 'resident' })
-      const bi = ct.buyer_info as Record<string, string>
+      const bi = (ct.buyer_info as Record<string, string>) ?? {}
       setBuyerInfo({ name: bi.name || '', phone: bi.phone || '', idNumber: bi.idNumber || '', address: bi.address || '', idType: (bi.idType as IdType) || 'resident' })
-      const pi = ct.price_info as Record<string, string>
+      const pi = (ct.price_info as Record<string, string>) ?? {}
       setPriceInfo({
         salePrice: pi.salePrice ? String(pi.salePrice) : '',
         deposit: pi.deposit ? String(pi.deposit) : '',
@@ -160,7 +160,7 @@ export function ContractFormPage() {
           }
         } catch { /* ignore */ }
       }
-    }).catch(() => {})
+    }).catch((err) => { console.error('[ContractForm] 계약서 로드 실패:', err) })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId])
 

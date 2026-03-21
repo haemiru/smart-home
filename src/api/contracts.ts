@@ -194,7 +194,7 @@ export async function createContract(data: ContractInput, status: ContractStatus
       special_terms: data.special_terms ?? null,
       status,
       confirmation_doc: {},
-      draft_data: status === 'contract_writing' ? (data.draft_data ?? null) : null,
+      draft_data: data.draft_data ?? null,
     })
     .select()
     .single()
@@ -215,7 +215,7 @@ export async function updateDraftContract(id: string, data: ContractInput, statu
     price_info: data.price_info,
     special_terms: data.special_terms ?? null,
     status,
-    draft_data: status === 'contract_writing' ? (data.draft_data ?? null) : null,
+    draft_data: data.draft_data ?? null,
   }
 
   const { data: contract, error } = await supabase
