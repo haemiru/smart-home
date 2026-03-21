@@ -100,6 +100,15 @@ export function PropertiesPage() {
     setDateTo('')
   }
 
+  const selectedCategory = categories.find((c) => c.id === categoryId)
+  const noJeonseCategories = ['토지', '공장', '창고', '공장/창고', '건물', '지식산업센터']
+  const isNoJeonse = selectedCategory ? noJeonseCategories.some((n) => selectedCategory.name.includes(n)) : false
+
+  // 전세 불가 유형 선택 시 거래유형이 전세면 초기화
+  useEffect(() => {
+    if (isNoJeonse && transactionType === 'jeonse') setTransactionType('')
+  }, [isNoJeonse, transactionType])
+
   const activeFilterCount = [categoryId, transactionType, minPrice, maxPrice, minArea, maxArea, dateFrom, dateTo].filter(Boolean).length
 
   const handleSelect = (id: string) => {
@@ -247,7 +256,7 @@ export function PropertiesPage() {
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
                 <option value="">전체</option>
                 <option value="sale">매매</option>
-                <option value="jeonse">전세</option>
+                {!isNoJeonse && <option value="jeonse">전세</option>}
                 <option value="monthly">월세</option>
               </select>
             </div>
