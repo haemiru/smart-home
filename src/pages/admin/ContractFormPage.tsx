@@ -1332,17 +1332,15 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
               <td className={pth}>사무소 명칭</td>
               <td className={ptd} colSpan={3}>{agentInfo.officeName || ''}</td>
               <td className={pth}>대표자</td>
-              <td className={ptd}>{agentInfo.representative || ''}</td>
-              <td className={pth}>서명날인</td>
-              <td className={ptd} style={{ textAlign: 'center' }}>(印)</td>
+              <td className={ptd} colSpan={3} style={{ textAlign: 'right' }}>{agentInfo.representative || ''} &nbsp;(印)</td>
             </tr>
             <tr>
               <td className={pth}>전화번호</td>
               <td className={ptd}>{formatPhoneNumber(agentInfo.phone)}</td>
               <td className={pth}>등록번호</td>
-              <td className={ptd} colSpan={3}>{agentInfo.licenseNumber || ''}</td>
+              <td className={ptd} colSpan={2}>{agentInfo.licenseNumber || ''}</td>
               <td className={pth} style={{ fontSize: '9px' }}>소속공인중개사</td>
-              <td className={ptd} style={{ textAlign: 'center', fontSize: '9px' }}>(印)</td>
+              <td className={ptd} colSpan={2} style={{ textAlign: 'right', fontSize: '9px' }}>(印)</td>
             </tr>
 
             {/* 개업공인중개사 2 (공동중개) */}
@@ -1356,17 +1354,15 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
                 <td className={pth}>사무소 명칭</td>
                 <td className={ptd} colSpan={3}>{coAgentInfo.officeName || ''}</td>
                 <td className={pth}>대표자</td>
-                <td className={ptd}>{coAgentInfo.representative || ''}</td>
-                <td className={pth}>서명날인</td>
-                <td className={ptd} style={{ textAlign: 'center' }}>(印)</td>
+                <td className={ptd} colSpan={3} style={{ textAlign: 'right' }}>{coAgentInfo.representative || ''} &nbsp;(印)</td>
               </tr>
               <tr>
                 <td className={pth}>전화번호</td>
                 <td className={ptd}>{formatPhoneNumber(coAgentInfo.phone)}</td>
                 <td className={pth}>등록번호</td>
-                <td className={ptd} colSpan={3}>{coAgentInfo.licenseNumber || ''}</td>
+                <td className={ptd} colSpan={2}>{coAgentInfo.licenseNumber || ''}</td>
                 <td className={pth} style={{ fontSize: '9px' }}>소속공인중개사</td>
-                <td className={ptd} style={{ textAlign: 'center', fontSize: '9px' }}>(印)</td>
+                <td className={ptd} colSpan={2} style={{ textAlign: 'right', fontSize: '9px' }}>(印)</td>
               </tr>
             </>)}
           </tbody>
