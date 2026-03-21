@@ -262,15 +262,35 @@ export function ContractFormPage() {
       const data = buildContractData()
       let contract
       if (draftId) {
+        contract = await updateDraftContract(draftId, data, 'contract_writing')
+      } else {
+        contract = await createContract(data, 'contract_writing')
+      }
+      setDraftId(contract.id)
+      toast.success(`계약서가 저장되었습니다. (${contract.contract_number})`)
+    } catch (err) {
+      console.error('[Contract] 계약서 저장 실패:', err)
+      toast.error(`계약서 저장에 실패했습니다. ${err instanceof Error ? err.message : ''}`)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleGoToConfirmation = async () => {
+    setIsSubmitting(true)
+    try {
+      const data = buildContractData()
+      let contract
+      if (draftId) {
         contract = await updateDraftContract(draftId, data, 'confirmation_writing')
       } else {
         contract = await createContract(data, 'confirmation_writing')
       }
-      toast.success(`계약서가 생성되었습니다. (${contract.contract_number})`)
+      toast.success('확인설명서 작성으로 이동합니다.')
       navigate(`/admin/contracts/${contract.id}/confirmation`)
     } catch (err) {
-      console.error('[Contract] 계약서 저장 실패:', err)
-      toast.error(`계약서 저장에 실패했습니다. ${err instanceof Error ? err.message : ''}`)
+      console.error('[Contract] 확인설명서 이동 실패:', err)
+      toast.error(`저장에 실패했습니다. ${err instanceof Error ? err.message : ''}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -408,6 +428,7 @@ export function ContractFormPage() {
             <Button variant="outline" onClick={handleSaveDraft} isLoading={isSavingDraft}>임시저장</Button>
             <Button variant="outline" onClick={() => { window.print() }}>인쇄</Button>
             <Button onClick={handleSubmit} isLoading={isSubmitting}>계약서 저장</Button>
+            <Button onClick={handleGoToConfirmation} isLoading={isSubmitting}>확인설명서 작성</Button>
           </div>
         )}
       </div>
