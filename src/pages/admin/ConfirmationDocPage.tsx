@@ -140,7 +140,10 @@ export function ConfirmationDocPage() {
           <h1 className="text-xl font-bold">중개대상물 확인·설명서</h1>
           <p className="mt-1 text-sm text-gray-500">{formDef.label}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link to={`/admin/contracts/${contract.id}/edit`}>
+            <Button variant="outline">📄 계약서 보기/수정</Button>
+          </Link>
           <Button variant="outline" onClick={() => window.print()}>인쇄</Button>
           <Button
             variant="outline"

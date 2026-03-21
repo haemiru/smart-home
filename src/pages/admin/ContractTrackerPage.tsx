@@ -258,6 +258,9 @@ ${property ? `- 매물 주소: ${property.address}` : ''}
               <option value="in_progress">계약 후 진행</option>
               <option value="completed">계약완료</option>
             </select>
+            <Link to={`/admin/contracts/${contract.id}/edit`}>
+              <Button variant="outline" size="sm">📄 계약서 보기/수정</Button>
+            </Link>
             <Link to={`/admin/contracts/${contract.id}/confirmation`}>
               <Button variant="outline" size="sm">
                 확인설명서{contract.confirmation_doc && Object.keys(contract.confirmation_doc).length > 0 ? ' (작성됨)' : ''}
