@@ -1155,62 +1155,62 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
               <tr>
                 <td className={th} style={{ width: 80 }}>매매대금</td>
                 <td className={td}>금 {manwonToKorean(Number(priceInfo.salePrice))}원정</td>
-                <td className={td} style={{ width: 200, textAlign: 'right' }}>(￦{fmtWon(priceInfo.salePrice)})</td>
+                <td className={td} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>(￦{fmtWon(priceInfo.salePrice)})</td>
               </tr>
               <tr>
                 <td className={th}>계 약 금</td>
                 <td className={td}>금 {manwonToKorean(Number(priceInfo.downPayment))}원정</td>
-                <td className={td} style={{ textAlign: 'right' }}>은 계약시 지불하고 영수함. 영수인 <span className="inline-block w-12 border-b border-gray-400 text-center text-xs">(印)</span></td>
+                <td className={td} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>은 계약시 지불하고 영수함. 영수인 <span className="inline-block w-12 border-b border-gray-400 text-center text-xs">(印)</span></td>
               </tr>
               <tr>
                 <td className={th} rowSpan={priceInfo.midPayment2 ? 2 : 1}>중 도 금</td>
                 <td className={td}>금 {manwonToKorean(Number(priceInfo.midPayment))}원정</td>
-                <td className={td} style={{ textAlign: 'right' }}>은 {priceInfo.midPaymentDate ? fmtDate(priceInfo.midPaymentDate) : '    년   월   일'}에 지불하며,</td>
+                <td className={td} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>은 {priceInfo.midPaymentDate ? fmtDate(priceInfo.midPaymentDate) : '    년   월   일'}에 지불하며,</td>
               </tr>
               {priceInfo.midPayment2 && (
                 <tr>
                   <td className={td}>금 {manwonToKorean(Number(priceInfo.midPayment2))}원정</td>
-                  <td className={td} style={{ textAlign: 'right' }}>은 {priceInfo.midPaymentDate2 ? fmtDate(priceInfo.midPaymentDate2) : '    년   월   일'}에 지불하며,</td>
+                  <td className={td} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>은 {priceInfo.midPaymentDate2 ? fmtDate(priceInfo.midPaymentDate2) : '    년   월   일'}에 지불하며,</td>
                 </tr>
               )}
               <tr>
                 <td className={th}>잔 &nbsp; 금</td>
                 <td className={td}>금 {manwonToKorean(Number(priceInfo.finalPayment))}원정</td>
-                <td className={td} style={{ textAlign: 'right' }}>은 {fmtDate(priceInfo.finalPaymentDate)}에 지불한다.</td>
+                <td className={td} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>은 {fmtDate(priceInfo.finalPaymentDate)}에 지불한다.</td>
               </tr>
               <tr>
                 <td className={th}>융 자 금</td>
                 <td className={td}>금 {manwonToKorean(Number(priceInfo.loanAmount))}원정</td>
-                <td className={td} style={{ textAlign: 'right' }}>은 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 하기로 한다.</td>
+                <td className={td} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>은 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 하기로 한다.</td>
               </tr>
             </>) : (<>
               <tr>
                 <td className={th} style={{ width: 80 }}>보 증 금</td>
                 <td className={td}>금 {manwonToKorean(Number(priceInfo.deposit))}원정</td>
-                <td className={td} style={{ width: 200, textAlign: 'right' }}>(￦{fmtWon(priceInfo.deposit)})</td>
+                <td className={td} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>(￦{fmtWon(priceInfo.deposit)})</td>
               </tr>
               <tr>
                 <td className={th}>계 약 금</td>
                 <td className={td}>금 {manwonToKorean(Number(priceInfo.downPayment))}원정</td>
-                <td className={td} style={{ textAlign: 'right' }}>은 계약시에 지급하고 영수함 ※영수자 <span className="inline-block w-12 border-b border-gray-400 text-center text-xs">(印)</span></td>
+                <td className={td} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>은 계약시에 지급하고 영수함 ※영수자 <span className="inline-block w-12 border-b border-gray-400 text-center text-xs">(印)</span></td>
               </tr>
               {priceInfo.midPayment && (
                 <tr>
                   <td className={th}>중 도 금</td>
                   <td className={td}>금 {manwonToKorean(Number(priceInfo.midPayment))}원정</td>
-                  <td className={td} style={{ textAlign: 'right' }}>은 {fmtDate(priceInfo.midPaymentDate)}에 지급하며,</td>
+                  <td className={td} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>은 {fmtDate(priceInfo.midPaymentDate)}에 지급하며,</td>
                 </tr>
               )}
               <tr>
                 <td className={th}>잔 &nbsp; 금</td>
                 <td className={td}>금 {manwonToKorean(Number(priceInfo.finalPayment))}원정</td>
-                <td className={td} style={{ textAlign: 'right' }}>은 {fmtDate(priceInfo.finalPaymentDate)}에 지급한다</td>
+                <td className={td} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>은 {fmtDate(priceInfo.finalPaymentDate)}에 지급한다</td>
               </tr>
               {isMonthly && (
                 <tr>
                   <td className={th}>차 &nbsp; 임</td>
                   <td className={td}>금 {manwonToKorean(Number(priceInfo.monthlyRent))}원정</td>
-                  <td className={td} style={{ textAlign: 'right' }}>은 매월 {monthlyPayDay}일({monthlyPayMethod === 'prepaid' ? '선불' : '후불'}) 지급한다.</td>
+                  <td className={td} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>은 매월 {monthlyPayDay}일({monthlyPayMethod === 'prepaid' ? '선불' : '후불'}) 지급한다.</td>
                 </tr>
               )}
             </>)}
