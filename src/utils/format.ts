@@ -407,6 +407,10 @@ export function validateIdNumber(digits: string): string | null {
   const century = genderDigit <= 2 ? 1900 : genderDigit <= 4 ? 2000 : genderDigit <= 6 ? 1900 : 2000
   const fullYear = century + yy
 
+  // 미래 날짜 검증 (2000년대생 뒷자리 3,4는 2000.01.01 이후만 유효)
+  const birthDate = new Date(fullYear, mm - 1, dd)
+  if (birthDate > new Date()) return '생년월일이 미래일 수 없습니다'
+
   if (mm < 1 || mm > 12) return '생년월일이 올바르지 않습니다'
   const maxDay = new Date(fullYear, mm, 0).getDate()
   if (dd < 1 || dd > maxDay) return '생년월일이 올바르지 않습니다'
