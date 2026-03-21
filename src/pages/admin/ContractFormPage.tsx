@@ -107,7 +107,7 @@ export function ContractFormPage() {
     if (!editId || draftLoadedRef.current) return
     draftLoadedRef.current = true
     fetchContractById(editId).then(async (ct) => {
-      if (!ct || ct.status !== 'contract_writing') return
+      if (!ct || (ct.status !== 'contract_writing' && ct.status !== 'confirmation_writing' && ct.status !== 'in_progress' && ct.status !== 'completed')) return
       // Restore form state
       setTemplateType(ct.template_type)
       setTxType(ct.transaction_type)
