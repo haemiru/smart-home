@@ -1276,16 +1276,17 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
         {(() => {
           const ptd = 'border border-gray-400 px-2 py-2 text-xs leading-snug'
           const pth = 'border border-gray-400 bg-blue-50 px-2 py-2 text-xs font-medium text-center whitespace-nowrap text-blue-900'
+          const pthL = 'border border-gray-400 bg-blue-50 px-2 py-2 text-xs font-medium text-left whitespace-nowrap text-blue-900'
           return (
         <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: '5%' }} />
             <col style={{ width: '12%' }} />
-            <col style={{ width: '18%' }} />
+            <col style={{ width: '20%' }} />
             <col style={{ width: '7%' }} />
-            <col style={{ width: '18%' }} />
+            <col style={{ width: '20%' }} />
             <col style={{ width: '7%' }} />
-            <col style={{ width: '13%' }} />
+            <col style={{ width: '11%' }} />
             <col style={{ width: '5%' }} />
           </colgroup>
           <tbody>
@@ -1329,19 +1330,16 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
             </tr>
             <tr>
               <td className={pth}>사무소 명칭</td>
-              <td className={ptd} colSpan={2}>{agentInfo.officeName || ''}</td>
+              <td className={ptd} colSpan={3}>{agentInfo.officeName || ''}</td>
               <td className={pth}>대표자</td>
-              <td className={ptd}>{agentInfo.representative || ''}</td>
-              <td className={pth}>서명날인</td>
-              <td className={ptd} style={{ textAlign: 'center' }}>(印)</td>
+              <td className={pthL}>{agentInfo.representative || ''} (印)</td>
             </tr>
             <tr>
               <td className={pth}>전화번호</td>
               <td className={ptd}>{formatPhoneNumber(agentInfo.phone)}</td>
               <td className={pth}>등록번호</td>
               <td className={ptd} colSpan={2}>{agentInfo.licenseNumber || ''}</td>
-              <td className={pth} style={{ fontSize: '9px' }}>소속공인중개사</td>
-              <td className={ptd} style={{ textAlign: 'center', fontSize: '9px' }}>서명날인(印)</td>
+              <td className={pthL} style={{ fontSize: '9px' }}>소속공인중개사 (印)</td>
             </tr>
 
             {/* 개업공인중개사 2 (공동중개) */}
@@ -1353,19 +1351,16 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
               </tr>
               <tr>
                 <td className={pth}>사무소 명칭</td>
-                <td className={ptd} colSpan={2}>{coAgentInfo.officeName || ''}</td>
+                <td className={ptd} colSpan={3}>{coAgentInfo.officeName || ''}</td>
                 <td className={pth}>대표자</td>
-                <td className={ptd}>{coAgentInfo.representative || ''}</td>
-                <td className={pth}>서명날인</td>
-                <td className={ptd} style={{ textAlign: 'center' }}>(印)</td>
+                <td className={pthL}>{coAgentInfo.representative || ''} (印)</td>
               </tr>
               <tr>
                 <td className={pth}>전화번호</td>
                 <td className={ptd}>{formatPhoneNumber(coAgentInfo.phone)}</td>
                 <td className={pth}>등록번호</td>
                 <td className={ptd} colSpan={2}>{coAgentInfo.licenseNumber || ''}</td>
-                <td className={pth} style={{ fontSize: '9px' }}>소속공인중개사</td>
-                <td className={ptd} style={{ textAlign: 'center', fontSize: '9px' }}>서명날인(印)</td>
+                <td className={pthL} style={{ fontSize: '9px' }}>소속공인중개사 (印)</td>
               </tr>
             </>)}
           </tbody>
