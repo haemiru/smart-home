@@ -1048,8 +1048,15 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
   const th = 'border border-gray-400 bg-blue-50 px-3 py-2 text-xs font-medium text-center whitespace-nowrap text-blue-900'
   const sectionHeader = 'mb-0.5 text-xs font-bold text-blue-800'
   const articleNum = 'font-semibold text-blue-700'
-  const SPECIAL_TERMS_BYEOLJI_THRESHOLD = 200  // 특약사항이 이 글자수 넘으면 별지로 분리
-  const needsByeolji = specialTerms.length > SPECIAL_TERMS_BYEOLJI_THRESHOLD
+  const SPECIAL_TERMS_MAX_LINES = 5  // 특약사항이 이 줄수 넘으면 별지로 분리
+  const CHARS_PER_LINE = 45  // text-xs 기준 특약 박스 한 줄 한글 약 45자
+  const estimateLines = (text: string) => {
+    if (!text) return 0
+    return text.split('\n').reduce((total, line) => {
+      return total + Math.max(1, Math.ceil(line.length / CHARS_PER_LINE))
+    }, 0)
+  }
+  const needsByeolji = estimateLines(specialTerms) > SPECIAL_TERMS_MAX_LINES
 
   const handleDownloadPdf = async () => {
     if (!previewRef.current) return
