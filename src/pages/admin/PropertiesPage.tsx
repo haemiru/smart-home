@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import type { Property, PropertyStatus } from '@/types/database'
-import { fetchAdminProperties, updatePropertyStatus, deleteProperties } from '@/api/properties'
+import type { Property, PropertyStatus, PropertyCategory, TransactionType } from '@/types/database'
+import { fetchAdminProperties, updatePropertyStatus, deleteProperties, fetchCategories } from '@/api/properties'
 import { AdminPropertyTable } from '@/features/properties/components/AdminPropertyTable'
 import { AdminPropertyCard } from '@/features/properties/components/AdminPropertyCard'
 import { Button } from '@/components/common'
@@ -26,22 +26,56 @@ export function PropertiesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('table')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [categories, setCategories] = useState<PropertyCategory[]>([])
+  const [categoryId, setCategoryId] = useState('')
+  const [transactionType, setTransactionType] = useState<TransactionType | ''>('')
+  const [minPrice, setMinPrice] = useState('')
+  const [maxPrice, setMaxPrice] = useState('')
+  const [minArea, setMinArea] = useState('')
+  const [maxArea, setMaxArea] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+
+  useEffect(() => { fetchCategories().then(setCategories).catch(() => {}) }, [])
+
+  const buildFilters = useCallback(() => ({
+    statusTab,
+    search: search || undefined,
+    categoryId: categoryId || undefined,
+    transactionType: (transactionType || undefined) as TransactionType | undefined,
+    minPrice: minPrice ? Number(minPrice) * 10000 : undefined,
+    maxPrice: maxPrice ? Number(maxPrice) * 10000 : undefined,
+    minArea: minArea ? Number(minArea) : undefined,
+    maxArea: maxArea ? Number(maxArea) : undefined,
+    minBuiltYear: undefined,
+  }), [statusTab, search, categoryId, transactionType, minPrice, maxPrice, minArea, maxArea, dateFrom])
 
   const load = useCallback(async () => {
     setIsLoading(true)
-    const data = await fetchAdminProperties({ statusTab, search: search || undefined })
-    setProperties(data)
+    const data = await fetchAdminProperties(buildFilters())
+    setProperties(dateFrom || dateTo ? data.filter((p) => {
+      const d = p.created_at?.slice(0, 10) || ''
+      if (dateFrom && d < dateFrom) return false
+      if (dateTo && d > dateTo) return false
+      return true
+    }) : data)
     setSelectedIds(new Set())
     setIsLoading(false)
-  }, [statusTab, search])
+  }, [buildFilters, dateFrom, dateTo])
 
   useEffect(() => {
     let cancelled = false
     setIsLoading(true)
-    fetchAdminProperties({ statusTab, search: search || undefined })
+    fetchAdminProperties(buildFilters())
       .then((data) => {
         if (cancelled) return
-        setProperties(data)
+        setProperties(dateFrom || dateTo ? data.filter((p) => {
+          const d = p.created_at?.slice(0, 10) || ''
+          if (dateFrom && d < dateFrom) return false
+          if (dateTo && d > dateTo) return false
+          return true
+        }) : data)
         setSelectedIds(new Set())
       })
       .catch(() => {
@@ -52,7 +86,20 @@ export function PropertiesPage() {
         if (!cancelled) setIsLoading(false)
       })
     return () => { cancelled = true }
-  }, [statusTab, search])
+  }, [statusTab, search, categoryId, transactionType, minPrice, maxPrice, minArea, maxArea, dateFrom, dateTo, buildFilters])
+
+  const handleResetAdvanced = () => {
+    setCategoryId('')
+    setTransactionType('')
+    setMinPrice('')
+    setMaxPrice('')
+    setMinArea('')
+    setMaxArea('')
+    setDateFrom('')
+    setDateTo('')
+  }
+
+  const activeFilterCount = [categoryId, transactionType, minPrice, maxPrice, minArea, maxArea, dateFrom, dateTo].filter(Boolean).length
 
   const handleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -131,6 +178,18 @@ export function PropertiesPage() {
           />
         </div>
 
+        <button
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+            showAdvanced || activeFilterCount > 0
+              ? 'border-primary-300 bg-primary-50 text-primary-700'
+              : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+          상세 검색{activeFilterCount > 0 && <span className="rounded-full bg-primary-600 px-1.5 py-0.5 text-xs text-white">{activeFilterCount}</span>}
+        </button>
+
         {/* View Toggle */}
         <div className="flex rounded-lg border border-gray-200">
           <button
@@ -166,6 +225,74 @@ export function PropertiesPage() {
           </div>
         )}
       </div>
+
+      {/* Advanced Search Panel */}
+      {showAdvanced && (
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* 유형(카테고리) */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500">유형</label>
+              <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                <option value="">전체</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>)}
+              </select>
+            </div>
+            {/* 거래유형 */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500">거래유형</label>
+              <select value={transactionType} onChange={(e) => setTransactionType(e.target.value as TransactionType | '')}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                <option value="">전체</option>
+                <option value="sale">매매</option>
+                <option value="jeonse">전세</option>
+                <option value="monthly">월세</option>
+              </select>
+            </div>
+            {/* 금액 범위 */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500">금액 (만원)</label>
+              <div className="flex items-center gap-1">
+                <input type="number" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="최소"
+                  className="w-full rounded-lg border border-gray-200 px-2 py-2 text-sm" />
+                <span className="text-gray-400">~</span>
+                <input type="number" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="최대"
+                  className="w-full rounded-lg border border-gray-200 px-2 py-2 text-sm" />
+              </div>
+            </div>
+            {/* 평수 범위 */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500">면적 (m²)</label>
+              <div className="flex items-center gap-1">
+                <input type="number" value={minArea} onChange={(e) => setMinArea(e.target.value)} placeholder="최소"
+                  className="w-full rounded-lg border border-gray-200 px-2 py-2 text-sm" />
+                <span className="text-gray-400">~</span>
+                <input type="number" value={maxArea} onChange={(e) => setMaxArea(e.target.value)} placeholder="최대"
+                  className="w-full rounded-lg border border-gray-200 px-2 py-2 text-sm" />
+              </div>
+            </div>
+            {/* 등록일 범위 */}
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-gray-500">등록일</label>
+              <div className="flex items-center gap-1">
+                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-2 py-2 text-sm" />
+                <span className="text-gray-400">~</span>
+                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-2 py-2 text-sm" />
+              </div>
+            </div>
+            {/* 초기화 */}
+            <div className="flex items-end sm:col-span-2 lg:col-span-2">
+              <button onClick={handleResetAdvanced}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-500 hover:bg-gray-50">
+                필터 초기화
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       {isLoading ? (

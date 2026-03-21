@@ -116,6 +116,11 @@ export async function fetchAdminProperties(
   }
   if (filters.categoryId) query = query.eq('category_id', filters.categoryId)
   if (filters.transactionType) query = query.eq('transaction_type', filters.transactionType)
+  if (filters.minPrice) query = query.gte('sale_price', filters.minPrice)
+  if (filters.maxPrice) query = query.lte('sale_price', filters.maxPrice)
+  if (filters.minArea) query = query.gte('supply_area_m2', filters.minArea)
+  if (filters.maxArea) query = query.lte('supply_area_m2', filters.maxArea)
+  if (filters.minBuiltYear) query = query.gte('created_at', `${filters.minBuiltYear}`)
 
   query = applySorting(query, sort)
 
