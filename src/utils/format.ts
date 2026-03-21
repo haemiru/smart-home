@@ -407,7 +407,16 @@ export function validateIdNumber(digits: string): string | null {
   const century = genderDigit <= 2 ? 1900 : genderDigit <= 4 ? 2000 : genderDigit <= 6 ? 1900 : 2000
   const fullYear = century + yy
 
-  // 미래 날짜 검증 (2000년대생 뒷자리 3,4는 2000.01.01 이후만 유효)
+  // 앞자리(생년)와 뒷자리 첫째(세기 구분) 교차 검증
+  // 2000년 이후 출생자는 뒷자리 3,4여야 하고, 1999년 이전 출생자는 1,2여야 함
+  if (genderDigit <= 2 && fullYear >= 2000) {
+    return '2000년 이후 출생자는 뒷자리가 3 또는 4로 시작해야 합니다'
+  }
+  if ((genderDigit === 3 || genderDigit === 4) && fullYear < 2000) {
+    return '1999년 이전 출생자는 뒷자리가 1 또는 2로 시작해야 합니다'
+  }
+
+  // 미래 날짜 검증
   const birthDate = new Date(fullYear, mm - 1, dd)
   if (birthDate > new Date()) return '생년월일이 미래일 수 없습니다'
 
