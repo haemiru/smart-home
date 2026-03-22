@@ -74,6 +74,7 @@ export function SignupPage() {
       return
     }
     if (role === 'agent') {
+      if (!representative) setRepresentative(displayName)
       setStep('agent-info')
     } else if (role === 'staff') {
       setStep('invite-code')
