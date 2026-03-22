@@ -1240,6 +1240,26 @@ export type Database = {
         Args: { _domain: string }
         Returns: TenantProfile[]
       }
+      admin_get_all_agents: {
+        Args: Record<string, never>
+        Returns: {
+          agent_id: string
+          user_id: string
+          email: string
+          display_name: string
+          office_name: string
+          representative: string
+          slug: string | null
+          subscription_plan: string
+          is_verified: boolean
+          created_at: string
+          property_count: number
+        }[]
+      }
+      admin_update_agent_plan: {
+        Args: { target_agent_id: string; new_plan: string }
+        Returns: undefined
+      }
     }
     Enums: {
       user_role: UserRole

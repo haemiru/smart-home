@@ -73,6 +73,9 @@ const RentalSharePage = lazyWithRetry(() => import('@/pages/admin/RentalSharePag
 const CoBrokeragePoolPage = lazyWithRetry(() => import('@/pages/admin/CoBrokeragePoolPage').then((m) => ({ default: m.CoBrokeragePoolPage })))
 const CoBrokerageRequestsPage = lazyWithRetry(() => import('@/pages/admin/CoBrokerageRequestsPage').then((m) => ({ default: m.CoBrokerageRequestsPage })))
 
+// Super Admin
+const SuperAdminPage = lazyWithRetry(() => import('@/pages/super-admin/SuperAdminPage').then((m) => ({ default: m.SuperAdminPage })))
+
 // Settings
 const SettingsLayout = lazyWithRetry(() => import('@/pages/admin/settings/SettingsLayout').then((m) => ({ default: m.SettingsLayout })))
 const OfficeSettingsPage = lazyWithRetry(() => import('@/pages/admin/settings/OfficeSettingsPage').then((m) => ({ default: m.OfficeSettingsPage })))
@@ -193,6 +196,9 @@ export const router = createBrowserRouter([
       },
     ],
   },
+
+  // Super Admin (email-gated inside component)
+  { path: '/super-admin', element: <S><SuperAdminPage /></S> },
 
   // 404
   { path: '*', element: <NotFoundPage /> },
