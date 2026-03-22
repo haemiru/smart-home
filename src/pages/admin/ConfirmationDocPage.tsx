@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { useNavigate } from 'react-router-dom'
 import { fetchContractById, updateContract, finalizeConfirmation } from '@/api/contracts'
 import { fetchPropertyById } from '@/api/properties'
 import { getConfirmationFormType, confirmationForms, type ConfirmationFormType } from '@/utils/confirmationFormConfig'
@@ -65,7 +64,6 @@ export function ConfirmationDocPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [isPdfLoading, setIsPdfLoading] = useState(false)
   const [isFinalizing, setIsFinalizing] = useState(false)
-  const navigate = useNavigate()
   const printRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -124,8 +122,8 @@ export function ConfirmationDocPage() {
     try {
       await updateContract(contract.id, { confirmation_doc: formData })
       await finalizeConfirmation(contract.id)
-      toast.success('확인설명서 작성이 완료되었습니다. 계약 진행 단계로 이동합니다.')
-      navigate(`/admin/contracts/${contract.id}/tracker`)
+      setContract({ ...contract, status: 'in_progress' })
+      toast.success('확인설명서 작성이 완료되었습니다. 인쇄 또는 PDF 다운로드 후 계약 진행 단계로 이동하세요.')
     } catch {
       toast.error('완료 처리에 실패했습니다.')
     } finally {
@@ -225,16 +223,18 @@ export function ConfirmationDocPage() {
       </div>
 
       {/* Bottom Actions */}
-      <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-        <Link to={`/admin/contracts/${contract.id}/tracker`}>
-          <Button variant="outline">진행현황으로 돌아가기</Button>
-        </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-4">
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleSave} isLoading={isSaving}>임시저장</Button>
           {contract.status === 'confirmation_writing' && (
-            <Button onClick={handleFinalize} isLoading={isFinalizing}>확인설명서 완료</Button>
+            <Button onClick={handleFinalize} isLoading={isFinalizing}>작성 완료</Button>
           )}
         </div>
+        {contract.status !== 'confirmation_writing' && (
+          <Link to={`/admin/contracts/${contract.id}/tracker`}>
+            <Button>계약 진행 단계로 이동</Button>
+          </Link>
+        )}
       </div>
     </div>
   )
