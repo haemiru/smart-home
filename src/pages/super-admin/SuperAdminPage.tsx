@@ -26,8 +26,6 @@ export function SuperAdminPage() {
   const email = user?.email ?? ''
   const isSuperAdmin = email === 'junominu@gmail.com'
 
-  // Debug
-  console.log('[SuperAdmin] isInitialized:', isInitialized, 'authLoading:', authLoading, 'user:', user?.email, 'isSuperAdmin:', isSuperAdmin)
 
   const loadAgents = async () => {
     setLoading(true)
@@ -94,6 +92,19 @@ export function SuperAdminPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+      </div>
+    )
+  }
+
+  // Not logged in → show login prompt
+  if (!user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="rounded-xl bg-white p-8 text-center shadow-sm">
+          <h2 className="text-lg font-bold text-gray-900">로그인이 필요합니다</h2>
+          <p className="mt-2 text-sm text-gray-500">슈퍼 관리자 계정으로 로그인해주세요.</p>
+          <a href="/auth/login" className="mt-4 inline-block rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700">로그인</a>
+        </div>
       </div>
     )
   }
