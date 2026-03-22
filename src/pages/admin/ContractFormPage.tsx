@@ -136,8 +136,8 @@ export function ContractFormPage() {
       if (dd) {
         if (dd.deliveryDate) {
           setDeliveryDate(dd.deliveryDate)
-          // 인도일이 잔금 지급일과 다를 때만 수동 편집으로 간주
-          deliveryManuallyEdited.current = dd.deliveryDate !== (pi.finalPaymentDate || '')
+          // 잔금 지급일이 있고 인도일과 다를 때만 수동 편집으로 간주
+          deliveryManuallyEdited.current = !!pi.finalPaymentDate && dd.deliveryDate !== pi.finalPaymentDate
         }
         if (dd.leasePeriodStart) setLeasePeriodStart(dd.leasePeriodStart)
         if (dd.leasePeriodEnd) setLeasePeriodEnd(dd.leasePeriodEnd)
