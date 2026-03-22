@@ -456,7 +456,7 @@ export function ContractFormPage() {
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleSaveDraft} isLoading={isSavingDraft}>임시저장</Button>
             <Button variant="outline" onClick={() => { window.print() }}>인쇄</Button>
-            <Button onClick={handleSubmit} isLoading={isSubmitting}>계약서 저장</Button>
+            <Button onClick={handleSubmit} isLoading={isSubmitting}>계약서 작성완료</Button>
             <Button onClick={handleGoToConfirmation} isLoading={isSubmitting}>확인설명서 작성</Button>
           </div>
         )}
