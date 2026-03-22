@@ -16,14 +16,14 @@ function formatDate(iso: string): string {
 }
 
 export function SuperAdminPage() {
-  const { session, isLoading: authLoading, isInitialized } = useAuthStore()
+  const { user, isLoading: authLoading, isInitialized } = useAuthStore()
   const [agents, setAgents] = useState<AdminAgent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
-  const email = session?.user?.email ?? ''
+  const email = user?.email ?? ''
   const isSuperAdmin = email === 'junominu@gmail.com'
 
   const loadAgents = async () => {
