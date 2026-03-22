@@ -28,12 +28,34 @@ export function SignupPage() {
   const [businessNumber, setBusinessNumber] = useState('')
   const [licenseNumber, setLicenseNumber] = useState('')
   const [officeAddress, setOfficeAddress] = useState('')
+  const [officeAddressDetail, setOfficeAddressDetail] = useState('')
   const [officePhone, setOfficePhone] = useState('')
 
   // Staff invite code fields
   const [inviteCode, setInviteCode] = useState('')
   const [validatedOffice, setValidatedOffice] = useState<string | null>(null)
   const [validating, setValidating] = useState(false)
+
+  const openPostcode = () => {
+    const run = () => {
+      new (window as unknown as Record<string, { Postcode: new (opts: Record<string, unknown>) => { open: () => void } }>).daum.Postcode({
+        oncomplete: (data: { roadAddress: string; jibunAddress: string }) => {
+          setOfficeAddress(data.roadAddress || data.jibunAddress)
+          setOfficeAddressDetail('')
+          // 상세주소 입력칸에 포커스
+          setTimeout(() => {
+            const detailInput = document.querySelector<HTMLInputElement>('input[placeholder*="상세주소"]')
+            detailInput?.focus()
+          }, 100)
+        },
+      }).open()
+    }
+    if ((window as unknown as Record<string, unknown>).daum) { run(); return }
+    const script = document.createElement('script')
+    script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'
+    script.onload = run
+    document.head.appendChild(script)
+  }
 
   const handleRoleSelect = (selectedRole: UserRole, selectedStaffRole?: StaffRole) => {
     setRole(selectedRole)
@@ -98,7 +120,7 @@ export function SignupPage() {
           representative,
           businessNumber,
           licenseNumber,
-          address: officeAddress,
+          address: officeAddressDetail ? `${officeAddress} ${officeAddressDetail}` : officeAddress,
           phone: officePhone,
         } : undefined,
         staffInviteCode: role === 'staff' ? inviteCode.toUpperCase() : undefined,
@@ -281,29 +303,26 @@ export function SignupPage() {
               type="text"
               value={officeAddress}
               readOnly
-              placeholder="주소 검색을 눌러주세요"
+              placeholder="클릭하여 주소 검색"
               required
-              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm read-only:bg-gray-50"
+              onClick={openPostcode}
+              className="flex-1 cursor-pointer rounded-lg border border-gray-300 px-3 py-2 text-sm read-only:bg-gray-50"
             />
             <button
               type="button"
-              onClick={() => {
-                const script = document.createElement('script')
-                script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'
-                script.onload = () => {
-                  new (window as unknown as Record<string, { Postcode: new (opts: Record<string, unknown>) => { open: () => void } }>).daum.Postcode({
-                    oncomplete: (data: { roadAddress: string; jibunAddress: string }) => {
-                      setOfficeAddress(data.roadAddress || data.jibunAddress)
-                    },
-                  }).open()
-                }
-                document.head.appendChild(script)
-              }}
+              onClick={openPostcode}
               className="shrink-0 rounded-lg bg-gray-700 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
             >
               주소 검색
             </button>
           </div>
+          <input
+            type="text"
+            value={officeAddressDetail}
+            onChange={(e) => setOfficeAddressDetail(e.target.value)}
+            placeholder="상세주소 입력 (동/호수 등)"
+            className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
         </div>
         <Input id="officePhone" label="사무소 전화번호" type="tel" value={formatPhone(officePhone)} onChange={(e) => setOfficePhone(parsePhone(e.target.value))} required />
 
