@@ -450,7 +450,7 @@ export function ContractFormPage() {
         ) : (
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleSaveDraft} isLoading={isSavingDraft}>임시저장</Button>
-            <Button variant="outline" onClick={() => { window.print() }}>인쇄</Button>
+            <Button variant="outline" onClick={handlePrint}>인쇄</Button>
             <Button onClick={handleSubmit} isLoading={isSubmitting}>계약서 저장</Button>
             <Button onClick={handleGoToConfirmation} isLoading={isSubmitting}>확인설명서 작성</Button>
           </div>
@@ -1097,35 +1097,56 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
   const byeoljiRef = useRef<HTMLDivElement>(null)
   const [isPdfLoading, setIsPdfLoading] = useState(false)
 
-  // 인쇄 시 계약서 본문을 A4 한 페이지에 맞춤
-  useEffect(() => {
-    const handleBeforePrint = () => {
-      if (!mainRef.current) return
-      const contentH = mainRef.current.scrollHeight
-      const contentW = mainRef.current.scrollWidth
-      // A4: 210×297mm, 기본 여백 제외 약 190×257mm → px (@96dpi: 1mm≈3.78px)
-      const pageH = 257 * 3.78 // ≈ 971px
-      const pageW = 190 * 3.78 // ≈ 718px
-      const scaleH = contentH > pageH ? pageH / contentH : 1
-      const scaleW = contentW > pageW ? pageW / contentW : 1
-      const scale = Math.min(scaleH, scaleW)
-      if (scale < 1) {
-        mainRef.current.style.transform = `scale(${scale})`
-        mainRef.current.style.width = `${100 / scale}%`
+  // 인쇄: 계약서 본문을 iframe에 복사하여 A4 한 페이지에 맞춤 인쇄
+  const handlePrint = () => {
+    if (!mainRef.current) return
+    const printContent = mainRef.current.outerHTML
+    const byeoljiContent = needsByeolji && byeoljiRef.current ? byeoljiRef.current.outerHTML : ''
+    const iframe = document.createElement('iframe')
+    iframe.style.position = 'fixed'
+    iframe.style.left = '-9999px'
+    iframe.style.width = '210mm'
+    iframe.style.height = '297mm'
+    document.body.appendChild(iframe)
+    const doc = iframe.contentDocument!
+    // 스타일시트 복사
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map(el => el.outerHTML).join('\n')
+    doc.open()
+    doc.write(`<!DOCTYPE html><html><head>${styles}
+      <style>
+        @page { size: A4; margin: 10mm; }
+        body { margin: 0; padding: 0; }
+        .contract-page {
+          width: 190mm;
+          page-break-after: always;
+          page-break-inside: avoid;
+        }
+        .contract-page:last-child { page-break-after: auto; }
+      </style>
+    </head><body>
+      <div class="contract-page">${printContent}</div>
+      ${byeoljiContent ? `<div class="contract-page">${byeoljiContent}</div>` : ''}
+    </body></html>`)
+    doc.close()
+    // 렌더 후 높이 측정 → scale 적용
+    iframe.onload = () => {
+      const page = doc.querySelector('.contract-page') as HTMLElement
+      if (page) {
+        const pageHmm = 277 // 297 - 10*2 (margins)
+        const pageHpx = pageHmm * (96 / 25.4) // ≈ 1046px
+        const contentH = page.scrollHeight
+        if (contentH > pageHpx) {
+          const scale = pageHpx / contentH
+          page.style.transform = `scale(${scale})`
+          page.style.transformOrigin = 'top left'
+          page.style.width = `${100 / scale}%`
+        }
       }
+      iframe.contentWindow!.print()
+      setTimeout(() => document.body.removeChild(iframe), 1000)
     }
-    const handleAfterPrint = () => {
-      if (!mainRef.current) return
-      mainRef.current.style.transform = ''
-      mainRef.current.style.width = ''
-    }
-    window.addEventListener('beforeprint', handleBeforePrint)
-    window.addEventListener('afterprint', handleAfterPrint)
-    return () => {
-      window.removeEventListener('beforeprint', handleBeforePrint)
-      window.removeEventListener('afterprint', handleAfterPrint)
-    }
-  }, [])
+  }
   const sellerRole = isSale ? '매도인' : '임대인'
   const buyerRole = isSale ? '매수인' : '임차인'
   const td = 'border border-gray-400 px-3 py-2 text-xs leading-snug'
