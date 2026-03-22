@@ -85,9 +85,15 @@
     padding: 0 !important;
   }
 
-  /* 계약서 본문을 한 페이지에 맞춤 */
-  .print-fit-page {
+  /* 계약서 본문을 한 페이지에 맞춤 (scale로 축소) */
+  .print-contract-main {
     page-break-inside: avoid;
-    transform-origin: top center;
+    page-break-after: always;
+    transform: scale(0.75);
+    transform-origin: top left;
+    width: 133.33% !important; /* 1/0.75 — 축소 후 A4 폭에 맞춤 */
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 }

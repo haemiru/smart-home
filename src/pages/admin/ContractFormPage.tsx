@@ -1172,7 +1172,7 @@ function Step4Preview({ property, templateType, txType, sellerInfo, buyerInfo, p
   return (
     <div className="space-y-6">
       <div ref={previewRef}>
-      <div ref={mainRef} className="mx-auto max-w-3xl bg-white px-6 py-6 shadow ring-1 ring-gray-200 print:shadow-none print:ring-0" style={{ fontFamily: 'serif' }}>
+      <div ref={mainRef} className="print-contract-main mx-auto max-w-3xl bg-white px-6 py-6 shadow ring-1 ring-gray-200 print:shadow-none print:ring-0" style={{ fontFamily: 'serif' }}>
 
         {/* ── 제목 ── */}
         <h2 className="mb-2 text-center text-xl font-bold tracking-[0.3em] text-blue-900">{getContractTitle(templateType, txType, categoryName)}</h2>
