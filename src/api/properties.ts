@@ -105,8 +105,10 @@ export async function fetchAdminProperties(
   filters: PropertyFilters & { statusTab?: PropertyStatus | 'all' } = {},
   sort: SortOption = 'newest',
 ): Promise<Property[]> {
-  // RLS automatically filters by agent
-  let query = supabase.from('properties').select('*')
+  // 로그인한 에이전트의 매물만 조회 (RLS의 properties_select_active가 타 에이전트 active 매물도 허용하므로 명시적 필터 필요)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  let query = supabase.from('properties').select('*').eq('agent_id', user.id)
 
   if (filters.statusTab && filters.statusTab !== 'all') {
     query = query.eq('status', filters.statusTab)

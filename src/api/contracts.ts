@@ -96,7 +96,8 @@ export function getStepDocuments(stepType: ContractStepType, txType: Transaction
 }
 
 export async function fetchContracts(filters: { status?: ContractStatus | 'all'; search?: string } = {}): Promise<Contract[]> {
-  let query = supabase.from('contracts').select('*')
+  const agentId = await getAgentProfileId()
+  let query = supabase.from('contracts').select('*').eq('agent_id', agentId)
 
   if (filters.status && filters.status !== 'all') {
     query = query.eq('status', filters.status)
@@ -114,10 +115,12 @@ export async function fetchContracts(filters: { status?: ContractStatus | 'all';
 
 /** 매물 상태가 '계약진행'이지만 contracts 레코드가 없는 매물 조회 */
 export async function fetchContractedPropertiesWithoutContract(): Promise<Property[]> {
+  const agentId = await getAgentProfileId()
   // 1) 계약진행 상태 매물
   const { data: contracted, error: e1 } = await supabase
     .from('properties')
     .select('*')
+    .eq('agent_id', agentId)
     .eq('status', 'contracted')
     .order('updated_at', { ascending: false })
   if (e1 || !contracted) return []

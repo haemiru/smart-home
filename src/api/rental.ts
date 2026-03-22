@@ -3,7 +3,8 @@ import { getCurrentUserId } from '@/api/helpers'
 import type { RentalProperty, RentalPayment, RepairRequest, RentalPropertyStatus, RepairRequestStatus } from '@/types/database'
 
 export async function fetchRentalProperties(filter?: RentalPropertyStatus | 'all'): Promise<RentalProperty[]> {
-  let query = supabase.from('rental_properties').select('*')
+  const agentId = await getCurrentUserId()
+  let query = supabase.from('rental_properties').select('*').eq('agent_id', agentId)
 
   if (filter && filter !== 'all') {
     query = query.eq('status', filter)
@@ -100,6 +101,16 @@ export async function fetchRepairRequests(rentalPropertyId?: string): Promise<Re
 
   if (rentalPropertyId) {
     query = query.eq('rental_property_id', rentalPropertyId)
+  } else {
+    // No specific property — scope to this agent's rental properties
+    const agentId = await getCurrentUserId()
+    const { data: myProps } = await supabase
+      .from('rental_properties')
+      .select('id')
+      .eq('agent_id', agentId)
+    const propIds = (myProps ?? []).map((p) => p.id)
+    if (propIds.length === 0) return []
+    query = query.in('rental_property_id', propIds)
   }
 
   query = query.order('requested_at', { ascending: false })
@@ -155,32 +166,53 @@ export async function fetchRentalSummary(): Promise<{
   expiringCount: number
   pendingRepairs: number
 }> {
+  const agentId = await getCurrentUserId()
+
   // Total occupied/expiring properties
   const { count: totalCount } = await supabase
     .from('rental_properties')
     .select('*', { count: 'exact', head: true })
+    .eq('agent_id', agentId)
     .neq('status', 'vacant')
 
   // Expiring count
   const { count: expiringCount } = await supabase
     .from('rental_properties')
     .select('*', { count: 'exact', head: true })
+    .eq('agent_id', agentId)
     .eq('status', 'expiring')
 
+  // Agent's rental property IDs for scoping payments and repairs
+  const { data: myProps } = await supabase
+    .from('rental_properties')
+    .select('id')
+    .eq('agent_id', agentId)
+  const propIds = (myProps ?? []).map((p) => p.id)
+
   // Pending repairs
-  const { count: pendingRepairs } = await supabase
-    .from('repair_requests')
-    .select('*', { count: 'exact', head: true })
-    .neq('status', 'completed')
+  let pendingRepairs = 0
+  if (propIds.length > 0) {
+    const { count } = await supabase
+      .from('repair_requests')
+      .select('*', { count: 'exact', head: true })
+      .in('rental_property_id', propIds)
+      .neq('status', 'completed')
+    pendingRepairs = count ?? 0
+  }
 
   // Current month collection rate
   const now = new Date()
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-  const { data: currentPayments } = await supabase
-    .from('rental_payments')
-    .select('is_paid')
-    .like('payment_month', `${currentMonth}%`)
+  let currentPayments: { is_paid: boolean }[] | null = null
+  if (propIds.length > 0) {
+    const { data } = await supabase
+      .from('rental_payments')
+      .select('is_paid')
+      .in('rental_property_id', propIds)
+      .like('payment_month', `${currentMonth}%`)
+    currentPayments = data
+  }
 
   const total = currentPayments?.length ?? 0
   const paid = currentPayments?.filter((p) => p.is_paid).length ?? 0

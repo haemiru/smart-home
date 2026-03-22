@@ -70,7 +70,8 @@ export function calculateGrade(checklist: InspectionCheckItem[]): InspectionGrad
 }
 
 export async function fetchInspections(filter?: InspectionStatus | 'all'): Promise<Inspection[]> {
-  let query = supabase.from('inspections').select('*')
+  const agentId = await getCurrentUserId()
+  let query = supabase.from('inspections').select('*').eq('agent_id', agentId)
 
   if (filter && filter !== 'all') {
     query = query.eq('status', filter)

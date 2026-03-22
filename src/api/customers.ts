@@ -11,7 +11,8 @@ export interface CustomerFilters {
 }
 
 export async function fetchCustomers(filters: CustomerFilters = {}): Promise<Customer[]> {
-  let query = supabase.from('customers').select('*')
+  const agentId = await getAgentProfileId()
+  let query = supabase.from('customers').select('*').eq('agent_id', agentId)
 
   if (filters.customerType && filters.customerType !== 'all') {
     query = query.eq('customer_type', filters.customerType)
@@ -223,11 +224,13 @@ export async function deleteCustomerActivity(id: string): Promise<void> {
 }
 
 export async function getCustomerCountByType(): Promise<Record<CustomerType, number>> {
+  const agentId = await getAgentProfileId()
   const counts: Record<CustomerType, number> = { lead: 0, interest: 0, consulting: 0, contracting: 0, completed: 0 }
 
   const { data, error } = await supabase
     .from('customers')
     .select('customer_type')
+    .eq('agent_id', agentId)
 
   if (error) throw error
   if (data) {

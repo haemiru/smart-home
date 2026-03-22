@@ -1,4 +1,5 @@
 import { supabase } from '@/api/supabase'
+import { getAgentProfileId, getCurrentUserId } from '@/api/helpers'
 import type { Inquiry, InquiryStatus } from '@/types/database'
 
 export type DashboardSummary = {
@@ -60,6 +61,7 @@ export type ScheduleItem = {
 // ─── Summary (Supabase COUNT queries) ────────────────
 
 export async function fetchDashboardSummary(): Promise<DashboardSummary> {
+  const agentId = await getAgentProfileId()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const safe = async (query: PromiseLike<{ count: number | null }> | any) => {
     try { const r = await query; return r?.count ?? 0 } catch { return 0 }
@@ -72,16 +74,16 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
   yesterday.setDate(yesterday.getDate() - 1)
 
   const [newInquiries, todayInquiries, yesterdayInquiries, contractCount, completedContractCount, contractedProperties, completedProperties, totalProperties, activeProperties, totalCustomers] = await Promise.all([
-    safe(supabase.from('inquiries').select('*', { count: 'exact', head: true }).in('status', ['new', 'checked'])),
-    safe(supabase.from('inquiries').select('*', { count: 'exact', head: true }).gte('created_at', today.toISOString())),
-    safe(supabase.from('inquiries').select('*', { count: 'exact', head: true }).gte('created_at', yesterday.toISOString()).lt('created_at', today.toISOString())),
-    safe(supabase.from('contracts').select('*', { count: 'exact', head: true }).in('status', ['contract_writing', 'confirmation_writing', 'in_progress'])),
-    safe(supabase.from('contracts').select('*', { count: 'exact', head: true }).eq('status', 'completed')),
-    safe(supabase.from('properties').select('*', { count: 'exact', head: true }).eq('status', 'contracted')),
-    safe(supabase.from('properties').select('*', { count: 'exact', head: true }).eq('status', 'completed')),
-    safe(supabase.from('properties').select('*', { count: 'exact', head: true })),
-    safe(supabase.from('properties').select('*', { count: 'exact', head: true }).eq('status', 'active')),
-    safe(supabase.from('customers').select('*', { count: 'exact', head: true })),
+    safe(supabase.from('inquiries').select('*', { count: 'exact', head: true }).eq('agent_id', agentId).in('status', ['new', 'checked'])),
+    safe(supabase.from('inquiries').select('*', { count: 'exact', head: true }).eq('agent_id', agentId).gte('created_at', today.toISOString())),
+    safe(supabase.from('inquiries').select('*', { count: 'exact', head: true }).eq('agent_id', agentId).gte('created_at', yesterday.toISOString()).lt('created_at', today.toISOString())),
+    safe(supabase.from('contracts').select('*', { count: 'exact', head: true }).eq('agent_id', agentId).in('status', ['contract_writing', 'confirmation_writing', 'in_progress'])),
+    safe(supabase.from('contracts').select('*', { count: 'exact', head: true }).eq('agent_id', agentId).eq('status', 'completed')),
+    safe(supabase.from('properties').select('*', { count: 'exact', head: true }).eq('agent_id', agentId).eq('status', 'contracted')),
+    safe(supabase.from('properties').select('*', { count: 'exact', head: true }).eq('agent_id', agentId).eq('status', 'completed')),
+    safe(supabase.from('properties').select('*', { count: 'exact', head: true }).eq('agent_id', agentId)),
+    safe(supabase.from('properties').select('*', { count: 'exact', head: true }).eq('agent_id', agentId).eq('status', 'active')),
+    safe(supabase.from('customers').select('*', { count: 'exact', head: true }).eq('agent_id', agentId)),
   ])
 
   // 진행중 계약: contracts 진행중 + 계약서 미작성 매물 (중복 제외를 위해 합산)
@@ -112,6 +114,7 @@ const emptyPerformance: MonthlyPerformance = {
 
 export async function fetchMonthlyPerformance(): Promise<MonthlyPerformance> {
   try {
+  const agentId = await getAgentProfileId()
   const now = new Date()
   const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
@@ -128,10 +131,10 @@ export async function fetchMonthlyPerformance(): Promise<MonthlyPerformance> {
   const sixMonthsAgo = months[0].start.toISOString()
 
   const [{ data: props }, { data: contracts }, { data: closedProps }] = await Promise.all([
-    supabase.from('properties').select('created_at').gte('created_at', sixMonthsAgo),
-    supabase.from('contracts').select('created_at, status, price_info').gte('created_at', sixMonthsAgo),
+    supabase.from('properties').select('created_at').eq('agent_id', agentId).gte('created_at', sixMonthsAgo),
+    supabase.from('contracts').select('created_at, status, price_info').eq('agent_id', agentId).gte('created_at', sixMonthsAgo),
     // 계약진행중/완료 매물 (contracts 테이블에 레코드 없어도 매물 상태로 반영)
-    supabase.from('properties').select('created_at, updated_at, status, sale_price, deposit').in('status', ['contracted', 'completed']),
+    supabase.from('properties').select('created_at, updated_at, status, sale_price, deposit').eq('agent_id', agentId).in('status', ['contracted', 'completed']),
   ])
 
   type PropRow = { created_at: string }
@@ -213,9 +216,10 @@ export type InquiryStatusCounts = {
 }
 
 export async function fetchInquiryStatusCounts(): Promise<InquiryStatusCounts> {
+  const agentId = await getAgentProfileId()
   const safe = async (status: InquiryStatus) => {
     try {
-      const { count } = await supabase.from('inquiries').select('*', { count: 'exact', head: true }).eq('status', status)
+      const { count } = await supabase.from('inquiries').select('*', { count: 'exact', head: true }).eq('agent_id', agentId).eq('status', status)
       return count ?? 0
     } catch { return 0 }
   }
@@ -230,9 +234,11 @@ export async function fetchInquiryStatusCounts(): Promise<InquiryStatusCounts> {
 // ─── Unanswered Inquiries (Supabase) ──────────────────
 
 export async function fetchUnansweredInquiries(): Promise<Inquiry[]> {
+  const agentId = await getAgentProfileId()
   const { data, error } = await supabase
     .from('inquiries')
     .select('*')
+    .eq('agent_id', agentId)
     .in('status', ['new', 'checked'])
     .order('created_at', { ascending: false })
     .limit(5)
@@ -244,6 +250,8 @@ export async function fetchUnansweredInquiries(): Promise<Inquiry[]> {
 // ─── Today's Schedule (Supabase — inspections) ──────
 
 export async function fetchTodaySchedule(): Promise<ScheduleItem[]> {
+  const agentId = await getAgentProfileId()
+  const agentUserId = await getCurrentUserId()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const tomorrow = new Date(today)
@@ -262,6 +270,7 @@ export async function fetchTodaySchedule(): Promise<ScheduleItem[]> {
     const { data } = await supabase
       .from('inspections')
       .select('id, scheduled_date, property_title, address')
+      .eq('agent_id', agentUserId)
       .gte('scheduled_date', todayStr)
       .lt('scheduled_date', dayAfterStr + 'T23:59:59')
       .order('scheduled_date', { ascending: true })
@@ -282,13 +291,23 @@ export async function fetchTodaySchedule(): Promise<ScheduleItem[]> {
 
   // 2) 계약 마감일 (미완료 단계)
   try {
-    const { data } = await supabase
-      .from('contract_process')
-      .select('id, due_date, step_label, contract_id, is_completed')
-      .eq('is_completed', false)
-      .gte('due_date', todayStr)
-      .lte('due_date', tomorrowStr)
-      .order('due_date', { ascending: true })
+    // Get agent's contract IDs first to scope contract_process
+    const { data: myContracts } = await supabase
+      .from('contracts')
+      .select('id')
+      .eq('agent_id', agentId)
+    const contractIds = (myContracts ?? []).map((c) => c.id)
+
+    const { data } = contractIds.length > 0
+      ? await supabase
+          .from('contract_process')
+          .select('id, due_date, step_label, contract_id, is_completed')
+          .in('contract_id', contractIds)
+          .eq('is_completed', false)
+          .gte('due_date', todayStr)
+          .lte('due_date', tomorrowStr)
+          .order('due_date', { ascending: true })
+      : { data: [] }
 
     for (const row of data ?? []) {
       const dateStr = typeof row.due_date === 'string' ? row.due_date.slice(0, 10) : ''
@@ -307,6 +326,7 @@ export async function fetchTodaySchedule(): Promise<ScheduleItem[]> {
     const { data } = await supabase
       .from('inquiries')
       .select('id, preferred_visit_date, name, content')
+      .eq('agent_id', agentId)
       .gte('preferred_visit_date', todayStr)
       .lte('preferred_visit_date', tomorrowStr)
       .in('status', ['new', 'checked', 'in_progress'])
@@ -339,10 +359,12 @@ export async function fetchTodaySchedule(): Promise<ScheduleItem[]> {
 // ─── Property Stats (Supabase top 5) ─────────────────
 
 export async function fetchPropertyStats(): Promise<PropertyStat[]> {
+  const agentId = await getAgentProfileId()
   // 충분한 양을 가져온 후 합산 점수(조회+문의+찜)로 정렬하여 상위 5개 반환
   const { data, error } = await supabase
     .from('properties')
     .select('id, title, view_count, inquiry_count, favorite_count')
+    .eq('agent_id', agentId)
     .order('view_count', { ascending: false })
     .limit(20)
 
@@ -364,6 +386,8 @@ export async function fetchPropertyStats(): Promise<PropertyStat[]> {
 
 export async function fetchActivityFeed(): Promise<ActivityItem[]> {
   try {
+    const agentId = await getAgentProfileId()
+    const agentUserId = await getCurrentUserId()
     const [
       { data: inquiries },
       { data: contracts },
@@ -371,11 +395,11 @@ export async function fetchActivityFeed(): Promise<ActivityItem[]> {
       { data: properties },
       { data: inspections },
     ] = await Promise.all([
-      supabase.from('inquiries').select('id, created_at').order('created_at', { ascending: false }).limit(5),
-      supabase.from('contracts').select('id, created_at, status').order('created_at', { ascending: false }).limit(5),
-      supabase.from('customers').select('id, created_at, name').order('created_at', { ascending: false }).limit(5),
-      supabase.from('properties').select('id, created_at, title').order('created_at', { ascending: false }).limit(5),
-      supabase.from('inspections').select('id, created_at, status').order('created_at', { ascending: false }).limit(5),
+      supabase.from('inquiries').select('id, created_at').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(5),
+      supabase.from('contracts').select('id, created_at, status').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(5),
+      supabase.from('customers').select('id, created_at, name').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(5),
+      supabase.from('properties').select('id, created_at, title').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(5),
+      supabase.from('inspections').select('id, created_at, status').eq('agent_id', agentUserId).order('created_at', { ascending: false }).limit(5),
     ])
 
     const items: ActivityItem[] = []
@@ -410,15 +434,17 @@ export async function fetchActivityFeed(): Promise<ActivityItem[]> {
 // ─── Todo List (Supabase — dynamic counts) ──────────
 
 export async function fetchTodoList(): Promise<TodoItem[]> {
+  const agentId = await getAgentProfileId()
+  const agentUserId = await getCurrentUserId()
   const safeCount = async (query: Promise<{ count: number | null }>) => {
     try { const r = await query; return (r as { count: number | null }).count ?? 0 } catch { return 0 }
   }
 
   const [unansweredCount, upcomingContractCount, repairCount, expiringCount] = await Promise.all([
-    safeCount(supabase.from('inquiries').select('*', { count: 'exact', head: true }).in('status', ['new', 'checked']) as never),
-    safeCount(supabase.from('contracts').select('*', { count: 'exact', head: true }).in('status', ['contract_writing', 'confirmation_writing', 'in_progress']) as never),
+    safeCount(supabase.from('inquiries').select('*', { count: 'exact', head: true }).eq('agent_id', agentId).in('status', ['new', 'checked']) as never),
+    safeCount(supabase.from('contracts').select('*', { count: 'exact', head: true }).eq('agent_id', agentId).in('status', ['contract_writing', 'confirmation_writing', 'in_progress']) as never),
     safeCount(supabase.from('repair_requests').select('*', { count: 'exact', head: true }).in('status', ['requested', 'confirmed']) as never),
-    safeCount(supabase.from('rental_properties').select('*', { count: 'exact', head: true }).eq('status', 'expiring') as never),
+    safeCount(supabase.from('rental_properties').select('*', { count: 'exact', head: true }).eq('agent_id', agentUserId).eq('status', 'expiring') as never),
   ])
 
   const items: TodoItem[] = []

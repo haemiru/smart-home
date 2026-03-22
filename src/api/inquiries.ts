@@ -11,7 +11,8 @@ export interface InquiryFilters {
 }
 
 export async function fetchInquiries(filters: InquiryFilters = {}): Promise<Inquiry[]> {
-  let query = supabase.from('inquiries').select('*')
+  const agentId = await getAgentProfileId()
+  let query = supabase.from('inquiries').select('*').eq('agent_id', agentId)
 
   if (filters.status && filters.status !== 'all') {
     query = query.eq('status', filters.status)
@@ -194,9 +195,11 @@ export async function createInquiryReply(data: {
 }
 
 export async function getUnansweredCount(): Promise<number> {
+  const agentId = await getAgentProfileId()
   const { count, error } = await supabase
     .from('inquiries')
     .select('*', { count: 'exact', head: true })
+    .eq('agent_id', agentId)
     .in('status', ['new', 'checked'])
 
   if (error) throw error
