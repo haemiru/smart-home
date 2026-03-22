@@ -106,9 +106,9 @@ export async function fetchAdminProperties(
   sort: SortOption = 'newest',
 ): Promise<Property[]> {
   // 로그인한 에이전트의 매물만 조회 (RLS의 properties_select_active가 타 에이전트 active 매물도 허용하므로 명시적 필터 필요)
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
-  let query = supabase.from('properties').select('*').eq('agent_id', user.id)
+  const { getAgentProfileId } = await import('@/api/helpers')
+  const agentId = await getAgentProfileId()
+  let query = supabase.from('properties').select('*').eq('agent_id', agentId)
 
   if (filters.statusTab && filters.statusTab !== 'all') {
     query = query.eq('status', filters.statusTab)
