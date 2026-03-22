@@ -26,6 +26,9 @@ export function SuperAdminPage() {
   const email = user?.email ?? ''
   const isSuperAdmin = email === 'junominu@gmail.com'
 
+  // Debug
+  console.log('[SuperAdmin] isInitialized:', isInitialized, 'authLoading:', authLoading, 'user:', user?.email, 'isSuperAdmin:', isSuperAdmin)
+
   const loadAgents = async () => {
     setLoading(true)
     setError(null)
