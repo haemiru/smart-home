@@ -117,7 +117,28 @@ export function ConfirmationDocPage() {
     }
   }
 
+  // 필수 항목 검증: 조건부 섹션 필터링 후 required 필드 체크
+  const getEmptyRequiredFields = () => {
+    const visibleSections = formDef.sections.filter(
+      s => !s.condition || s.condition.transactionType.includes(contract.transaction_type)
+    )
+    const empty: string[] = []
+    for (const section of visibleSections) {
+      for (const field of section.fields) {
+        if (field.required && !formData[field.key]?.trim()) {
+          empty.push(`[${section.title}] ${field.label}`)
+        }
+      }
+    }
+    return empty
+  }
+
   const handleFinalize = async () => {
+    const empty = getEmptyRequiredFields()
+    if (empty.length > 0) {
+      toast.error(`필수 항목 ${empty.length}개가 입력되지 않았습니다.\n\n${empty.slice(0, 5).join('\n')}${empty.length > 5 ? `\n... 외 ${empty.length - 5}개` : ''}`)
+      return
+    }
     setIsFinalizing(true)
     try {
       await updateContract(contract.id, { confirmation_doc: formData })
