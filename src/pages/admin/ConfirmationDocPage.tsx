@@ -22,10 +22,7 @@ function buildAutoFillFromContract(
     if (val != null && val !== '' && val !== 0) auto[key] = String(val)
   }
 
-  const si = contract.seller_info as Record<string, string> | null
-  const bi = contract.buyer_info as Record<string, string> | null
   const pi = contract.price_info as Record<string, string | number> | null
-  const dd = contract.draft_data as Record<string, string> | null
   const isSale = contract.transaction_type === 'sale'
 
   // ── 매물 정보 → 대상물건의 표시(①) ──
