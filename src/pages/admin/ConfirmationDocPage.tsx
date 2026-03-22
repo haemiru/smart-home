@@ -3,12 +3,61 @@ import { useParams, Link } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import { fetchContractById, updateContract, finalizeConfirmation } from '@/api/contracts'
 import { fetchPropertyById } from '@/api/properties'
-import { getConfirmationFormType, confirmationForms } from '@/utils/confirmationFormConfig'
+import { getConfirmationFormType, confirmationForms, type ConfirmationFormType } from '@/utils/confirmationFormConfig'
 import { ConfirmationFormRenderer } from '@/features/contracts/components/ConfirmationFormRenderer'
 import { Button } from '@/components/common'
 import { contractTemplateLabel, transactionTypeLabel, formatPropertyPrice } from '@/utils/format'
 import type { Contract, Property } from '@/types/database'
 import toast from 'react-hot-toast'
+
+// 계약서 + 매물 데이터에서 확인설명서 필드 자동 생성
+// 계약서 수정 후 돌아올 때도 항상 최신 데이터로 덮어씌움
+function buildAutoFillFromContract(
+  formType: ConfirmationFormType,
+  contract: Contract,
+  property: Property | null,
+): Record<string, string> {
+  const auto: Record<string, string> = {}
+  const set = (key: string, val: string | number | null | undefined) => {
+    if (val != null && val !== '' && val !== 0) auto[key] = String(val)
+  }
+
+  const si = contract.seller_info as Record<string, string> | null
+  const bi = contract.buyer_info as Record<string, string> | null
+  const pi = contract.price_info as Record<string, string | number> | null
+  const dd = contract.draft_data as Record<string, string> | null
+  const isSale = contract.transaction_type === 'sale'
+
+  // ── 매물 정보 → 대상물건의 표시(①) ──
+  if (property) {
+    set('s1_land_address', property.address)
+    if (formType !== 'land') {
+      set('s1_bldg_exclusive_area', property.exclusive_area_m2)
+      set('s1_bldg_direction', property.direction)
+      set('s1_bldg_built_year', property.built_year)
+    }
+    if (formType === 'land') {
+      set('s1_land_area', property.supply_area_m2 ?? property.exclusive_area_m2)
+    }
+  }
+
+  // ── 거래예정금액(⑥/⑧) ──
+  if (pi) {
+    const priceKey = formType === 'residential' ? 's8' : 's6'
+    if (isSale) {
+      set(`${priceKey}_transaction_amount`, pi.salePrice ? `${pi.salePrice}만원` : undefined)
+    } else {
+      const deposit = pi.deposit ? `보증금 ${pi.deposit}만원` : ''
+      const monthly = pi.monthlyRent ? ` / 월세 ${pi.monthlyRent}만원` : ''
+      if (deposit) set(`${priceKey}_transaction_amount`, deposit + monthly)
+    }
+  }
+
+  // ── 중개보수 산출내역 — 거래예정금액 자동 기재 ──
+  // (산출내역은 중개사가 직접 계산하므로 거래금액만 참고값으로)
+
+  return auto
+}
 
 export function ConfirmationDocPage() {
   const { id } = useParams()
@@ -28,29 +77,23 @@ export function ConfirmationDocPage() {
     fetchContractById(id).then(async (c) => {
       if (cancelled || !c) return
       setContract(c)
-      if (c.confirmation_doc && typeof c.confirmation_doc === 'object') {
-        setFormData(c.confirmation_doc as Record<string, string>)
-      }
+      const savedData = (c.confirmation_doc && typeof c.confirmation_doc === 'object')
+        ? c.confirmation_doc as Record<string, string>
+        : {}
+
+      let p: Property | null = null
       if (c.property_id) {
-        const p = await fetchPropertyById(c.property_id).catch(() => null)
-        if (!cancelled && p) {
-          setProperty(p)
-          // 매물 정보로 자동 채움 (기존 입력값이 없는 필드만)
-          setFormData((prev) => {
-            const auto: Record<string, string> = {}
-            const set = (key: string, val: string | number | null | undefined) => {
-              if (!prev[key] && val != null && val !== '') auto[key] = String(val)
-            }
-            // 토지 (공통)
-            set('s1_land_address', p.address)
-            // 건축물 (주거용/비주거용)
-            set('s1_bldg_exclusive_area', p.exclusive_area_m2)
-            set('s1_bldg_direction', p.direction)
-            set('s1_bldg_built_year', p.built_year)
-            return Object.keys(auto).length > 0 ? { ...prev, ...auto } : prev
-          })
-        }
+        p = await fetchPropertyById(c.property_id).catch(() => null)
+        if (!cancelled && p) setProperty(p)
       }
+      if (cancelled) return
+
+      // 계약서 + 매물 데이터에서 자동 채움 (계약서 수정 후 돌아올 때 항상 최신 반영)
+      const ft = getConfirmationFormType(c.template_type)
+      const autoFill = buildAutoFillFromContract(ft, c, p)
+      // 자동 채움 필드는 계약서 데이터가 항상 우선 (수정 시 반영)
+      // 그 외 필드는 사용자 저장 값 유지
+      setFormData({ ...savedData, ...autoFill })
     })
       .catch(() => {})
       .finally(() => { if (!cancelled) setIsLoading(false) })
