@@ -196,7 +196,6 @@ export function ConfirmationDocPage() {
           >
             {isPdfLoading ? 'PDF 생성 중...' : 'PDF 다운로드'}
           </Button>
-          <Button variant="outline" onClick={handleSave} isLoading={isSaving}>임시저장</Button>
           {contract.status === 'confirmation_writing' && (
             <Button onClick={handleFinalize} isLoading={isFinalizing}>확인설명서 완료</Button>
           )}
@@ -233,7 +232,12 @@ export function ConfirmationDocPage() {
         <Link to={`/admin/contracts/${contract.id}/tracker`}>
           <Button variant="outline">진행현황으로 돌아가기</Button>
         </Link>
-        <Button onClick={handleSave} isLoading={isSaving}>저장</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleSave} isLoading={isSaving}>임시저장</Button>
+          {contract.status === 'confirmation_writing' && (
+            <Button onClick={handleFinalize} isLoading={isFinalizing}>확인설명서 완료</Button>
+          )}
+        </div>
       </div>
     </div>
   )
