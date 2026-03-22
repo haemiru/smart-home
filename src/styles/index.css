@@ -85,13 +85,11 @@
     padding: 0 !important;
   }
 
-  /* 계약서 본문을 한 페이지에 맞춤 (scale로 축소) */
+  /* 계약서 본문을 한 페이지에 맞춤 (JS에서 동적 scale 적용) */
   .print-contract-main {
     page-break-inside: avoid;
     page-break-after: always;
-    transform: scale(0.70);
     transform-origin: top left;
-    width: 142.86% !important; /* 1/0.70 — 축소 후 A4 폭에 맞춤 */
     max-width: none !important;
     padding: 0 !important;
     margin: 0 !important;

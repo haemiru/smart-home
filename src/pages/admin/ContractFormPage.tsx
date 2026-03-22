@@ -450,7 +450,21 @@ export function ContractFormPage() {
         ) : (
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleSaveDraft} isLoading={isSavingDraft}>임시저장</Button>
-            <Button variant="outline" onClick={() => { window.print() }}>인쇄</Button>
+            <Button variant="outline" onClick={() => {
+              if (mainRef.current) {
+                const contentH = mainRef.current.scrollHeight
+                // A4 인쇄 영역 높이 (297mm - 여백) ≈ 1045px @96dpi
+                const pageH = 1045
+                const scale = contentH > pageH ? pageH / contentH : 1
+                mainRef.current.style.transform = `scale(${scale})`
+                mainRef.current.style.width = `${100 / scale}%`
+              }
+              window.print()
+              if (mainRef.current) {
+                mainRef.current.style.transform = ''
+                mainRef.current.style.width = ''
+              }
+            }}>인쇄</Button>
             <Button onClick={handleSubmit} isLoading={isSubmitting}>계약서 저장</Button>
             <Button onClick={handleGoToConfirmation} isLoading={isSubmitting}>확인설명서 작성</Button>
           </div>
