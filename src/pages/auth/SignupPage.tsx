@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Button, Input } from '@/components/common'
 import { signUpWithEmail, validateInviteCode } from '@/api/auth'
 import type { UserRole, StaffRole } from '@/types/database'
-import { formatPhone, parsePhone } from '@/utils/format'
+import { formatPhone, parsePhone, formatBusinessNumber, parseBusinessNumber } from '@/utils/format'
 import toast from 'react-hot-toast'
 
 type Step = 'role' | 'account' | 'agent-info' | 'invite-code'
@@ -271,9 +271,40 @@ export function SignupPage() {
       <form onSubmit={handleSignUp} className="space-y-4">
         <Input id="officeName" label="사무소명" value={officeName} onChange={(e) => setOfficeName(e.target.value)} required />
         <Input id="representative" label="대표자명" value={representative} onChange={(e) => setRepresentative(e.target.value)} required />
-        <Input id="businessNumber" label="사업자등록번호" placeholder="000-00-00000" value={businessNumber} onChange={(e) => setBusinessNumber(e.target.value)} required />
-        <Input id="licenseNumber" label="공인중개사 자격증 번호" value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} required />
-        <Input id="officeAddress" label="사무소 주소" value={officeAddress} onChange={(e) => setOfficeAddress(e.target.value)} required />
+        <Input id="businessNumber" label="사업자등록번호" placeholder="000-00-00000" value={formatBusinessNumber(businessNumber)} onChange={(e) => setBusinessNumber(parseBusinessNumber(e.target.value))} required />
+        <Input id="licenseNumber" label="공인중개사 자격증 번호" value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value.replace(/\D/g, ''))} required />
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">사무소 주소 <span className="text-red-500">*</span></label>
+          <div className="flex gap-2">
+            <input
+              id="officeAddress"
+              type="text"
+              value={officeAddress}
+              readOnly
+              placeholder="주소 검색을 눌러주세요"
+              required
+              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm read-only:bg-gray-50"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const script = document.createElement('script')
+                script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'
+                script.onload = () => {
+                  new (window as unknown as Record<string, { Postcode: new (opts: Record<string, unknown>) => { open: () => void } }>).daum.Postcode({
+                    oncomplete: (data: { roadAddress: string; jibunAddress: string }) => {
+                      setOfficeAddress(data.roadAddress || data.jibunAddress)
+                    },
+                  }).open()
+                }
+                document.head.appendChild(script)
+              }}
+              className="shrink-0 rounded-lg bg-gray-700 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+            >
+              주소 검색
+            </button>
+          </div>
+        </div>
         <Input id="officePhone" label="사무소 전화번호" type="tel" value={formatPhone(officePhone)} onChange={(e) => setOfficePhone(parsePhone(e.target.value))} required />
 
         <div className="flex gap-2">
