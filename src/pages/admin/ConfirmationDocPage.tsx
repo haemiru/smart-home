@@ -38,14 +38,15 @@ export function ConfirmationDocPage() {
           // 매물 정보로 자동 채움 (기존 입력값이 없는 필드만)
           setFormData((prev) => {
             const auto: Record<string, string> = {}
-            if (!prev.address && p.address) auto.address = p.address
-            if (!prev.exclusive_area && p.exclusive_area_m2) auto.exclusive_area = String(p.exclusive_area_m2)
-            if (!prev.building_area && p.supply_area_m2) auto.building_area = String(p.supply_area_m2)
-            if (!prev.direction && p.direction) auto.direction = p.direction
-            if (!prev.built_year && p.built_year) auto.built_year = String(p.built_year)
-            if (!prev.floor_info && p.floor) auto.floor_info = `${p.floor}층 / ${p.total_floors ?? '-'}층`
-            if (!prev.rooms && p.rooms) auto.rooms = String(p.rooms)
-            if (!prev.bathrooms && p.bathrooms) auto.bathrooms = String(p.bathrooms)
+            const set = (key: string, val: string | number | null | undefined) => {
+              if (!prev[key] && val != null && val !== '') auto[key] = String(val)
+            }
+            // 토지 (공통)
+            set('s1_land_address', p.address)
+            // 건축물 (주거용/비주거용)
+            set('s1_bldg_exclusive_area', p.exclusive_area_m2)
+            set('s1_bldg_direction', p.direction)
+            set('s1_bldg_built_year', p.built_year)
             return Object.keys(auto).length > 0 ? { ...prev, ...auto } : prev
           })
         }
@@ -180,6 +181,7 @@ export function ConfirmationDocPage() {
           sections={formDef.sections}
           formData={formData}
           onChange={handleChange}
+          transactionType={contract.transaction_type}
         />
       </div>
 

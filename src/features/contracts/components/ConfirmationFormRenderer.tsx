@@ -5,15 +5,23 @@ interface Props {
   formData: Record<string, string>
   onChange: (key: string, value: string) => void
   readOnly?: boolean
+  transactionType?: string
 }
 
-export function ConfirmationFormRenderer({ sections, formData, onChange, readOnly }: Props) {
+export function ConfirmationFormRenderer({ sections, formData, onChange, readOnly, transactionType }: Props) {
+  const visibleSections = transactionType
+    ? sections.filter(s => !s.condition || s.condition.transactionType.includes(transactionType))
+    : sections
+
   return (
     <div className="space-y-6">
-      {sections.map((section) => (
+      {visibleSections.map((section) => (
         <div key={section.key} className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
-          <h3 className="mb-4 border-b border-gray-100 pb-2 text-sm font-bold text-gray-800">{section.title}</h3>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <h3 className="mb-1 border-b border-gray-100 pb-2 text-sm font-bold text-gray-800">{section.title}</h3>
+          {section.description && (
+            <p className="mb-3 text-xs text-gray-400">{section.description}</p>
+          )}
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {section.fields.map((field) => {
               const value = formData[field.key] ?? ''
               const cls = field.fullWidth ? 'sm:col-span-2' : ''
@@ -48,7 +56,7 @@ export function ConfirmationFormRenderer({ sections, formData, onChange, readOnl
                     {readOnly ? (
                       <p className="text-sm">{value || '-'}</p>
                     ) : (
-                      <div className="flex gap-3">
+                      <div className="flex flex-wrap gap-3">
                         {field.options?.map((opt) => (
                           <label key={opt} className="flex items-center gap-1.5 text-sm">
                             <input
@@ -105,6 +113,39 @@ export function ConfirmationFormRenderer({ sections, formData, onChange, readOnl
                       />
                       {field.label}
                     </label>
+                  </div>
+                )
+              }
+
+              if (field.inputType === 'checkbox_group') {
+                const checked = new Set(value ? value.split(',') : [])
+                return (
+                  <div key={field.key} className={`sm:col-span-2 ${cls}`}>
+                    <label className="mb-1 block text-xs font-medium text-gray-500">
+                      {field.label}{field.required && <span className="text-red-500"> *</span>}
+                    </label>
+                    {readOnly ? (
+                      <p className="text-sm">{value || '-'}</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-3">
+                        {field.options?.map((opt) => (
+                          <label key={opt} className="flex items-center gap-1.5 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={checked.has(opt)}
+                              onChange={() => {
+                                const next = new Set(checked)
+                                if (next.has(opt)) next.delete(opt)
+                                else next.add(opt)
+                                onChange(field.key, Array.from(next).join(','))
+                              }}
+                              className="text-primary-600"
+                            />
+                            {opt}
+                          </label>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )
               }
