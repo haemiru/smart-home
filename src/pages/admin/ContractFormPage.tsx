@@ -322,6 +322,7 @@ export function ContractFormPage() {
         if (!monthlyPayDay || !deliveryDate) return false
         if (!leasePartDesc || !leasePartArea) return false
         if (!leasePeriodStart || !leasePeriodEnd) return false
+        if (leasePeriodStart < deliveryDate) return false
         if (leasePeriodEnd < leasePeriodStart) return false
       }
       return true
@@ -830,7 +831,12 @@ function Step3ContractInfo({ txType, templateType: _templateType, sellerInfo, on
           {!isSale && (
             <>
               <div />
-              <DateField label="임대차 기간 시작일" value={leasePeriodStart} onChange={onLeasePeriodStartChange} />
+              <div>
+                <DateField label="임대차 기간 시작일" value={leasePeriodStart} onChange={onLeasePeriodStartChange} />
+                {deliveryDate && leasePeriodStart && leasePeriodStart < deliveryDate && (
+                  <p className="mt-1 text-xs text-red-500">시작일은 인도 예정일 이후여야 합니다</p>
+                )}
+              </div>
               <div>
                 <DateField label="임대차 기간 종료일" value={leasePeriodEnd} onChange={onLeasePeriodEndChange} />
                 {leasePeriodStart && leasePeriodEnd && leasePeriodEnd < leasePeriodStart && (
